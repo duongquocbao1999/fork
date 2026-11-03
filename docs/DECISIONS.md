@@ -2,12 +2,12 @@
 
 Non-obvious choices, one line of why each.
 
-- **Any input gets a tree** — the archive answers what it has sourced; everything else goes to the model, which must draw it with `trace_lineage` (origin → forks → the asked-about thing). Traced trees are drawn like archive trees; the reply is tagged `traced`, the home fine print says what is hand-sourced, and the model is told never to invent links.
+- **Every point is a real GitHub repository** — the model proposes the line, `/api/repos` checks every repo in one GraphQL call and the page only draws what exists, with GitHub's stars, dates and links. A link means "came from": fork, port, rewrite, built on, inspired by, successor — GitHub's own fork records are marked as forks and extend the line upward.
+- **Memes are gone** — the 81-object meme archive and its scripts were removed in 3.0; history keeps them.
 - **The answer is a growing tree, not a chat bubble** — every lineage plays on a wide stage: probes while looking, then origin → each point → the asked thing, side forks sprouting as the line passes; the text is the caption under it. Phones get the same tree as rows (git-graph), never a squeezed horizontal one.
-- **Exact names only for the archive shortcut** — fuzzy archive hits ("brain" → Italian brainrot) were hijacking words people wanted traced; with a model on, only an exact name, alias, ticker, handle or link skips it.
-- **Every reply draws a tree** — a reply that came back as text alone is asked again with `trace_lineage` forced.
-- **Links from points are searches, not model URLs** — a model asked for URLs invents plausible dead ones; each traced point carries a search phrase (`q`) and the card builds X / Know Your Meme / Wikipedia (go) / Google links from it. Archive points link their real sources.
-- **The model never sees the archive** — it gets tools; archive facts reach the user only from `archive.js`.
+- **Every reply draws a tree** — a reply that came back as text alone is asked again with `trace_repos` forced.
+- **One GraphQL call per tree** — up to 12 repos per request instead of 12 REST calls; answers cached on Netlify's CDN for a day, so a popular line costs nothing the second time.
+- **Links come from GitHub, not the model** — a point's card links its `html_url`, `/forks`, `/network` and homepage as GitHub returns them.
 - **`/api/ask` owns the prompt and the tools** — built from `brain.js` into `netlify/lib/upstream.mjs`; callers can only send chat turns, so the key can't be used as a free model.
 - **Trials are checked by time, not by X** — `api_task_open` stamps the server clock, `api_task_claim` counts after `min_wait_sec` (5 s). Real checks need the paid X API; the UI calls the wait "verifying" and never claims more.
 - **The comment trial opens the post itself** — `intent/tweet?in_reply_to=` becomes a quote post in the X app (krill).

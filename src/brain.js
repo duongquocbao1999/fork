@@ -1,247 +1,117 @@
 /* forks — upstream's brain.
-   Two layers. The archive layer answers instantly from hand-sourced data and never
-   invents a parent or a date. The model layer (Claude in the viewer, or any
-   OpenAI-compatible endpoint behind /api/ask) takes everything else: it searches the
-   archive through tools first, and traces anything the archive doesn't hold as a
-   lineage card of its own (trace_lineage). */
+   Every point on a tree is a real public GitHub repository. You type anything — a word, an idea,
+   a product, a repo, a link — and upstream traces the line of repositories it came from: forks,
+   ports, rewrites, projects built on or inspired by the one before. The model proposes the line;
+   /api/repos checks every repo on GitHub, fills in the real stars, dates and links, drops the ones
+   that don't exist and marks the links GitHub itself knows as forks. */
 (function () {
   'use strict';
-  const A = window.FORKS_ARCHIVE;
-  const byId = new Map(A.nodes.map(n => [n.id, n]));
-  const famName = id => (A.families.find(f => f.id === id) || {}).name || id;
-  const MON = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const C = window.FORKS_CONFIG || { quest: { command: '/freeforks', total: 5000 }, token: { ticker: '$FORK' } };
+  const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+  const NAME = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
+  const RELS = ['fork', 'port', 'rewrite', 'built on', 'inspired by', 'successor'];
 
-  /* ---------- archive helpers ---------- */
-  const H = {};
-  H.node = id => byId.get(id);
-  H.famName = famName;
-  H.when = n => {
-    const d = new Date(n.date + 'T00:00:00Z'), y = d.getUTCFullYear(), m = MON[d.getUTCMonth()];
-    if (n.approx === 'year') return '~' + y;
-    if (n.approx === 'month') return '~' + m + ' ' + y;
-    return (n.reported ? 'reported ' : '') + d.getUTCDate() + ' ' + m + ' ' + y;
-  };
-  H.ancestors = id => { const out = []; let n = byId.get(id); while (n && n.parent) { n = byId.get(n.parent); out.unshift(n); } return out; };
-  H.subtree = id => { const out = []; const walk = i => byId.get(i).children.forEach(c => { out.push(byId.get(c)); walk(c); }); walk(id); return out; };
-  H.roots = () => A.nodes.filter(n => !n.parent).sort((a, b) => b.descendants - a.descendants);
-  H.hot = () => A.nodes.filter(n => n.forks30 > 0).sort((a, b) => b.forks30 - a.forks30 || b.descendants - a.descendants);
-  H.deepest = id => H.subtree(id).sort((a, b) => b.depth - a.depth || b.date.localeCompare(a.date))[0] || null;
-  H.traitsChanged = (a, b) => A.traits.filter(([k]) => a.traits[k] !== b.traits[k]);
-  H.count = { nodes: A.nodes.length, roots: A.nodes.filter(n => !n.parent).length, sources: new Set(A.nodes.flatMap(n => n.sources.map(s => s[1]))).size };
-
-  /* ---------- search ---------- */
-  const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[“”"'’‘`]/g, '').replace(/\s+/g, ' ').trim();
-  const bareUrl = s => norm(s).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[?#].*$/, '').replace(/\/$/, '');
-  function score(n, q) {
-    if (!q) return 0;
-    let s = 0; const name = norm(n.name), u = bareUrl(q);
-    if (/^(https?:\/\/|www\.)|\.[a-z]{2,}\//.test(q)) {
-      if (n.sources.some(([, url]) => bareUrl(url) === u)) s = Math.max(s, n.parent ? 70 : 92);
-      const parts = u.split('/'); const h = parts[1] ? parts[1].replace(/^@/, '') : '';
-      if (h && n.handle && norm(n.handle).replace(/^@|^u\//, '') === h) s = Math.max(s, 96);
-      return s;
-    }
-    if (q.startsWith('$') && n.ticker && norm(n.ticker) === q) return 100;
-    if (name === q) s = 98;
-    else if (name.startsWith(q) && q.length > 2) s = 82;
-    else if (q.length > 3 && name.includes(q)) s = 70;
-    else if (q.length > 3 && q.includes(name)) s = 74;
-    for (let a of n.aliases) { a = norm(a); if (a === q) s = Math.max(s, 94); else if (q.length > 2 && (a.includes(q) || (a.length > 3 && q.includes(a)))) s = Math.max(s, 66); }
-    if (n.ticker && norm(n.ticker).slice(1) === q) s = Math.max(s, 90);
-    if (n.handle && norm(n.handle).replace(/^@|^u\//, '') === q.replace(/^@|^u\//, '')) s = Math.max(s, 92);
-    if (!s) {
-      const words = q.split(' ').filter(w => w.length > 2);
-      const hits = words.filter(w => name.split(/[^a-z0-9$#]+/).some(x => x === w || (w.length > 3 && x.startsWith(w)))).length;
-      if (hits) s = 30 + hits * 18;
-      if (!s && q.length > 4 && norm(n.desc).includes(q)) s = 40;
-    }
-    if (s) s += (n.parent ? 0 : 4) + Math.min(6, n.descendants / 3);
-    return s;
-  }
-  const TR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya' };
-  const translit = q => q.replace(/[а-яё]/g, c => TR[c] ?? c);
-  function lev(a, b) {
-    if (Math.abs(a.length - b.length) > 3) return 99;
-    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) { const cur = [i]; for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
-    return prev[b.length];
-  }
-  function fuzzy(n, q) {
-    if (q.length < 4) return 0;
-    let best = 0;
-    for (const c of [n.name].concat(n.aliases)) { const t = norm(c); const d = lev(q, t); const sim = 1 - d / Math.max(q.length, t.length); if (sim >= .72) best = Math.max(best, 60 + sim * 20); }
-    return best;
-  }
-  // the query names this object exactly: its name, an alias, its ticker, its handle, a source URL or its id
-  H.exact = (n, q) => {
-    q = norm(q); if (!q) return false;
-    const u = bareUrl(q), h = q.replace(/^@|^u\//, '');
-    return norm(n.name) === q || n.id === q || n.aliases.some(a => norm(a) === q) ||
-      (!!n.ticker && (norm(n.ticker) === q || norm(n.ticker).slice(1) === q)) ||
-      (!!n.handle && norm(n.handle).replace(/^@|^u\//, '') === h) ||
-      (/^(https?:\/\/|www\.)|\.[a-z]{2,}\//.test(q) && n.sources.some(([, url]) => bareUrl(url) === u));
-  };
-  H.search = (q, limit = 6) => {
-    q = norm(q); if (!q) return [];
-    const qs = /[а-яё]/.test(q) ? [q, translit(q)] : [q];
-    return A.nodes.map(n => [n, Math.max(...qs.map(x => Math.max(score(n, x), fuzzy(n, x))))]).filter(r => r[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, limit);
-  };
-
-  /* ---------- intent ---------- */
-  const RX = {
-    quest: /^\/?free ?forks\b|^get \+?5[ ,.]?000 \$?forks?\b/,
-    persona: /\b(who are you|what are you|what is (this|forks)|how does this work)\b|ты кто|кто ты|что это|что ты/,
-    help: /^(help|commands|\?)$|\bhelp\b|помощ|команд/,
-    hot: /\b(hot|trending|forking now|right now|lately|this week|latest)\b|сейчас|тренд|горяч|новое/,
-    archive: /\b(archive|everything|all (lineages|of them)|what do you (have|know)|list)\b|архив|всё|все линии/,
-    random: /\b(surprise|random|anything|pick one)\b|удиви|случайн/,
-    sources: /\b(sources?|proof|evidence|cite|links?)\b|источник|пруф|доказ/,
-    changed: /\b(chang|mutat|differ|vs\.?|versus|compare)|изменил|разниц|мутац|сравн/,
-    became: /\b(become|became|turn(ed)? into|spawn|descend|children|what came after|what did .* (do|make)|forks? of|forked into)\b|во что|потомк|породил|стал[аио]?\b|превратил/,
-    origin: /\b(where|come from|came from|origin|started|start|parent|upstream|trace|who made|first)\b|откуда|начал|происхожд|родител|появил/,
-    describe: /^(who|what) (is|are|was|were)\b|tell me about|explain|кто так|что так|расскажи/
-  };
-  const STOP = new Set('where did does do come came from what who is are was were the a an of to into become became turn turned tell me about trace show sources source for changed change mutate mutated between and how it this that with origin lineage forks fork meme memes thing story parent upstream first start started make made explain please pls pick on in its it\'s vs versus compare differ different did cite proof evidence links link what\'s whats forking forked right now lately trending hot latest week surprise me random anything one everything all list have know you your откуда взялся взялась взялось кто что такое это расскажи про о об во стал стала стало произошел появился мем сейчас удиви меня форкается'.split(' '));
-  function entityText(raw) {
-    return norm(raw).replace(/[?!.,;:]+/g, ' ').split(' ').filter(w => w && !STOP.has(w)).join(' ').trim();
-  }
-  function detect(raw) {
+  /* ---------- commands: everything else is something to trace ---------- */
+  function route(raw) {
     const t = norm(raw);
     const cmd = t.match(/^\/(\w+)\s*(.*)$/);
-    if (cmd) return { intent: { trace: 'origin', origin: 'origin', became: 'became', forks: 'became', changed: 'changed', mutation: 'changed', sources: 'sources', hot: 'hot', random: 'random', archive: 'archive', help: 'help', clear: 'clear', about: 'persona', freeforks: 'quest', logout: 'logout', signout: 'logout' }[cmd[1]] || 'unknown', q: cmd[2], cmd: true };
-    if (RX.quest.test(t)) return { intent: 'quest', q: '' };
-    if (/^(who are you|what are you|what is (this|forks|forks\.wiki)|how does (this|it) work|кто ты|ты кто|что это)\??$/.test(t)) return { intent: 'persona', q: '' };
-    for (const k of ['sources', 'changed', 'became', 'origin', 'describe']) if (RX[k].test(t)) return { intent: k, q: entityText(raw) };
-    return { intent: 'auto', q: /^(https?:\/\/|www\.)|^[\w-]+(\.[\w-]+)*\.[a-z]{2,}\//.test(t) ? t : (t.startsWith('$') ? t.split(' ')[0] : entityText(raw) || t) };
-  }
-
-  /* ---------- the archive layer ---------- */
-  const pct = v => Math.round(v * 100) + '%';
-  function pathLine(n) { const anc = H.ancestors(n.id); return anc.concat(n).map(x => x.name).join(' → '); }
-  function linkStats(n) {
-    const path = H.ancestors(n.id).slice(1).concat(n.parent ? [n] : []);
-    const v = path.filter(x => x.relation === 'VERIFIED').length;
-    return { links: path.length, verified: v };
-  }
-  const R = {};
-  R.origin = n => {
-    if (!n.parent) return R.became(n, true);
-    const anc = H.ancestors(n.id), root = anc[0], p = byId.get(n.parent), st = linkStats(n);
-    const gens = anc.length;
-    const text = `${n.name} came from ${p.name}` +
-      (p.id === root.id ? ` — the origin itself, ${H.when(root)} on ${root.plat.toLowerCase()}.\n` : `.\nthe line runs ${gens} generations back to ${root.name}, ${H.when(root)} on ${root.plat.toLowerCase()}.\n`) +
-      (n.desc ? n.desc + '\n' : '') +
-      `${st.verified} of ${st.links} link${st.links > 1 ? 's' : ''} verified · path confidence ${pct(n.pathConf)}.`;
-    return { text, cards: [{ type: 'lineage', root: root.id, focus: n.id }], follow: [`what did ${root.name} become?`, `what changed from ${root.name} to ${n.name}?`, `/sources ${n.id}`], light: true };
-  };
-  R.became = (n, asOrigin) => {
-    const sub = H.subtree(n.id), far = H.deepest(n.id);
-    let text;
-    if (!sub.length) text = `${n.name} hasn't forked yet. it's a leaf — for now.\nit came from ${byId.get(n.parent).name}.`;
-    else text = (asOrigin ? `${n.name} is an origin. nothing older in the archive — ${H.when(n)}, ${n.plat.toLowerCase()}.\n` : '') +
-      `${n.name} forked ${n.forks} time${n.forks > 1 ? 's' : ''} directly, ${sub.length} descendant${sub.length > 1 ? 's' : ''} in total, ${n.depthBelow} generation${n.depthBelow > 1 ? 's' : ''} deep.\n` +
-      `furthest from home: ${far.name}, ${H.when(far)}.`;
-    const root = n.parent ? H.ancestors(n.id)[0] : n;
-    return { text, cards: [{ type: 'lineage', root: root.id, focus: n.id }], follow: far ? [`what changed from ${n.name} to ${far.name}?`, `/sources ${n.id}`, 'what is forking right now?'] : ['what is forking right now?'], light: true };
-  };
-  R.changed = (a, b) => {
-    if (!b) { if (a.parent) { b = a; a = H.ancestors(a.id)[0]; } else { b = H.deepest(a.id); } }
-    if (!a || !b || a.id === b.id) return { text: `${a ? a.name : 'that'} has nothing to compare against yet.`, cards: [] };
-    const okLine = H.ancestors(b.id).some(x => x.id === a.id);
-    if (!okLine) return { text: `${b.name} doesn't descend from ${a.name}. different trees. i only compare a thing with its own ancestors.`, cards: [] };
-    const ch = H.traitsChanged(a, b);
-    const text = `from ${a.name} to ${b.name}: ${ch.length} of ${A.traits.length} traits mutated.\n${ch.length ? 'what broke off: ' + ch.map(c => c[1].toLowerCase()).join(', ') + '.' : 'a straight copy.'}`;
-    return { text, cards: [{ type: 'mutation', a: a.id, b: b.id }], follow: [`where did ${b.name} come from?`, `/sources ${b.id}`] };
-  };
-  R.sources = n => {
-    const srcs = [...new Map(H.ancestors(n.id).concat(n).flatMap(x => x.sources).map(s => [s[1], s])).values()];
-    return { text: `${srcs.length} source${srcs.length > 1 ? 's' : ''} behind ${n.name} and its line. don't take my word for it.`, cards: [{ type: 'sources', id: n.id }], follow: [`where did ${n.name} come from?`] };
-  };
-  R.describe = n => {
-    const base = n.parent ? R.origin(n) : R.became(n, true);
-    return { text: `${n.desc.toLowerCase().replace(/\.$/, '')}.\n\n` + base.text, cards: base.cards, follow: base.follow, light: true };
-  };
-  R.hot = () => ({ text: 'forking right now. the last thirty days of the archive:', cards: [{ type: 'hot' }], follow: ['where did jean philanthrope come from?', 'surprise me'] });
-  R.archive = () => ({ text: `everything i can vouch for: ${H.count.roots} origins, ${H.count.nodes} objects, ${H.count.sources} sources. pick a line.`, cards: [{ type: 'archive' }] });
-  R.persona = () => ({ text: `i'm upstream. i keep the family tree of internet culture.\nevery meme, phrase, character and token forked from something older.\ntype anything — a word, a ticker, a link, a whole sentence — and i'll trace where it came from.`, follow: ['where did doge come from?', 'what did chill guy become?', 'trace "touch grass"', '/freeforks'] });
-  R.help = () => ({ text: 'ask in plain words, or use a command:\n/trace <thing>    where it came from\n/became <thing>   what it turned into\n/changed <thing>  what mutated on the way\n/sources <thing>  the receipts\n/hot              forking right now\n/archive          every origin i keep\n/random           surprise me\n/freeforks        four trials on x · +5,000 $FORK, pending\n/clear            start over', follow: ['/hot', '/archive', '/freeforks'] });
-  R.random = () => { const pool = A.nodes.filter(n => n.parent && n.depth >= 2); const n = pool[Math.floor(Math.random() * pool.length)]; const r = R.origin(n); r.text = `here's one — ${n.name}.\n` + r.text; return r; };
-  R.notFound = (q, near) => ({
-    text: q ? `“${q}” isn't in the archive yet.` + (near.length ? `\nclosest i have:` : '') : `give me something to trace — a word, a ticker, a link.`,
-    follow: near.length ? near.slice(0, 3).map(([n]) => `where did ${n.name} come from?`) : ['/archive', 'surprise me']
-  });
-
-  function archiveAnswer(raw, opts) {
-    const strict = !!(opts && opts.strict);
-    const d = detect(raw);
-    if (d.intent === 'clear') return { clear: true };
-    if (d.intent === 'quest' || d.intent === 'logout') return { quest: d.intent };
-    if (R[d.intent] && ['persona', 'help', 'hot', 'archive', 'random'].includes(d.intent)) return { confident: true, ...R[d.intent]() };
-    let q = d.q;
-    if (d.intent === 'changed') {
-      const parts = norm(raw).replace(/^\/\w+\s*/, '').split(/\s+(?:to|vs\.?|versus|and|->|→|и|до)\s+/);
-      if (parts.length === 2) {
-        const a = H.search(entityText(parts[0]) || parts[0])[0], b = H.search(entityText(parts[1]) || parts[1])[0];
-        if (a && b && a[1] >= 60 && b[1] >= 60) return { confident: true, ...R.changed(a[0], b[0]) };
-      }
+    if (cmd) {
+      const k = { clear: 'clear', help: 'help', about: 'persona', freeforks: 'quest', logout: 'logout', signout: 'logout' }[cmd[1]];
+      if (k === 'clear') return { clear: true };
+      if (k === 'quest' || k === 'logout') return { quest: k };
+      if (k) return { text: R[k]() };
+      if (cmd[1] === 'trace' && cmd[2]) return { trace: cmd[2] };
     }
-    const hits = byId.has(q) ? [[byId.get(q), 100]] : H.search(q);
-    const best = hits[0];
-    if (!best || best[1] < 58 || (strict && !H.exact(best[0], q))) return { confident: false, q, near: hits.filter(h => h[1] >= 30), intent: d.intent, cmd: d.cmd };
-    const n = best[0];
-    const intent = d.intent === 'auto' ? (n.parent ? 'origin' : 'became') : d.intent;
-    const out = intent === 'became' ? R.became(n, !n.parent) : intent === 'changed' ? R.changed(n) : intent === 'sources' ? R.sources(n) : intent === 'describe' ? R.describe(n) : R.origin(n);
-    return { confident: true, ...out };
+    if (/^\/?free ?forks\b|^get \+?5[ ,.]?000 \$?forks?\b/.test(t)) return { quest: 'quest' };
+    if (/^(who are you|what are you|what is (this|forks|forks\.wiki)|how does (this|it) work|кто ты|ты кто|что это)\??$/.test(t)) return { text: R.persona() };
+    return { trace: raw };
   }
+  const R = {
+    persona: () => ({ text: `i'm upstream. i keep the family tree of open-source code.\nevery repo on github came from something older — a fork, a port, a rewrite, a project it was built on.\ntype anything — a word, a project, a link — and i'll grow the line of repos it came from.`, follow: ['where did llama.cpp come from?', 'what did bitcoin become?', C.quest.command] }),
+    help: () => ({ text: `type anything: a word, an idea, a project, owner/name or a github link.\nevery point on the tree is a real repo — tap it for github, its forks and the network graph.\n\n/trace <thing>    same as typing it\n${C.quest.command}        four trials on x · +${C.quest.total.toLocaleString('en-US')} ${C.token.ticker}, pending\n/clear            start over`, follow: ['where did neovim come from?', C.quest.command] })
+  };
+
+  /* ---------- github data, through our own function ---------- */
+  async function api(path) {
+    const r = await fetch(path, { cache: 'no-store' });
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) throw new Error('github unavailable');
+    return r.json();
+  }
+  const year = d => (d ? String(d).slice(0, 4) : '');
 
   /* ---------- the model layer ---------- */
-  const RULES = `You are "upstream", the voice of forks.wiki: the family tree of internet culture. Every meme, phrase, character, token, format and idea forked from something older. Whatever the user types — a word, a phrase, a name, a ticker, a link, a whole sentence — you show where it came from and how it forked into what they asked about.
+  const RULES = `You are "upstream", the voice of forks.wiki: the family tree of open-source code. Every repository on GitHub came from something earlier — a fork, a port, a rewrite, a project it was built on, or one that inspired it. Whatever the user types — a word, an idea, a product, a repo name, a github link, a whole sentence — you show the line of real public GitHub repositories it came from and how it got to what they asked about.
 
-Voice: lowercase, short, dry, a little aloof, sure of yourself. No emoji. No hype. Two to four short lines. Reply in the language the user writes in.
+Voice: lowercase, short, dry, a little aloof, sure of yourself. No emoji. No hype. Reply in the language the user writes in.
 
-How to answer — every message gets exactly one tree, no exceptions:
-1. Call search_archive once. The archive has ${H.count.nodes} hand-sourced objects in ${H.count.roots} lineages (origins: ${H.roots().map(r => r.name).join(', ')}). If one of the results is the thing asked about, show it with show_lineage (or show_mutation / show_sources when asked) and never change its facts.
-2. Otherwise call trace_lineage: the line from the earliest origin to the thing the user asked about. 4 to 9 nodes. nodes[0] is the origin; mark the node that is what the user asked about with "query": true. Add one to three side forks that branched off the line. Each node gets a short name, when (a year, or month and year), a note of what changed at that fork, a few words ("+ ticker", "moved to tiktok", "lost the image"), and q: the search phrase that finds that point on the web ("touch grass meme 4chan", "dogecoin 2013 launch").
-3. Anything counts: a single word, slang, a name, a brand, a greeting, a typo, a whole sentence, a question about you. Trace the word, phrase, format or idea itself and how it travelled — into internet culture when it got there. Never answer with text alone.
-4. Keep to the account most people who know the subject would agree with. When an exact date isn't well known, give the year.
-5. After the tree, write one to three short lines: the one thing worth knowing about the line. State it plainly; don't hedge and don't talk about memory, guesses or verification.
-6. Never invent links or sources. Never give financial advice about tokens. Never ask for wallets, keys or personal data. $FORK rewards: tell the user to type /freeforks.`;
+How to answer — every message gets exactly one tree of repositories, no exceptions:
+1. Call search_repos once or twice with the best search for what the user means, to find the real repositories and their exact owner/name.
+2. Call trace_repos: the line from the earliest repository to the one that answers the question. 3 to 9 repositories, each written as "owner/name" exactly as on GitHub. nodes[0] is the origin; mark the one the user asked about with "query": true. rel says how each came from its parent: ${RELS.join(', ')}. note says what changed, a few words ("rewritten in rust", "+ gpu offload", "renamed"). Add one to three side branches that grew from the same line when they exist.
+3. Only real public repositories. If a project's code isn't on GitHub, use its official mirror or its best-known reimplementation, or leave it out. If trace_repos fails because too few of the repositories exist, fix the names and call it again; if it draws the tree and lists a few as not on GitHub, don't draw it again.
+4. Anything counts. A word that isn't software (a meme, an animal, a feeling): trace the repositories people built around it — "doge" → bitcoin/bitcoin → litecoin-project/litecoin → dogecoin/dogecoin. A whole sentence: trace the project it is about.
+5. "what did X become" / "forks of X": X is nodes[0] and the query; its forks and successors are the branches.
+6. After the tree, write one to three short lines: the one thing worth knowing about the line. State it plainly; don't hedge.
+7. Never invent links. Never give financial advice. Never ask for keys or personal data. ${C.token.ticker} rewards: tell the user to type ${C.quest.command}.`;
 
   function toolsFor(ui) {
-    const lean = n => ({ id: n.id, name: n.name, type: n.type, when: H.when(n), platform: n.plat, family: famName(n.family), parent: n.parent ? byId.get(n.parent).name : null, descendants: n.descendants });
     return [
-      { name: 'search_archive', description: 'Search the sourced archive by name, alias, ticker, handle or URL. Returns up to 6 matches with ids. Call before showing anything.',
-        inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
-        execute: ({ query }) => { const r = H.search(String(query || '')); return r.length ? r.map(([n, s]) => ({ ...lean(n), match: Math.round(s) })) : 'no matches in the archive'; } },
-      { name: 'show_lineage', description: 'Draw an object\'s lineage card for the user (its whole family tree, with the object highlighted). Returns its ancestors and children so you can comment.',
-        inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
-        execute: ({ id }) => { const n = byId.get(String(id)); if (!n) throw new Error('unknown id; call search_archive'); const root = n.parent ? H.ancestors(n.id)[0] : n; ui.card({ type: 'lineage', root: root.id, focus: n.id }); ui.light(); return { object: lean(n), description: n.desc, ancestors: H.ancestors(n.id).map(lean), children: n.children.map(c => lean(byId.get(c))), path_confidence: pct(n.pathConf) }; } },
-      { name: 'show_mutation', description: 'Draw a then→now comparison of eight traits between an ancestor and one of its descendants. Returns the changed traits.',
-        inputSchema: { type: 'object', properties: { ancestor_id: { type: 'string' }, descendant_id: { type: 'string' } }, required: ['ancestor_id', 'descendant_id'] },
-        execute: ({ ancestor_id, descendant_id }) => { const a = byId.get(String(ancestor_id)), b = byId.get(String(descendant_id)); if (!a || !b) throw new Error('unknown id'); if (!H.ancestors(b.id).some(x => x.id === a.id)) throw new Error('not an ancestor of that object'); ui.card({ type: 'mutation', a: a.id, b: b.id }); return H.traitsChanged(a, b).map(([k, l]) => ({ trait: l, then: a.traits[k], now: b.traits[k] })); } },
-      { name: 'show_sources', description: 'Show the public sources behind an object and its line. Returns their titles.',
-        inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
-        execute: ({ id }) => { const n = byId.get(String(id)); if (!n) throw new Error('unknown id'); ui.card({ type: 'sources', id: n.id }); return n.sources.map(s => s[0]); } },
-      { name: 'show_hot', description: 'Show objects in the archive with the most forks in the last 30 days.', execute: () => { ui.card({ type: 'hot' }); return H.hot().slice(0, 6).map(n => ({ name: n.name, forks_30d: n.forks30 })); } },
-      { name: 'trace_lineage', description: 'For anything NOT in the archive: draw its family tree for the user. nodes[0] is the earliest origin; every later node names its parent by index (an earlier node). Mark the node that is what the user asked about with query: true.',
-        inputSchema: { type: 'object', properties: { title: { type: 'string', description: 'what the user asked about, a few words' }, nodes: { type: 'array', minItems: 2, maxItems: 9, items: { type: 'object', properties: { name: { type: 'string' }, parent: { type: 'integer', description: 'index of the parent node; omit for nodes[0]' }, when: { type: 'string', description: 'year, or month and year' }, note: { type: 'string', description: 'what changed at this fork, a few words' }, q: { type: 'string', description: 'search phrase that finds this point on the web' }, query: { type: 'boolean' } }, required: ['name'] } } }, required: ['title', 'nodes'] },
-        execute: ({ title, nodes }) => {
-          const list = (Array.isArray(nodes) ? nodes : []).slice(0, 9).map((x, i) => ({
-            name: String((x && x.name) || '?').slice(0, 48),
+      { name: 'search_repos', description: 'Search public GitHub repositories, most-starred first. Returns up to 8 with exact owner/name, stars, year, language and description. Use it to find the real names before trace_repos.',
+        inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'a GitHub search query, e.g. "llama inference c++" or "neovim"' } }, required: ['query'] },
+        execute: async ({ query }) => {
+          try {
+            const { items } = await api(`/api/repos/search?q=${encodeURIComponent(String(query || '').slice(0, 100))}`);
+            return items.length ? items.map(x => ({ repo: x.name, stars: x.stars, year: year(x.created), lang: x.lang, fork: !!x.fork, about: x.desc.slice(0, 110) })) : 'no repositories found; try other words';
+          } catch (_) { return 'search is unavailable here; use the exact owner/name you know'; }
+        } },
+      { name: 'trace_repos', description: 'Draw the tree of repositories for the user. nodes[0] is the origin; every later node names its parent by index (an earlier node). Mark the repository the user asked about with query: true. The page checks every repository on GitHub and drops the ones that do not exist.',
+        inputSchema: { type: 'object', properties: {
+          title: { type: 'string', description: 'what the user asked about, a few words' },
+          nodes: { type: 'array', minItems: 2, maxItems: 9, items: { type: 'object', properties: {
+            repo: { type: 'string', description: 'owner/name exactly as on GitHub' },
+            parent: { type: 'integer', description: 'index of the parent node; omit for nodes[0]' },
+            rel: { type: 'string', enum: RELS, description: 'how it came from its parent' },
+            note: { type: 'string', description: 'what changed, a few words' },
+            query: { type: 'boolean' } }, required: ['repo'] } } }, required: ['title', 'nodes'] },
+        execute: async ({ title, nodes }) => {
+          let list = (Array.isArray(nodes) ? nodes : []).slice(0, 9).map((x, i) => ({
+            repo: String((x && x.repo) || '').trim().replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$|\/$/g, ''),
             parent: i === 0 ? null : (Number.isInteger(x && x.parent) && x.parent >= 0 && x.parent < i ? x.parent : i - 1),
-            when: x && x.when ? String(x.when).slice(0, 16) : '', note: x && x.note ? String(x.note).slice(0, 80) : '', q: x && x.q ? String(x.q).slice(0, 80) : '', query: !!(x && x.query)
+            rel: RELS.includes(x && x.rel) ? x.rel : (i ? 'inspired by' : ''), note: x && x.note ? String(x.note).slice(0, 60) : '', query: !!(x && x.query), data: null
           }));
-          if (list.length < 2) throw new Error('need at least the origin and the thing itself');
-          let focus = list.findIndex(x => x.query); if (focus < 1) focus = list.length - 1;
-          ui.card({ type: 'traced', title: String(title || list[focus].name).slice(0, 60), nodes: list, focus }); if (ui.light) ui.light();
-          return 'drawn for the user';
+          const bad = list.filter(x => !NAME.test(x.repo)).map(x => x.repo || '(empty)');
+          let verified = false, missing = [];
+          try {
+            const { repos } = await api(`/api/repos?r=${encodeURIComponent(list.filter(x => NAME.test(x.repo)).map(x => x.repo).join(','))}`);
+            verified = true;
+            list.forEach(x => { x.data = repos[x.repo] || null; if (!x.data) missing.push(x.repo); else x.repo = x.data.name; });
+          } catch (_) { /* no github here (preview): keep the names as given */ }
+          // drop what isn't on github, hand its children to its parent
+          const keep = list.map(x => NAME.test(x.repo) && (!verified || !!x.data));
+          const at = []; let k = 0; list.forEach((x, i) => { at[i] = keep[i] ? k++ : -1; });
+          const up = i => { let p = list[i].parent; while (p != null && !keep[p]) p = list[p].parent; return p; };
+          // (if the origin itself was dropped, the first surviving repo becomes the origin and orphans hang from it)
+          let out = list.map((x, i) => (keep[i] ? { ...x, parent: at[i] === 0 ? null : (up(i) == null ? 0 : at[up(i)]) } : null)).filter(Boolean);
+          if (out.length < 2) throw new Error(`not on github: ${missing.concat(bad).join(', ') || 'nothing left'}. search_repos for the real names and call trace_repos again.`);
+          // what github itself knows: a real fork of its parent, or a fork of something above the origin
+          out.forEach(x => { if (x.data && x.data.fork && x.parent != null && out[x.parent].repo.toLowerCase() === x.data.fork.toLowerCase()) x.rel = 'fork'; });
+          if (verified && out[0].data && out[0].data.fork && out[0].data.fork !== '?') {
+            try {
+              const { repos } = await api(`/api/repos?r=${encodeURIComponent(out[0].data.fork)}`);
+              const p = repos[out[0].data.fork];
+              if (p) { out = [{ repo: p.name, parent: null, rel: '', note: '', query: false, data: p }].concat(out.map(x => ({ ...x, parent: x.parent == null ? 0 : x.parent + 1 }))); out[1].rel = 'fork'; }
+            } catch (_) { }
+          }
+          let focus = out.findIndex(x => x.query); if (focus < 0) focus = out.length - 1;
+          ui.card({ type: 'repos', title: String(title || out[focus].repo).slice(0, 60), nodes: out, focus, verified });
+          if (ui.light) ui.light();
+          return { drawn: out.map(x => ({ repo: x.repo, stars: x.data ? x.data.stars : undefined, year: x.data ? year(x.data.created) : undefined, rel: x.rel })), not_on_github: missing.concat(bad) };
         } }
     ];
   }
 
-  const AI = { kind: null, sample: null, ready: null };
   // claude.use() answers a moment after the page's first script run (null after ~10 s with no viewer),
   // so wait for it whatever the host is; on our own site /api/ask answers first.
+  const AI = { kind: null, sample: null, ready: null };
   AI.ready = (async () => {
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const endpoint = (typeof fetch === 'function' ? fetch('/api/ask', { method: 'GET', cache: 'no-store' }) : Promise.reject(new Error('no fetch')))
@@ -257,15 +127,13 @@ How to answer — every message gets exactly one tree, no exceptions:
     return AI.kind;
   })();
 
-  const TREES = new Set(['show_lineage', 'trace_lineage']);
-  const INSIST = 'draw the tree now: show_lineage if the archive has it, otherwise trace_lineage.';
-
+  const INSIST = 'draw the tree now with trace_repos: real owner/name repositories only.';
   async function claudeRound(turns, tools, ui, signal) {
     const { text } = await AI.sample(turns, { tools, modelTier: 'quick', cache: false, signal, onText: ({ text }) => ui.stream(text) });
     return text || '';
   }
   async function endpointRound(msgs, tools, ui, signal, force) {
-    for (let round = 0; round < 5; round++) {
+    for (let round = 0; round < 6; round++) {
       const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(force && round === 0 ? { messages: msgs, force } : { messages: msgs }), signal });
       if (!r.ok) throw { code: r.status === 429 ? 'rate_limited' : 'upstream_error' };
       const m = (await r.json()).message;
@@ -284,7 +152,7 @@ How to answer — every message gets exactly one tree, no exceptions:
     if (AI.ready) await AI.ready;
     let drew = false;
     const card = ui.card;
-    const tools = toolsFor({ ...ui, card: c => { if (c.type === 'lineage' || c.type === 'traced') drew = true; card(c); } });
+    const tools = toolsFor({ ...ui, card: c => { if (c.type === 'repos') drew = true; card(c); } });
     if (AI.kind === 'claude') {
       const turns = history.map(h => ({ role: h.role, content: String(h.content || '') })).filter(h => h.content);
       while (turns.length && turns[0].role !== 'user') turns.shift();
@@ -301,13 +169,31 @@ How to answer — every message gets exactly one tree, no exceptions:
       // The server adds RULES and the tool list itself (netlify/lib/upstream.mjs, generated from this file).
       const base = history.map(h => ({ role: h.role, content: String(h.content || '') })).filter(h => h.content);
       let text = await endpointRound(base.slice(), tools, ui, signal);
-      if (!drew && !signal.aborted) text = (await endpointRound(base.slice(), tools, ui, signal, 'trace_lineage')) || text;
+      if (!drew && !signal.aborted) text = (await endpointRound(base.slice(), tools, ui, signal, 'trace_repos')) || text;
       return text;
     }
     throw { code: 'no_model' };
   }
 
+  // Without a model: the most-starred match and the forks GitHub itself records above it.
+  async function githubOnly(raw, ui) {
+    const q = norm(raw).replace(/^\/trace\s+/, '').replace(/^(where did|what did|who forked|the family tree of|trace)\s+/, '').replace(/\s+(come from|become)\??$/, '').replace(/[?"“”]/g, '').trim();
+    const direct = NAME.test(q.replace(/^https?:\/\/github\.com\//, '')) ? q.replace(/^https?:\/\/github\.com\//, '') : null;
+    let top;
+    if (direct) top = (await api(`/api/repos?r=${encodeURIComponent(direct)}`)).repos[direct];
+    else { const { items } = await api(`/api/repos/search?q=${encodeURIComponent(q.slice(0, 100))}`); top = items[0] && (await api(`/api/repos?r=${encodeURIComponent(items[0].name)}`)).repos[items[0].name]; }
+    if (!top) return false;
+    const line = [top];
+    for (let i = 0; i < 4 && line[0].fork && line[0].fork !== '?'; i++) {
+      const p = (await api(`/api/repos?r=${encodeURIComponent(line[0].fork)}`)).repos[line[0].fork];
+      if (!p) break; line.unshift(p);
+    }
+    const nodes = line.map((d, i) => ({ repo: d.name, parent: i ? i - 1 : null, rel: i ? 'fork' : '', note: '', query: i === line.length - 1, data: d }));
+    ui.card({ type: 'repos', title: top.name, nodes, focus: nodes.length - 1, verified: true });
+    return true;
+  }
+
   // RULES and toolSpecs are read by scripts/build-upstream.cjs, so the hosted endpoint sends the model exactly this.
   const toolSpecs = () => toolsFor(null).map(({ name, description, inputSchema }) => ({ name, description, inputSchema }));
-  window.ForksBrain = { H, detect, archiveAnswer, modelAnswer, AI, R, RULES, toolSpecs };
+  window.ForksBrain = { route, modelAnswer, githubOnly, AI, R, RULES, toolSpecs, year };
 })();

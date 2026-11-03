@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.0 — 2026-11-04
+
+- **Every point is a GitHub repository.** You type anything; upstream finds the real repositories with `search_repos` and proposes the line with `trace_repos` (fork, port, rewrite, built on, inspired by, successor); `/api/repos` checks every one in a single GraphQL call, drops what doesn't exist, takes the canonical name, marks GitHub's own forks and adds the origin's real parent above it. Stars, years and links on the stage are GitHub's.
+- A repository's card: description, `★ stars · language · since`, how it came from its parent, links to GitHub, its forks, the network graph and the homepage; *trace from here*, *what did it become?*.
+- Without a model, GitHub alone: the most-starred match and the forks recorded above it.
+- `netlify/functions/repos.mjs` (`GITHUB_TOKEN`): GraphQL lookup of up to 12 repos, search, CDN cache for a day, memory cache, per-IP limit. `/api/health` reports `github`.
+- Removed the meme archive (`src/data.js`, `src/archive.js`), its scripts, charts, docs and the GitHub Pages workflow; the archive button and the meme starters. New starters about code.
+
 ## 2.3.0 — 2026-11-04
 
 - **Every point on a tree is a way out.** Tap a point (on the stage, in a card or in the full view) and its card opens: name, year, what changed, then links — the real sources for archive points, and for traced points searches built from the model's phrase for that point (X, Know Your Meme, Wikipedia, Google; DexScreener for a `$TICKER`). Then *trace from here* and *what did it become?*. A floating card on wide screens, a bottom sheet on phones.

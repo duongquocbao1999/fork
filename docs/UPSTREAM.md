@@ -1,43 +1,35 @@
 # upstream — the guide
 
-upstream is the voice of forks: lowercase, short, dry, honest. It has two layers, and the page always says which one answered.
+upstream is the voice of forks: lowercase, short, dry, sure of itself. Every answer is a tree of **real public GitHub repositories**: the line from the earliest one to the one that answers what you typed.
 
-## Archive layer (`src/brain.js`)
-Runs first, in the browser, on every message.
+## Routing (`route()` in `src/brain.js`)
+- `/clear`, `/help`, `/about`, `/freeforks`, `/logout` — handled by the page, never by the model.
+- "who are you" and the like — a fixed answer.
+- Everything else — a word, an idea, a product, `owner/name`, a GitHub link, a whole sentence — is traced.
 
-1. **detect()** — slash commands, then intent by pattern (English + Russian): persona, help, hot, archive, random, sources, changed, became, origin, describe. Stop-words are removed to leave the entity.
-2. **H.search()** — exact name (98) → ticker (100) → handle / URL from sources (92–96) → aliases (94) → prefix / contains → word hits; then Levenshtein similarity ≥ 0.72 on names and aliases; Cyrillic is also tried transliterated (`чилл гай` → `chill gay` → Chill Guy).
-3. **archiveAnswer(raw, { strict })** — with a model available the page calls it strict: the archive answers by itself only when the query names one of its objects exactly (`H.exact`: name, alias, ticker, handle, source URL or id). Everything else goes to the model. Without a model a hit scoring ≥ 58 is enough, and below that upstream offers the nearest matches.
-
-Keyword shortcuts (hot, archive, random, help) only work as slash commands; plain words are always traced. Persona answers only for exact questions like "who are you".
-
-## Model layer
-Everything the archive couldn't place — a word, a phrase, a name, a whole sentence. The model gets the last ten turns and a system brief (`RULES` in `brain.js`). It **does not get the archive** — it gets tools that run in the page:
+## The model and its two tools
+The model gets the last ten turns and a system brief (`RULES` in `brain.js`). It must answer every message with exactly one tree.
 
 | Tool | Does | Returns to the model |
 |---|---|---|
-| `search_archive(query)` | fuzzy search | up to 6 `{id, name, type, when, platform, family, parent, descendants}` |
-| `show_lineage(id)` | draws the lineage card, lights the field | object, description, ancestors, children, path confidence |
-| `show_mutation(ancestor_id, descendant_id)` | draws then → now | changed traits |
-| `show_sources(id)` | draws the sources card | source titles |
-| `show_hot()` | draws forking now | names + 30-day forks |
-| `trace_lineage(title, nodes)` | draws a lineage card for anything outside the archive: 2–9 nodes, `nodes[0]` the origin, each node `{name, parent, when, note}`, the asked-about node marked `query: true`; the line to it is lit in mint | "drawn for the user" |
+| `search_repos(query)` | `GET /api/repos/search` — GitHub repository search, most-starred first | up to 8 `{repo, stars, year, lang, fork, about}` |
+| `trace_repos(title, nodes)` | checks every `owner/name` with `GET /api/repos` (one GraphQL call), drops repos that don't exist and re-hangs their children, renames to the canonical name, marks a link as `fork` when GitHub records it, and — when the origin is itself a GitHub fork — adds its real parent above it; then draws the tree on the stage | what was drawn (stars, year, rel) and what wasn't on GitHub |
 
-Every message must end with exactly one tree; if a reply comes back without one, the page asks again with `trace_lineage` forced (endpoint: `force` → `tool_choice`; Claude: the instruction appended to the last turn). Rules the model is given: reply in the user's language; search once and never change archive facts; anything counts, from a single word to a whole sentence; outside the archive, trace with `trace_lineage` (4–9 nodes, a year per node, what changed at each fork), keep to the account most people who know the subject would agree with and give years when exact dates aren't well known; state the takeaway plainly; never invent links or sources; no financial advice; point $FORK questions to `/freeforks`; one line for off-topic questions.
+A node is `{ repo: "owner/name", parent: index, rel, note, query }`, `rel` ∈ fork · port · rewrite · built on · inspired by · successor. If fewer than two repos survive the check, the tool fails and the model is told to search and try again. If a reply comes back without a tree, the page asks once more with `trace_repos` forced (`force` → `tool_choice` on the endpoint; the instruction appended to the last turn for Claude).
 
-Traced answers are tagged `traced` (archive answers `archive`), and the home screen's fine print says archive lines are hand-sourced and everything else is traced live.
-
-`/freeforks` and `/logout` never reach the model: `detect()` returns intent `quest` / `logout` and the page runs them (`src/quest.js`).
+## Without a model
+`githubOnly()` searches GitHub for what you typed, takes the most-starred match and climbs the forks GitHub records above it (up to four). The reply says it's GitHub alone.
 
 ## Backends
-- **Claude artifact** — `claude.use("sample")`, `modelTier: "quick"`, streamed text, tools executed in the page. If the viewer declines, upstream falls back to the archive and says so.
-- **Endpoint** — `POST /api/ask` with OpenAI-style `messages` (user / assistant / tool turns only); up to five tool rounds per answer. `netlify/functions/ask.mjs` proxies to any OpenAI-compatible URL with the key held server-side. The system brief and the tool list are **not** taken from the request: `npm run build` copies `RULES` and the tool schemas from `brain.js` into `netlify/lib/upstream.mjs`, and the function always sends those. A request with a `system` turn, an unknown tool or no user turn gets 400, so the endpoint can't be borrowed as a general-purpose model. `GET /api/ask` → `{ok}` decides whether the AI pill lights up.
-- **None** — archive only. Nothing breaks.
+- **Claude artifact** — `claude.use("sample")`, `modelTier: "quick"`, `cache: false`, tools executed in the page. There is no `/api/repos` in the artifact, so names are drawn as the model gave them, without stars or a check.
+- **Endpoint** — `POST /api/ask` with chat turns only; the server sends `RULES` and the tool schemas from `netlify/lib/upstream.mjs` (generated by `npm run build`), never the caller's. Up to six tool rounds per answer.
+- **GitHub** — `netlify/functions/repos.mjs` with `GITHUB_TOKEN`: GraphQL for up to 12 repos per call, REST search, CDN cache for a day, memory cache for six hours, 90 requests per minute per IP.
 
 ## Failure modes
-| Code | What the user sees |
+| What | What the user sees |
 |---|---|
-| `not_granted` | "the model is switched off for this page, so here is what the archive says." |
-| `rate_limited` / 429 | "the model needs a breather. the archive says:" |
-| `cancelled` (Stop / Esc) | whatever arrived, or "stopped." |
-| anything else | the archive's not-found answer, tagged `archive` |
+| model rate-limited | "too many traces at once. give it a minute." |
+| viewer declined Claude | "the model is switched off for this page." |
+| no model, GitHub reachable | the GitHub-only tree, labelled as such |
+| neither | "couldn't reach a model or github just now. try again in a minute." |
+| Stop / Esc | "stopped." |

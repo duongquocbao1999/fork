@@ -1,5 +1,5 @@
 [build]
-  command = "node scripts/validate.cjs && node scripts/build-archive.cjs && node scripts/build-upstream.cjs"
+  command = "node scripts/build-upstream.cjs"
   publish = "."
   functions = "netlify/functions"
 

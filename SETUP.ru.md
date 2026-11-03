@@ -13,6 +13,15 @@
 
 Пока `x.handle` и `x.post` пустые, upstream отвечает на `/freeforks` «the trials open soon», а `/api/health` показывает их в `config`.
 
+## 0.5. GitHub-токен (без него деревья не строятся)
+
+Каждая точка графа — настоящий репозиторий, и сервер проверяет их через GitHub API.
+
+1. github.com → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token.
+2. Repository access: **Public repositories (read-only)**. Никаких других прав не нужно.
+3. Значение → `GITHUB_TOKEN` в Netlify (Scope: Functions, «Contains secret values»).
+4. Лимиты с токеном: 5 000 запросов в час на проверку репо (один запрос на дерево) и 30 поисков в минуту; ответы кэшируются на сутки.
+
 ## 1. X Developer Portal (вход через X)
 
 1. developer.x.com → Projects & Apps → создать App внутри Project (без Project X API v2 не отдаст профиль).
@@ -47,11 +56,12 @@
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | из Supabase | да |
 | `SITE_URL` | `https://forks.wiki` | да, на своём домене |
 | `X_MIN_ACCOUNT_AGE_DAYS` | например `30` | нет (по умолчанию проверки нет) |
+| `GITHUB_TOKEN` | fine-grained, public repositories read-only | да, для деревьев |
 | `FORKS_LLM_KEY` | ключ OpenAI-совместимого API | для модели |
 | `FORKS_LLM_URL`, `FORKS_LLM_MODEL` | endpoint и модель | нет (OpenAI, `gpt-4o-mini`) |
 
 3. **После изменения env — Deploys → Trigger deploy.** Без редеплоя функции не видят новые значения.
-4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "1"`. Поле `callback_url` скопировать в X Portal символ в символ.
+4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "1"`, `github: true`, `model: true`. Поле `callback_url` скопировать в X Portal символ в символ.
 5. У провайдера модели поставить месячный лимит трат: лимит частоты в функции живёт в памяти.
 6. Пройти вход целиком с телефона, в том числе из браузера внутри X: кнопка **get +5,000 $FORK** → sign in with x → X → назад → четыре задания → кошелёк.
 
@@ -78,6 +88,8 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | upstream: «the trials open soon» | Пустые `x.handle` / `x.post` в `src/config.js` |
 | upstream: «the ledger isn't answering» | `/api/me` на forks.wiki отдаёт не JSON: функции не задеплоились или упали; смотри `/api/health` и логи функций |
 | `/api/*` отдаёт HTML или 404 | Деплой без функций (drag-and-drop) |
+| upstream: «couldn’t reach a model or github» | Нет `FORKS_LLM_KEY` и `GITHUB_TOKEN`, или не было редеплоя |
+| upstream: «this is github alone» | Нет `FORKS_LLM_KEY` (или модель недоступна): дерево только из данных GitHub |
 | Задание «give it a few more seconds» | Нажали раньше 5 с — сервер считает по своим часам, повтор засчитает |
 
 ## 6. Админ-сниппеты (SQL Editor)

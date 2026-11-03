@@ -87,7 +87,7 @@ export default async (req, context) => {
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad json' }, 400); }
   const messages = clean(body && body.messages);
   if (!messages) return json({ error: 'bad messages' }, 400);
-  // the page asks once more with force=trace_lineage when a reply came back without a tree
+  // the page asks once more with force=trace_repos when a reply came back without a tree
   const force = body.force && NAMES.has(body.force) ? { type: 'function', function: { name: body.force } } : undefined;
 
   const r = await fetch(process.env.FORKS_LLM_URL || 'https://api.openai.com/v1/chat/completions', {

@@ -1,6 +1,6 @@
 ## What this changes
 
-<!-- New lineage? Fix? Feature? One or two sentences. -->
+<!-- Fix? Feature? One or two sentences. -->
 
 ## Checklist
 

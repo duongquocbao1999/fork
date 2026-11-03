@@ -13,8 +13,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node scripts/validate.cjs
-      - name: Generated files are up to date (archive.js, upstream.mjs)
-        run: node scripts/build-archive.cjs && node scripts/build-upstream.cjs && git diff --exit-code src/archive.js netlify/lib/upstream.mjs
-      - name: Charts still build
-        run: node scripts/charts.cjs
+      - name: Every file parses
+        run: for f in src/*.js netlify/functions/*.mjs netlify/lib/*.mjs scripts/*.cjs; do node --check "$f"; done
+      - name: upstream.mjs is up to date with brain.js
+        run: node scripts/build-upstream.cjs && git diff --exit-code netlify/lib/upstream.mjs

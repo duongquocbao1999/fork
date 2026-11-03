@@ -1,25 +1,23 @@
 {
   "name": "forks",
-  "version": "2.3.0",
-  "description": "Type anything and see where it came from: a family tree of internet culture, 81 hand-sourced lineages, an AI guide that traces the rest, and $FORK trials with sign-in with X.",
+  "version": "3.0.0",
+  "description": "Type anything and watch the line of GitHub repositories it came from grow — every point a real repo, checked against GitHub. Plus $FORK trials with sign-in with X.",
   "license": "MIT",
   "private": false,
   "scripts": {
     "start": "node scripts/serve.cjs",
     "dev": "node scripts/serve.cjs",
-    "build": "node scripts/build-archive.cjs && node scripts/build-upstream.cjs",
-    "validate": "node scripts/validate.cjs",
-    "charts": "node scripts/charts.cjs"
+    "build": "node scripts/build-upstream.cjs"
   },
   "keywords": [
-    "memes",
-    "internet-culture",
-    "lineage",
+    "github",
+    "forks",
+    "open-source",
     "genealogy",
+    "lineage",
     "ai",
     "llm",
     "tool-use",
-    "canvas",
     "svg",
     "vanilla-js"
   ],

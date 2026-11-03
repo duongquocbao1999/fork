@@ -17,8 +17,9 @@ export default async req => {
         try { db = await rpc('api_health'); } catch (e) { db = { ok: false, error: String(e.message).slice(0, 200) }; }
       }
       return json({
-        ok: !missing.length && !config.length && !!(db && db.ok),
-        missing, config, db,
+        ok: !missing.length && !config.length && !!(db && db.ok) && !!process.env.GITHUB_TOKEN,
+        missing: missing.concat(process.env.GITHUB_TOKEN ? [] : ['GITHUB_TOKEN']), config, db,
+        github: !!process.env.GITHUB_TOKEN,
         model: !!process.env.FORKS_LLM_KEY,
         callback_url: `${siteOrigin(req)}${CALLBACK_PATH}`
       });

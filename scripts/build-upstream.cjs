@@ -11,7 +11,7 @@ const root = path.join(__dirname, '..');
 const sandbox = { location: { protocol: 'http:', hostname: 'localhost' }, setTimeout: f => setImmediate(f), clearTimeout() {}, console, Event: class { constructor(type) { this.type = type; } }, dispatchEvent: () => true };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const file of ['src/archive.js', 'src/brain.js']) {
+for (const file of ['src/config.js', 'src/brain.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sandbox, { filename: file });
 }
 

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>forks</title>
-<meta name="description" content="Type anything: a meme, a phrase, a ticker, a link. forks traces where it came from and how it forked into what you see now.">
+<meta name="description" content="Type anything and watch the line of GitHub repositories it came from grow: forks, ports, rewrites, every point a real repo.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23090B0A'/%3E%3Cg fill='none' stroke='%236EE7B7' stroke-width='2.1' stroke-linecap='round'%3E%3Cpath d='M9 20V3.6'/%3E%3Cpath d='M9 14.4C9 10 15.4 10.5 15.4 6.8'/%3E%3C/g%3E%3Ccircle cx='9' cy='20' r='2.4' fill='%236EE7B7'/%3E%3Ccircle cx='15.4' cy='5.1' r='1.8' fill='%23090B0A' stroke='%236EE7B7' stroke-width='1.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300..700&display=swap">
 <meta property="og:title" content="forks — where did it come from?">
-<meta property="og:description" content="Type anything. forks traces where it came from and how it forked into what you see now.">
+<meta property="og:description" content="Type anything. Watch the line of GitHub repositories it came from grow, fork by fork.">
 <meta property="og:image" content="https://forks.wiki/docs/media/og.png">
 <meta property="og:url" content="https://forks.wiki/">
 <meta name="twitter:card" content="summary_large_image">
@@ -259,6 +259,7 @@ body.chat .thread { display: flex; }
 .pt-h { padding-right: 22px; }
 .pt-name { font: 400 italic 24px/1.1 var(--serif); color: var(--ink); overflow-wrap: anywhere; }
 .pt-meta { margin-top: 4px; font-size: 11px; color: var(--ink-3); }
+.pt-how { margin-top: 8px; font-size: 12px; color: var(--acc); }
 .pt-desc { margin: 10px 0 0; font-size: 12px; color: var(--ink-2); }
 .pt-k { margin: 12px 0 2px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
 .pt-links { list-style: none; margin: 0; padding: 0; }
@@ -343,7 +344,6 @@ body.chat .dock { display: flex; }
   .chip { font-size: 12px; }
   .pill .lbl { display: none; }
   .pill .mob { display: block; }
-  #archBtn { width: 30px; padding: 0; justify-content: center; }
   .pill.me { padding: 0 7px; }
   .pill.me .demo, .pill.me .tk { display: none; }
   .q-task { flex-wrap: wrap; }
@@ -377,7 +377,6 @@ body.chat .dock { display: flex; }
   </a>
   <nav class="pills" aria-label="Site">
     <button class="pill" type="button" id="newBtn">new</button>
-    <button class="pill" type="button" id="archBtn"><span class="lbl">archive</span><span class="sr">Show the archive</span><svg class="mob" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <button class="pill me" type="button" id="meBtn" hidden></button>
     <a class="pill icon gh" href="https://github.com/forkwiki/fork" target="_blank" rel="noopener" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
     <button class="pill icon" type="button" id="themeBtn" aria-label="Switch light or dark"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg></button>
@@ -417,7 +416,6 @@ body.chat .dock { display: flex; }
 </div>
 
 <script src="src/config.js"></script>
-<script src="src/archive.js"></script>
 <script src="src/field.js"></script>
 <script src="src/brain.js"></script>
 <script src="src/stage.js"></script>
