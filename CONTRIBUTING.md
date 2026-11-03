@@ -7,6 +7,7 @@ Thanks for helping map where internet culture comes from. Most contributions are
 ```bash
 npm start           # http://localhost:5173
 npm run validate    # checks every lineage
+npm run build       # regenerates src/archive.js (the sourced subset the site ships) and netlify/lib/upstream.mjs
 npm run charts      # rebuilds README charts and banner from the data
 ```
 
@@ -58,6 +59,7 @@ Evidence kinds: `reference`, `media`, `caption`, `crosslink`, `press`, `communit
 
 ```bash
 npm run validate
+npm run build
 npm run charts
 ```
 

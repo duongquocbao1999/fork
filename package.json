@@ -1,15 +1,29 @@
 {
-  "name": "fork-culture-graph",
-  "version": "1.0.0",
-  "description": "A lineage explorer for internet culture. Everything comes from something.",
+  "name": "forks",
+  "version": "2.0.0",
+  "description": "Ask where any meme, character or token came from. A sourced family tree of internet culture, with an AI guide that can only show what it can source.",
   "license": "MIT",
   "private": false,
   "scripts": {
     "start": "node scripts/serve.cjs",
     "dev": "node scripts/serve.cjs",
+    "build": "node scripts/build-archive.cjs && node scripts/build-upstream.cjs",
     "validate": "node scripts/validate.cjs",
     "charts": "node scripts/charts.cjs"
   },
-  "keywords": ["memes", "internet-culture", "lineage", "genealogy", "graph", "visualization", "canvas", "svg", "vanilla-js"],
-  "engines": { "node": ">=18" }
+  "keywords": [
+    "memes",
+    "internet-culture",
+    "lineage",
+    "genealogy",
+    "ai",
+    "llm",
+    "tool-use",
+    "canvas",
+    "svg",
+    "vanilla-js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
 }

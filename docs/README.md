@@ -1,9 +1,10 @@
-# FORK docs
+# forks docs
 
 | Doc | What's in it |
 |---|---|
-| [PRODUCT_MODEL.md](PRODUCT_MODEL.md) | Objects, states, confidence, Fork Score, honesty rules |
-| [INFORMATION_ARCHITECTURE.md](INFORMATION_ARCHITECTURE.md) | Views, routes, global UI |
-| [GRAPH_MODEL.md](GRAPH_MODEL.md) | Metrics, layouts, visibility, edges, labels, accessibility |
+| [INFORMATION_ARCHITECTURE.md](INFORMATION_ARCHITECTURE.md) | The one screen, its two states, every card |
+| [UPSTREAM.md](UPSTREAM.md) | The guide: archive layer, model layer, tools, rules, backends |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Mark, colour, type, components |
-| [MOTION_SYSTEM.md](MOTION_SYSTEM.md) | Every animation and why it exists |
+| [MOTION_SYSTEM.md](MOTION_SYSTEM.md) | The field's states and every other animation |
+| [PRODUCT_MODEL.md](PRODUCT_MODEL.md) | Objects, states, confidence, Fork Score, honesty rules |
+| [GRAPH_MODEL.md](GRAPH_MODEL.md) | Metrics and status rules computed in `data.js` |

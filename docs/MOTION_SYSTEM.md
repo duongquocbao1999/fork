@@ -1,19 +1,22 @@
-# FORK — Motion System
+# forks — Motion System
 
-Motion explains derivation. If a movement doesn't show a parent becoming a child (or the reverse), it isn't used.
+Motion says one of three things: *I'm listening*, *I'm thinking*, *here's the path*. Everything respects `prefers-reduced-motion` (the field still draws, it just stops growing; text appears at once).
 
-| Motion | Trigger | Behaviour | Purpose | Timing |
-|---|---|---|---|---|
-| Loader | first load | a vertical line draws, forks, forks again, resolves into the mark | brand in one gesture | ~1.1s total |
-| Branch growth | object/lineage loads, node revealed | edge grows parent → child (partial Bézier), node appears when the edge arrives | derivation | 600ms per generation, siblings staggered 40ms |
-| Hero sequence | homepage | origin → one line → splits → splits again → dozens of descendants → headline | product in 5 seconds | ~3s |
-| Camera travel | click a descendant / trace result | camera centre follows the actual branch curves from current focus through the common ancestor to the target | navigation = lineage | 500–1400ms, by path length |
-| Re-layout | visibility changes | nodes tween to new positions | continuity | 520ms |
-| Collapse | move focus to parent / collapse | child branches retract into the parent, then are removed | hierarchy | 360ms |
-| New fork | simulated live event | a fresh branch splits from an existing node and grows; feed row slides in | the product feels alive | 900ms |
-| Inspector | node click | slides from the right (desktop) / up (mobile) | detail without leaving the graph | 280ms |
-| Hover | node / branch | node scales 1.25; its full lineage (ancestors + subtree) turns cobalt, the rest dims | read a path at a glance | 150ms |
-| Trace cursor | while tracing | cursor becomes the fork mark | processing state in brand | — |
+## The field (`src/field.js`)
+| State | When | What happens |
+|---|---|---|
+| idle | nothing focused | every ~1.8s a tip forks; past the cap (260 segments, 130 on phones) the oldest tip fades |
+| listening | input focused or typing | growth every 450ms, new branches bend toward the input, nearby branches brighten |
+| thinking | waiting for an answer | growth every 300ms, signals run from the origin down random routes every 160ms |
+| lit path | an answer with a lineage | the route from the origin to the tip nearest the answer draws in mint over 1.4s, a dotted connector reaches the message, everything fades by 5.2s |
+| burst | an answer lands | seven short mint sprouts from the avatar |
+| tap | click empty background | a small ink sprout where you clicked |
+| chat dim | conversation mode | the whole field fades back (80%, 90% on phones) so text stays readable; the lit path is skipped on phones |
 
-Easing: `cubic-bezier(.2,.7,.2,1)` for growth and camera; `ease-in` for retraction.
-`prefers-reduced-motion`: loader skipped, growth and camera jump to end state, hover keeps colour change only.
+## Everything else
+- **Question** — words rise and unblur in sequence (110ms stagger, 0.9s each); the underline draws after them, then its tip dot pops.
+- **Messages** — rise 10px and fade in (0.45s).
+- **Replies** — typed at ~90 steps regardless of length, with a mint block caret.
+- **Thinking dots** — three mint dots pulsing in turn.
+- **Tree cards** — edges reveal left→right by generation (140ms per generation), nodes fade in after their edge.
+- **Full tree** — fades in (0.25s); no zoom, no camera.

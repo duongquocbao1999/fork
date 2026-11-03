@@ -14,5 +14,7 @@ jobs:
         with:
           node-version: 20
       - run: node scripts/validate.cjs
+      - name: Generated files are up to date (archive.js, upstream.mjs)
+        run: node scripts/build-archive.cjs && node scripts/build-upstream.cjs && git diff --exit-code src/archive.js netlify/lib/upstream.mjs
       - name: Charts still build
         run: node scripts/charts.cjs
