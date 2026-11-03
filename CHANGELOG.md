@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0 — 2026-11-03
+
+- **Any input gets a tree.** Outside the archive, upstream traces the line itself with `trace_lineage`: origin → each fork with a year and what changed → the thing you asked about. Drawn like any lineage (mint path, tappable nodes, full view), tagged `traced`. Replaces the dotted "unverified" sketch.
+- **$FORK · /freeforks.** A *get +5,000 $FORK* button under the input and the `/freeforks` command: sign in with X, then four trials one at a time in the chat (follow 1,500 · like 1,000 · repost 1,250 · comment 1,250), each counted by the server 5 s after its link is opened; then a Solana wallet and a summary. Allocations are pending.
+- Sign in with X (OAuth 2.0 + PKCE, read-only, token revoked after the profile read), signed session cookie, `/api/health`, `/api/me`, `/api/task/open|claim`, `/api/wallet`, `/api/logout`.
+- Supabase schema `supabase/migrations/0001_init.sql`: ledger with idempotency keys, rewards decided in SQL, every table closed to `anon`.
+- `src/config.js`: ticker, CA, the X account and post for the trials — shared by the page and the functions.
+- Demo mode for `/freeforks` where the functions aren't there (preview, artifact, `npm start` without env).
+- `npm start` runs every Netlify function by its `config.path`; header pill with your pending $FORK; toasts.
+- Fixed: fork-point labels in trees no longer run over the previous node's label; `hidden` always wins over component `display`.
+- Docs: `SETUP.ru.md`, `.env.example`, `docs/DECISIONS.md`.
+
 ## 2.0.0 — 2026-11-03
 
 A rebuild around one question.

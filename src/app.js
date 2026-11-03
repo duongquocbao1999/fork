@@ -20,21 +20,21 @@
   const field = new window.ForksField($('#field'));
   const formRect = () => $('#ask').getBoundingClientRect();
   addEventListener('pointerdown', e => {
-    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .now')) return;
+    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .now, .toast')) return;
     field.tap(e.clientX, e.clientY);
   });
 
   /* ---------- hero ---------- */
   const Q = ['where', 'did', 'it', '<em>come</em>', '<em>from?</em>'];
   $('#q').innerHTML = Q.map((w, i) => `<span class="w" style="animation-delay:${200 + i * 110}ms">${w}</span>`).join(' ');
-  $('#eyebrow').innerHTML = `upstream · <b>${H.count.nodes}</b> objects · <b>${H.count.roots}</b> origins · every link sourced`;
+  $('#eyebrow').innerHTML = `upstream · traces anything · <b>${H.count.nodes}</b> sourced objects · <b>${H.count.roots}</b> origins`;
   const CHIPS = ['where did doge come from?', 'what did chill guy become?', 'trace $JEANPHIL', 'who is jean philanthrope?', 'what is forking right now?', 'surprise me'];
   $('#chips').innerHTML = CHIPS.map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('');
   $('#chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) send(b.textContent); });
   const hot = H.hot().slice(0, 3);
   $('#now').innerHTML = 'forking now · ' + hot.map(n => `<button type="button" data-q="where did ${esc(n.name)} come from?">${esc(n.name.toLowerCase())}</button> <span class="plus">+${n.forks30}</span>`).join(' · ');
   $('#now').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) send(b.dataset.q); });
-  const fineBase = `documented lineages only · model answers outside the archive are marked unverified · updated ${A.updated.split('-').reverse().join('.')}`;
+  const fineBase = `archive lines are hand-sourced · everything else is traced live by upstream · updated ${A.updated.split('-').reverse().join('.')}`;
   $('#fine').textContent = fineBase;
 
   /* ---------- input ---------- */
@@ -126,6 +126,12 @@
     raw = String(raw || '').trim(); if (!raw || busy) return;
     const ans = B.archiveAnswer(raw);
     if (ans.clear) { reset(); return; }
+    if (ans.quest) { // /freeforks and /logout run in the page, never through the model
+      toChat(); inp.value = ''; sendBtn.disabled = true; addYou(raw);
+      busy = true; field.setMode('thinking');
+      try { await QUEST.run(ans.quest); } finally { busy = false; field.setMode('idle'); scrollDown(); }
+      return;
+    }
     toChat(); inp.value = ''; sendBtn.disabled = true;
     addYou(raw);
     history.push({ role: 'user', content: raw });
@@ -141,7 +147,7 @@
         if (ans.light) lightUp(m);
         history.push({ role: 'assistant', content: ans.text });
       } else if (B.AI.kind) {
-        m.src.hidden = false; m.src.textContent = 'model'; m.src.classList.add('ai');
+        m.src.hidden = false; m.src.textContent = 'traced';
         ctl = new AbortController();
         const stop = document.createElement('button'); stop.className = 'stop'; stop.type = 'button'; stop.textContent = 'stop';
         stop.onclick = () => ctl && ctl.abort(); m.li.querySelector('.who').appendChild(stop);
@@ -159,7 +165,7 @@
           else {
             const nf = B.R.notFound(ans.q, ans.near || []);
             text = (code === 'not_granted' ? 'the model is switched off for this page, so here is what the archive says.\n' : code === 'rate_limited' ? 'the model needs a breather. the archive says:\n' : '') + nf.text;
-            m.src.textContent = 'archive'; m.src.classList.remove('ai');
+            m.src.textContent = 'archive';
             await type(m.txt, text); follow(m, nf.follow); got = true;
           }
         }
@@ -216,7 +222,8 @@
       else {
         const m2 = showMeta && g.meta;
         if (isR) label = `<text x="${x - 14}" y="${m2 ? y - 1 : y + 4}" text-anchor="end">${esc(nm)}</text>` + (m2 ? `<text class="meta" x="${x - 14}" y="${y + 11}" text-anchor="end">${esc(g.meta)}</text>` : '');
-        else label = `<text x="${x}" y="${m2 ? y - 21 : y - 10}" text-anchor="middle">${esc(nm)}</text>` + (m2 ? `<text class="meta" x="${x}" y="${y - 9}" text-anchor="middle">${esc(g.meta)}</text>` : '');
+        // a fork point: label up and to the right, so it never runs back over the previous node's label
+        else label = `<text x="${x + 8}" y="${m2 ? y - 21 : y - 9}">${esc(nm)}</text>` + (m2 ? `<text class="meta" x="${x + 8}" y="${y - 9}">${esc(g.meta)}</text>` : '');
       }
       nodes += `<g class="${cls}" data-id="${esc(id)}" style="animation-delay:${p.d * 140 + 200}ms" tabindex="0" role="button" aria-label="${esc(g.name)}">` +
         `<title>${esc(g.name)}${g.meta ? ' · ' + esc(g.meta) : ''}</title>` +
@@ -236,10 +243,25 @@
       colW: full ? 250 : small ? 116 : 138, rowH: full ? 40 : 28, chars: full ? 30 : small ? 15 : 19, grow: !full, label: `lineage of ${root.name}`
     });
   }
-  function bindTree(el) {
-    el.addEventListener('click', e => { const g = e.target.closest('.n'); if (g) { closeFull(); send(`/trace ${g.dataset.id}`); } });
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const g = e.target.closest('.n'); if (g) { e.preventDefault(); closeFull(); send(`/trace ${g.dataset.id}`); } } });
+  function bindTree(el, pick) {
+    el.addEventListener('click', e => { const g = e.target.closest('.n'); if (g) { closeFull(); pick(g.dataset.id); } });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const g = e.target.closest('.n'); if (g) { e.preventDefault(); closeFull(); pick(g.dataset.id); } } });
   }
+  const pickArchive = id => send(`/trace ${id}`);
+  // a tree upstream traced itself: nodes [{name, parent, when, note}], focus = the thing asked about
+  function tracedTree(c, size) {
+    const full = size === 'full', small = innerWidth < 640;
+    const kids = id => c.nodes.map((x, j) => j).filter(j => j > 0 && c.nodes[j].parent === Number(id)).map(String);
+    const path = new Set(), sub = new Set();
+    for (let i = c.focus; i != null; i = c.nodes[i].parent) path.add(String(i));
+    const walk = i => kids(i).forEach(k => { sub.add(k); walk(k); }); walk(c.focus);
+    return treeSVG({
+      ids: c.nodes.map((x, i) => String(i)), root: '0', kids, focus: String(c.focus), path, sub, full,
+      get: id => { const x = c.nodes[Number(id)]; return { name: x.name, meta: [x.when, x.note].filter(Boolean).join(' · ') }; },
+      colW: full ? 250 : small ? 116 : 138, rowH: full ? 40 : 30, chars: full ? 30 : small ? 15 : 19, grow: !full, label: `lineage of ${c.title}`
+    });
+  }
+  const pickTraced = c => id => send(`where did ${c.nodes[Number(id)].name} come from?`);
 
   /* ---------- cards ---------- */
   function renderCard(m, c) {
@@ -249,7 +271,7 @@
       el.innerHTML = `<div class="card-h"><span>// lineage · <b>${esc(root.name.toLowerCase())}</b> · ${H.subtree(root.id).length + 1} objects</span><span class="acts"><button type="button" data-a="full">open ↗</button><button type="button" data-a="src">sources</button></span></div>
         <div class="tree-wrap">${archiveTree(c.root, c.focus)}</div>
         <div class="legend"><span><i class="p"></i>line to ${esc(n.name.toLowerCase())}</span><span><i></i>verified</span><span><i class="l"></i>likely</span><span><i class="d"></i>disputed</span></div>`;
-      bindTree(el.querySelector('.tree-wrap'));
+      bindTree(el.querySelector('.tree-wrap'), pickArchive);
       el.querySelector('[data-a="full"]').onclick = () => openFull(c.root, c.focus);
       el.querySelector('[data-a="src"]').onclick = () => send(`/sources ${c.focus}`);
       requestAnimationFrame(() => { const w = el.querySelector('.tree-wrap'), f = w.querySelector('.n.focus'); if (f && w.scrollWidth > w.clientWidth) { const bb = f.getBBox(); if (bb.x + 90 > w.clientWidth) w.scrollLeft = Math.max(0, bb.x - w.clientWidth * .55); } });
@@ -269,28 +291,59 @@
     } else if (c.type === 'archive') {
       el.innerHTML = `<div class="card-h"><span>// the archive · <b>${H.count.roots} origins</b></span></div><div class="card-b"><div class="rows">${H.roots().map(n => `<button class="row" type="button" data-q="what did ${esc(n.name)} become?"><span><span class="rn">${esc(n.name)}</span><span class="rm">${esc(H.famName(n.family).toLowerCase())} · ${H.when(n)} · ${n.depthBelow} generations</span></span><span class="rv">${n.descendants} forks</span></button>`).join('')}</div></div>`;
       el.addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) send(b.dataset.q); });
-    } else if (c.type === 'unverified') {
-      el.className = 'card unv';
-      const kids = i => c.nodes.map((x, j) => j).filter(j => j > 0 && c.nodes[j].parent === i).map(String);
-      const svg = treeSVG({ ids: c.nodes.map((x, i) => String(i)), root: '0', kids: id => kids(Number(id)), focus: String(c.nodes.length - 1), path: new Set(), sub: new Set(), full: true,
-        get: id => { const x = c.nodes[Number(id)]; return { name: x.name, meta: [x.when, x.note].filter(Boolean).join(' · ') }; }, colW: innerWidth < 640 ? 120 : 150, rowH: 34, chars: 22, grow: true, label: 'unverified lineage' });
-      el.innerHTML = `<div class="card-h"><span>// unverified · from the model's memory, not the archive</span></div><div class="tree-wrap">${svg}</div><div class="legend"><span>no sources · treat as a guess · dates approximate</span></div>`;
+    } else if (c.type === 'traced') {
+      const q = c.nodes[c.focus];
+      el.innerHTML = `<div class="card-h"><span>// lineage · <b>${esc(c.title.toLowerCase())}</b> · ${c.nodes.length} objects</span><span class="acts"><button type="button" data-a="full">open ↗</button></span></div>
+        <div class="tree-wrap">${tracedTree(c)}</div>
+        <div class="legend"><span><i class="p"></i>line to ${esc(q.name.toLowerCase())}</span><span>tap any node to trace it</span></div>`;
+      bindTree(el.querySelector('.tree-wrap'), pickTraced(c));
+      el.querySelector('[data-a="full"]').onclick = () => showFull(c.title.toLowerCase(), `${c.nodes.length} objects · origin ${c.nodes[0].name.toLowerCase()}${c.nodes[0].when ? ', ' + c.nodes[0].when : ''} · traced to ${q.name.toLowerCase()}`, tracedTree(c, 'full'), pickTraced(c), `<span><i class="p"></i>the traced line</span><span>tap any node to trace it</span>`);
+      requestAnimationFrame(() => { const w = el.querySelector('.tree-wrap'), f = w.querySelector('.n.focus'); if (f && w.scrollWidth > w.clientWidth) { const bb = f.getBBox(); if (bb.x + 90 > w.clientWidth) w.scrollLeft = Math.max(0, bb.x - w.clientWidth * .55); } });
     }
     m.cards.appendChild(el);
   }
 
   /* ---------- full view ---------- */
+  const ARCHIVE_LEGEND = `<span><i class="p"></i>the traced line</span><span><i></i>verified</span><span><i class="l"></i>likely</span><span><i class="d"></i>disputed</span><span>tap any node to ask about it</span>`;
+  let fullPick = pickArchive;
+  function showFull(title, sub, svg, pick, legend) {
+    $('#fullTitle').textContent = title; $('#fullSub').textContent = sub; $('#fullB').innerHTML = svg; $('#fullLegend').innerHTML = legend;
+    fullPick = pick; $('#full').hidden = false; $('#fullX').focus();
+  }
   function openFull(rootId, focusId) {
     const root = H.node(rootId), n = H.node(focusId);
-    $('#fullTitle').textContent = root.name.toLowerCase();
-    $('#fullSub').textContent = `${H.subtree(rootId).length + 1} objects · ${root.depthBelow} generations · origin ${H.when(root)} · traced to ${n.name.toLowerCase()}`;
-    $('#fullB').innerHTML = archiveTree(rootId, focusId, 'full');
-    $('#full').hidden = false; $('#fullX').focus();
+    showFull(root.name.toLowerCase(), `${H.subtree(rootId).length + 1} objects · ${root.depthBelow} generations · origin ${H.when(root)} · traced to ${n.name.toLowerCase()}`, archiveTree(rootId, focusId, 'full'), pickArchive, ARCHIVE_LEGEND);
   }
   function closeFull() { $('#full').hidden = true; }
   $('#fullX').addEventListener('click', closeFull);
-  bindTree($('#fullB'));
+  bindTree($('#fullB'), id => fullPick(id));
+
+  /* ---------- toast ---------- */
+  let toastT = 0;
+  function toast(msg) {
+    const t = $('#toast'); t.textContent = msg; t.hidden = false; t.classList.remove('out');
+    clearTimeout(toastT); toastT = setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.hidden = true; }, 300); }, 3200);
+  }
+
+  /* ---------- $FORK: /freeforks ---------- */
+  const C = window.FORKS_CONFIG, fmt = n => Number(n || 0).toLocaleString('en-US');
+  const QUEST = window.ForksQuest.mount({ addUp, type, send, scrollDown, toast, esc, burst: (x, y) => field.burst(x, y) });
+  $('#questBtn').addEventListener('click', () => send(C.quest.command));
+  $('#meBtn').addEventListener('click', () => send(C.quest.command));
+  QUEST.onChange(({ mode, me }) => {
+    const qb = $('#questBtn'), mb = $('#meBtn');
+    const done = me ? me.tasks.filter(t => t.completedAt).length : 0, all = me ? me.tasks.length : 4;
+    qb.innerHTML = !me || !done ? `get <b>+${fmt(C.quest.total)}</b> ${C.token.ticker}`
+      : done < all ? `<b>${fmt(me.allocation)}</b> ${C.token.ticker} pending · finish the trials`
+      : `<b>${fmt(me.allocation)}</b> ${C.token.ticker} pending${me.wallet ? '' : ' · add a wallet'}`;
+    qb.classList.toggle('has', !!(me && done));
+    mb.hidden = mode === 'loading' || mode === 'down';
+    mb.innerHTML = me
+      ? (me.user.avatar ? `<img src="${esc(me.user.avatar)}" alt="" width="18" height="18">` : `<span class="ini">${esc((me.user.username || '?')[0])}</span>`) + `<span class="amt">${fmt(me.allocation)}<span class="tk"> ${C.token.ticker}</span></span>${mode === 'demo' ? '<span class="demo">demo</span>' : ''}`
+      : `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.37 5.77L17.75 3Zm-1.08 16.17h1.7L7.4 4.73H5.58l11.09 14.44Z"/></svg><span class="lbl">sign in</span>${mode === 'demo' ? '<span class="demo">demo</span>' : ''}`;
+    mb.setAttribute('aria-label', me ? `@${me.user.username}: ${fmt(me.allocation)} ${C.token.ticker} pending` : 'Sign in with X for /freeforks');
+  });
 
   setTimeout(() => { if (matchMedia('(pointer: fine)').matches) inp.focus({ preventScroll: true }); }, 900);
-  window.ForksApp = { send, reset, field };
+  window.ForksApp = { send, reset, field, toast };
 })();

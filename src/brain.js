@@ -1,10 +1,9 @@
 /* forks — upstream's brain.
-   Two layers. The archive layer answers instantly and only from sourced data:
-   it never invents a parent or a date. The model layer (Claude in the viewer, or
-   any OpenAI-compatible endpoint in a self-hosted copy) takes over when the
-   question is phrased in a way the rules don't catch, and it can only show
-   archive objects through tools. Anything it knows from memory is drawn
-   dotted and labelled unverified. */
+   Two layers. The archive layer answers instantly from hand-sourced data and never
+   invents a parent or a date. The model layer (Claude in the viewer, or any
+   OpenAI-compatible endpoint behind /api/ask) takes everything else: it searches the
+   archive through tools first, and traces anything the archive doesn't hold as a
+   lineage card of its own (trace_lineage). */
 (function () {
   'use strict';
   const A = window.FORKS_ARCHIVE;
@@ -81,6 +80,7 @@
 
   /* ---------- intent ---------- */
   const RX = {
+    quest: /^\/?free ?forks\b|^get \+?5[ ,.]?000 \$?forks?\b/,
     persona: /\b(who are you|what are you|what is (this|forks)|how does this work)\b|ты кто|кто ты|что это|что ты/,
     help: /^(help|commands|\?)$|\bhelp\b|помощ|команд/,
     hot: /\b(hot|trending|forking now|right now|lately|this week|latest)\b|сейчас|тренд|горяч|новое/,
@@ -99,7 +99,8 @@
   function detect(raw) {
     const t = norm(raw);
     const cmd = t.match(/^\/(\w+)\s*(.*)$/);
-    if (cmd) return { intent: { trace: 'origin', origin: 'origin', became: 'became', forks: 'became', changed: 'changed', mutation: 'changed', sources: 'sources', hot: 'hot', random: 'random', archive: 'archive', help: 'help', clear: 'clear', about: 'persona' }[cmd[1]] || 'unknown', q: cmd[2], cmd: true };
+    if (cmd) return { intent: { trace: 'origin', origin: 'origin', became: 'became', forks: 'became', changed: 'changed', mutation: 'changed', sources: 'sources', hot: 'hot', random: 'random', archive: 'archive', help: 'help', clear: 'clear', about: 'persona', freeforks: 'quest', logout: 'logout', signout: 'logout' }[cmd[1]] || 'unknown', q: cmd[2], cmd: true };
+    if (RX.quest.test(t)) return { intent: 'quest', q: '' };
     for (const k of ['persona', 'help', 'hot', 'archive', 'random']) if (RX[k].test(t) && entityText(raw).length < 3) return { intent: k, q: '' };
     for (const k of ['sources', 'changed', 'became', 'origin', 'describe']) if (RX[k].test(t)) return { intent: k, q: entityText(raw) };
     return { intent: 'auto', q: /^(https?:\/\/|www\.)|^[\w-]+(\.[\w-]+)*\.[a-z]{2,}\//.test(t) ? t : (t.startsWith('$') ? t.split(' ')[0] : entityText(raw) || t) };
@@ -153,17 +154,18 @@
   };
   R.hot = () => ({ text: 'forking right now. the last thirty days of the archive:', cards: [{ type: 'hot' }], follow: ['where did jean philanthrope come from?', 'surprise me'] });
   R.archive = () => ({ text: `everything i can vouch for: ${H.count.roots} origins, ${H.count.nodes} objects, ${H.count.sources} sources. pick a line.`, cards: [{ type: 'archive' }] });
-  R.persona = () => ({ text: `i'm upstream. i keep the family tree of internet culture.\nevery meme, character and token here has a parent, and every link has a source.\npaste something — a name, a ticker, a link — and i'll tell you where it came from.`, follow: ['where did doge come from?', 'what did chill guy become?', 'trace $JEANPHIL', 'surprise me'] });
-  R.help = () => ({ text: 'ask in plain words, or use a command:\n/trace <thing>    where it came from\n/became <thing>   what it turned into\n/changed <thing>  what mutated on the way\n/sources <thing>  the receipts\n/hot              forking right now\n/archive          every origin i keep\n/random           surprise me\n/clear            start over', follow: ['/hot', '/archive', '/random'] });
+  R.persona = () => ({ text: `i'm upstream. i keep the family tree of internet culture.\nevery meme, phrase, character and token forked from something older.\ntype anything — a word, a ticker, a link, a whole sentence — and i'll trace where it came from.`, follow: ['where did doge come from?', 'what did chill guy become?', 'trace "touch grass"', '/freeforks'] });
+  R.help = () => ({ text: 'ask in plain words, or use a command:\n/trace <thing>    where it came from\n/became <thing>   what it turned into\n/changed <thing>  what mutated on the way\n/sources <thing>  the receipts\n/hot              forking right now\n/archive          every origin i keep\n/random           surprise me\n/freeforks        four trials on x · +5,000 $FORK, pending\n/clear            start over', follow: ['/hot', '/archive', '/freeforks'] });
   R.random = () => { const pool = A.nodes.filter(n => n.parent && n.depth >= 2); const n = pool[Math.floor(Math.random() * pool.length)]; const r = R.origin(n); r.text = `here's one — ${n.name}.\n` + r.text; return r; };
   R.notFound = (q, near) => ({
-    text: q ? `“${q}” isn't in the tree. i only show what i can source.` + (near.length ? `\nclosest i have:` : '') : `give me something to trace — a name, a ticker, a link.`,
+    text: q ? `“${q}” isn't in the archive yet.` + (near.length ? `\nclosest i have:` : '') : `give me something to trace — a word, a ticker, a link.`,
     follow: near.length ? near.slice(0, 3).map(([n]) => `where did ${n.name} come from?`) : ['/archive', 'surprise me']
   });
 
   function archiveAnswer(raw) {
     const d = detect(raw);
     if (d.intent === 'clear') return { clear: true };
+    if (d.intent === 'quest' || d.intent === 'logout') return { quest: d.intent };
     if (R[d.intent] && ['persona', 'help', 'hot', 'archive', 'random'].includes(d.intent)) return { confident: true, ...R[d.intent]() };
     let q = d.q;
     if (d.intent === 'changed') {
@@ -183,16 +185,18 @@
   }
 
   /* ---------- the model layer ---------- */
-  const RULES = `You are "upstream", the voice of forks.wiki: a family tree of internet culture (memes, characters, tokens, formats) where every object has a parent and every link has a source.
+  const RULES = `You are "upstream", the voice of forks.wiki: the family tree of internet culture. Every meme, phrase, character, token, format and idea forked from something older. Whatever the user types — a word, a phrase, a name, a ticker, a link, a whole sentence — you show where it came from and how it forked into what they asked about.
 
-Voice: lowercase, short, dry, a little aloof but honest. No emoji. No hype. Two to five short lines. Reply in the language the user writes in.
+Voice: lowercase, short, dry, a little aloof, sure of yourself. No emoji. No hype. Two to four short lines. Reply in the language the user writes in.
 
-You have an archive of ${H.count.nodes} documented objects in ${H.count.roots} lineages (origins: ${H.roots().map(r => r.name).join(', ')}). Rules:
-1. To answer about anything that might be in the archive, call search_archive first, then show it with show_lineage, show_mutation or show_sources. The page draws the card; your text should add the one thing worth saying, not repeat the card.
-2. Never invent dates, platforms, people or sources for archive objects. Use only what tools return.
-3. If the thing is not in the archive, you may sketch what you believe its lineage is with suggest_unverified_lineage (max 7 nodes, rough years only, say "~" for uncertain). The page draws it dotted and labels it unverified. Say plainly that it is from memory, not sourced. If you do not know, say so — do not guess.
-4. Never give financial advice about tokens. Never ask for wallets, keys or personal data.
-5. For questions unrelated to internet culture, answer in one line and steer back.`;
+How to answer:
+1. Call search_archive first. The archive has ${H.count.nodes} hand-sourced objects in ${H.count.roots} lineages (origins: ${H.roots().map(r => r.name).join(', ')}). If it has the thing, show it with show_lineage (or show_mutation / show_sources when asked) and never change its facts.
+2. If the archive doesn't have it, call trace_lineage: the line from the earliest origin to the thing the user asked about. 4 to 9 nodes. nodes[0] is the origin; mark the node that is what the user asked about with "query": true. Add one to three side forks that branched off the line when they exist. Each node gets a short name, when (a year, or month and year) and a note of what changed at that fork, a few words ("+ ticker", "moved to tiktok", "lost the image").
+3. Keep to the account most people who know the subject would agree with. When an exact date isn't well known, give the year. A plain word or a sentence: trace the phrase, format or idea itself and how it travelled online.
+4. Then write the one thing worth knowing about the line. State it plainly. Don't hedge and don't talk about memory, guesses or verification: the page shows where each tree comes from.
+5. Never invent links or sources. Never give financial advice about tokens. Never ask for wallets, keys or personal data.
+6. $FORK rewards are handled by the page: if asked about them, tell the user to type /freeforks.
+7. For questions unrelated to internet culture, answer in one line and steer back.`;
 
   function toolsFor(ui) {
     const lean = n => ({ id: n.id, name: n.name, type: n.type, when: H.when(n), platform: n.plat, family: famName(n.family), parent: n.parent ? byId.get(n.parent).name : null, descendants: n.descendants });
@@ -210,9 +214,19 @@ You have an archive of ${H.count.nodes} documented objects in ${H.count.roots} l
         inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
         execute: ({ id }) => { const n = byId.get(String(id)); if (!n) throw new Error('unknown id'); ui.card({ type: 'sources', id: n.id }); return n.sources.map(s => s[0]); } },
       { name: 'show_hot', description: 'Show objects in the archive with the most forks in the last 30 days.', execute: () => { ui.card({ type: 'hot' }); return H.hot().slice(0, 6).map(n => ({ name: n.name, forks_30d: n.forks30 })); } },
-      { name: 'suggest_unverified_lineage', description: 'For something NOT in the archive: draw your best-memory lineage as a dotted, clearly unverified card. nodes[0] is the origin; each later node names its parent by index.',
-        inputSchema: { type: 'object', properties: { title: { type: 'string' }, nodes: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, parent: { type: 'integer' }, when: { type: 'string' }, note: { type: 'string' } }, required: ['name'] } } }, required: ['title', 'nodes'] },
-        execute: ({ title, nodes }) => { const list = (Array.isArray(nodes) ? nodes : []).slice(0, 7).map((x, i) => ({ name: String(x.name || '?').slice(0, 48), parent: i === 0 ? null : Math.max(0, Math.min(i - 1, Number(x.parent) || 0)), when: x.when ? String(x.when).slice(0, 16) : '', note: x.note ? String(x.note).slice(0, 90) : '' })); if (!list.length) throw new Error('no nodes'); ui.card({ type: 'unverified', title: String(title || list[0].name).slice(0, 60), nodes: list }); return 'drawn as unverified'; } }
+      { name: 'trace_lineage', description: 'For anything NOT in the archive: draw its family tree for the user. nodes[0] is the earliest origin; every later node names its parent by index (an earlier node). Mark the node that is what the user asked about with query: true.',
+        inputSchema: { type: 'object', properties: { title: { type: 'string', description: 'what the user asked about, a few words' }, nodes: { type: 'array', minItems: 2, maxItems: 9, items: { type: 'object', properties: { name: { type: 'string' }, parent: { type: 'integer', description: 'index of the parent node; omit for nodes[0]' }, when: { type: 'string', description: 'year, or month and year' }, note: { type: 'string', description: 'what changed at this fork, a few words' }, query: { type: 'boolean' } }, required: ['name'] } } }, required: ['title', 'nodes'] },
+        execute: ({ title, nodes }) => {
+          const list = (Array.isArray(nodes) ? nodes : []).slice(0, 9).map((x, i) => ({
+            name: String((x && x.name) || '?').slice(0, 48),
+            parent: i === 0 ? null : (Number.isInteger(x && x.parent) && x.parent >= 0 && x.parent < i ? x.parent : i - 1),
+            when: x && x.when ? String(x.when).slice(0, 16) : '', note: x && x.note ? String(x.note).slice(0, 80) : '', query: !!(x && x.query)
+          }));
+          if (list.length < 2) throw new Error('need at least the origin and the thing itself');
+          let focus = list.findIndex(x => x.query); if (focus < 1) focus = list.length - 1;
+          ui.card({ type: 'traced', title: String(title || list[focus].name).slice(0, 60), nodes: list, focus }); if (ui.light) ui.light();
+          return 'drawn for the user';
+        } }
     ];
   }
 

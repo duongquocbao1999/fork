@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>forks</title>
-<meta name="description" content="Ask where any meme, character or token came from. Every link sourced.">
+<meta name="description" content="Type anything: a meme, a phrase, a ticker, a link. forks traces where it came from and how it forked into what you see now.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23090B0A'/%3E%3Cg fill='none' stroke='%236EE7B7' stroke-width='2.1' stroke-linecap='round'%3E%3Cpath d='M9 20V3.6'/%3E%3Cpath d='M9 14.4C9 10 15.4 10.5 15.4 6.8'/%3E%3C/g%3E%3Ccircle cx='9' cy='20' r='2.4' fill='%236EE7B7'/%3E%3Ccircle cx='15.4' cy='5.1' r='1.8' fill='%23090B0A' stroke='%236EE7B7' stroke-width='1.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300..700&display=swap">
 <meta property="og:title" content="forks — where did it come from?">
-<meta property="og:description" content="Ask where any meme, character or token came from. Every link sourced.">
+<meta property="og:description" content="Type anything. forks traces where it came from and how it forked into what you see now.">
 <meta property="og:image" content="https://forks.wiki/docs/media/og.png">
 <meta property="og:url" content="https://forks.wiki/">
 <meta name="twitter:card" content="summary_large_image">
@@ -58,6 +58,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
@@ -144,7 +145,6 @@ body.chat .thread { display: flex; }
 .av .mark { width: 15px; height: 15px; }
 .who { font: 400 11px/1 var(--mono); color: var(--ink-3); margin: 6px 0 8px; display: flex; gap: 10px; align-items: center; }
 .who .src { color: var(--ink-3); border: 1px solid var(--rule); border-radius: 999px; padding: 2px 7px; font-size: 10px; }
-.who .src.ai { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
 .txt { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); text-shadow: 0 0 12px var(--bg), 0 0 2px var(--bg); }
 .txt .caret { display: inline-block; width: .55em; height: 1.05em; background: var(--acc); vertical-align: -.18em; margin-left: 2px; animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
@@ -210,12 +210,53 @@ body.chat .thread { display: flex; }
 .srcs li:last-child a { border-bottom: 0; }
 .srcs a::before { content: "↗"; color: var(--acc); }
 .srcs a:hover { color: var(--ink); }
-.card.unv { border-style: dashed; border-color: color-mix(in srgb, var(--err) 45%, transparent); }
-.card.unv .card-h { color: var(--err); }
-.card.unv .tree .e { stroke: var(--err); stroke-dasharray: 1 5; opacity: .9; }
-.card.unv .tree .n circle { stroke: var(--err); fill: var(--bg-2); }
-.card.unv .tree .n.root circle { fill: var(--err); }
-.card.unv .tree .n text { fill: var(--ink-2); }
+
+/* ---------- $FORK: /freeforks ---------- */
+.ask-sub { display: flex; justify-content: center; margin-top: 10px; }
+.quest { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px; border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--warn) 55%, transparent); background: var(--veil); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font: 400 12px/1 var(--mono); color: var(--ink-2); transition: color .15s, border-color .15s, transform .15s var(--ease); }
+.quest b { color: var(--warn); font-weight: 500; font-variant-numeric: tabular-nums; }
+.quest:hover { color: var(--ink); border-style: solid; }
+.quest:active { transform: translateY(1px) scale(.98); }
+.quest.has { border-style: solid; border-color: var(--rule-2); }
+body.chat .ask-sub { margin-top: 8px; }
+.pill.me { color: var(--ink); gap: 6px; }
+.pill.me img, .pill.me .ini { width: 18px; height: 18px; border-radius: 50%; flex: none; }
+.pill.me .ini { display: grid; place-items: center; background: var(--bg-3); font-size: 10px; color: var(--ink-2); text-transform: uppercase; }
+.pill.me .amt { font-variant-numeric: tabular-nums; }
+.pill.me .demo, .card-h b.demo { font-size: 9.5px; color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: 999px; padding: 1px 5px; }
+.pill.me svg { width: 12px; height: 12px; }
+.quest-card .card-b { display: grid; gap: 10px; }
+.q-task { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.q-title { font-size: 14px; color: var(--ink); }
+.q-reward { margin-top: 3px; font-size: 12px; color: var(--warn); font-variant-numeric: tabular-nums; }
+.q-reward span { color: var(--ink-3); }
+.q-reward.ok { color: var(--acc); }
+.q-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 18px; border-radius: 11px; background: var(--ink); color: var(--bg); font: 500 13px/1 var(--mono); text-decoration: none; white-space: nowrap; flex: none; transition: transform .15s var(--ease), opacity .15s; }
+.q-btn:active { transform: translateY(1px) scale(.98); }
+.q-btn.busy { opacity: .35; pointer-events: none; }
+.q-btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--rule-2); }
+.q-btn.x svg { width: 15px; height: 15px; }
+.q-state { display: grid; gap: 6px; font-size: 11px; color: var(--ink-3); }
+.q-state.err .q-msg { color: var(--err); }
+.q-bar { height: 2px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.q-bar i { display: block; height: 100%; width: 0; background: var(--warn); transition: width linear; }
+.quest-card.done { border-color: color-mix(in srgb, var(--acc) 35%, var(--rule-2)); }
+.q-row { display: flex; gap: 8px; }
+.q-in { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--rule-2); background: var(--bg); color: var(--ink); font: 400 14px var(--mono); outline: none; }
+.q-in:focus { border-color: color-mix(in srgb, var(--acc) 55%, transparent); }
+.q-note { margin: 0; font-size: 11px; color: var(--ink-3); }
+.q-done { font-size: 13px; color: var(--acc); }
+.mono { font-variant-numeric: tabular-nums; }
+.q-sum { display: grid; gap: 8px; }
+.q-who { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12px; }
+.q-who img { border-radius: 50%; }
+.q-big { font: 400 44px/1 var(--serif); color: var(--ink); }
+.q-big span { font: 400 12px var(--mono); color: var(--warn); margin-left: 4px; }
+.q-meta { font-size: 11px; color: var(--ink-3); }
+.q-acts { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.q-link { font-size: 12px; color: var(--ink-3); border-bottom: 1px dotted var(--ink-3); }
+.toast { position: fixed; z-index: 50; left: 50%; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--rule-2); background: var(--bg-2); color: var(--ink); font: 400 12.5px/1.4 var(--mono); box-shadow: 0 8px 30px rgba(0, 0, 0, .25); animation: rise .3s var(--ease) both; transition: opacity .3s; }
+.toast.out { opacity: 0; }
 
 /* ---------- dock (chat mode) ---------- */
 .dock { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; padding: 26px var(--gut-r) calc(16px + env(safe-area-inset-bottom, 0px)) var(--gut); display: none; justify-content: center; background: linear-gradient(to bottom, transparent, var(--bg) 46%); }
@@ -242,12 +283,23 @@ body.chat .dock { display: flex; }
   #archBtn { width: 30px; padding: 0; justify-content: center; }
   #aiPill { width: 30px; padding: 0; justify-content: center; }
   #aiPill:not(.on) { display: none; }
+  .pill.me { padding: 0 7px; }
+  .pill.me .demo, .pill.me .tk { display: none; }
+  .q-task { flex-wrap: wrap; }
+  .q-big { font-size: 38px; }
   .pill { padding: 0 9px; }
   .mut, .mut-h { grid-template-columns: 92px minmax(0, 1fr) 14px minmax(0, 1fr); gap: 0 6px; }
   .mut > * { font-size: 11.5px; }
   .msg.up { grid-template-columns: 22px minmax(0, 1fr); gap: 10px; }
   .av { width: 22px; height: 22px; }
   .fine { font-size: 10.5px; }
+}
+@media (max-width: 420px) {
+  .pill.gh { display: none; }
+}
+@media (max-width: 360px) {
+  .pill.me .amt, #aiPill { display: none !important; }
+  .pill.me { width: 30px; padding: 0; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
@@ -265,8 +317,9 @@ body.chat .dock { display: flex; }
   <nav class="pills" aria-label="Site">
     <button class="pill" type="button" id="newBtn">new</button>
     <button class="pill" type="button" id="archBtn"><span class="lbl">archive</span><span class="sr">Show the archive</span><svg class="mob" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    <button class="pill me" type="button" id="meBtn" hidden></button>
     <span class="pill" id="aiPill" title="Where answers come from"><span class="dot" id="aiDot"></span><span class="lbl" id="aiLbl">archive only</span></span>
-    <a class="pill icon" href="https://github.com/forkwiki/fork" target="_blank" rel="noopener" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+    <a class="pill icon gh" href="https://github.com/forkwiki/fork" target="_blank" rel="noopener" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
     <button class="pill icon" type="button" id="themeBtn" aria-label="Switch light or dark"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg></button>
   </nav>
 </header>
@@ -294,17 +347,21 @@ body.chat .dock { display: flex; }
     <input id="inp" type="text" maxlength="400" spellcheck="false" enterkeyhint="send">
     <button class="send" id="sendBtn" type="submit" aria-label="Trace it" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M12 6l6 6-6 6"/></svg></button>
   </div>
+  <div class="ask-sub"><button class="quest" type="button" id="questBtn">get <b>+5,000</b> $FORK</button></div>
 </form>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <div class="full" id="full" hidden role="dialog" aria-modal="true" aria-labelledby="fullTitle">
   <div class="full-h"><div><h2 id="fullTitle"></h2><p id="fullSub"></p></div><button class="pill" type="button" id="fullX">close<span class="lbl"> · esc</span></button></div>
   <div class="full-b" id="fullB"></div>
-  <div class="legend"><span><i class="p"></i>the traced line</span><span><i></i>verified</span><span><i class="l"></i>likely</span><span><i class="d"></i>disputed</span><span>tap any node to ask about it</span></div>
+  <div class="legend" id="fullLegend"></div>
 </div>
 
+<script src="src/config.js"></script>
 <script src="src/archive.js"></script>
 <script src="src/field.js"></script>
 <script src="src/brain.js"></script>
+<script src="src/quest.js"></script>
 <script src="src/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "forks", "runtimeExecutable": "node", "runtimeArgs": ["scripts/serve.cjs"], "port": 5173 },
+    { "name": "forks-netlify", "runtimeExecutable": "npx", "runtimeArgs": ["netlify-cli", "dev", "--port", "8873"], "port": 8873 }
+  ]
+}

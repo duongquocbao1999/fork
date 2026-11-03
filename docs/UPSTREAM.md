@@ -10,7 +10,7 @@ Runs first, in the browser, on every message.
 3. **archiveAnswer()** — a hit scoring ≥ 58 is *confident*: the reply is composed from sourced fields only, with cards and follow-ups. Below that, the message goes to the model if one is available, otherwise upstream says the thing isn't in the tree and offers the nearest matches.
 
 ## Model layer
-Only for messages the archive couldn't place. The model gets the last ten turns and a system brief (`RULES` in `brain.js`). It **does not get the archive** — it gets tools that run in the page:
+Everything the archive couldn't place — a word, a phrase, a name, a whole sentence. The model gets the last ten turns and a system brief (`RULES` in `brain.js`). It **does not get the archive** — it gets tools that run in the page:
 
 | Tool | Does | Returns to the model |
 |---|---|---|
@@ -19,9 +19,13 @@ Only for messages the archive couldn't place. The model gets the last ten turns 
 | `show_mutation(ancestor_id, descendant_id)` | draws then → now | changed traits |
 | `show_sources(id)` | draws the sources card | source titles |
 | `show_hot()` | draws forking now | names + 30-day forks |
-| `suggest_unverified_lineage(title, nodes)` | draws a dotted red tree (≤ 7 nodes) | "drawn as unverified" |
+| `trace_lineage(title, nodes)` | draws a lineage card for anything outside the archive: 2–9 nodes, `nodes[0]` the origin, each node `{name, parent, when, note}`, the asked-about node marked `query: true`; the line to it is lit in mint | "drawn for the user" |
 
-Rules the model is given: reply in the user's language; search before showing; never invent dates, platforms, people or sources for archive objects; outside the archive, sketch only with the unverified tool and say it is from memory; no financial advice; one line for off-topic questions.
+Rules the model is given: reply in the user's language; search first and never change archive facts; outside the archive, trace with `trace_lineage` (4–9 nodes, a year per node, what changed at each fork), keep to the account most people who know the subject would agree with and give years when exact dates aren't well known; state the takeaway plainly; never invent links or sources; no financial advice; point $FORK questions to `/freeforks`; one line for off-topic questions.
+
+Traced answers are tagged `traced` (archive answers `archive`), and the home screen's fine print says archive lines are hand-sourced and everything else is traced live.
+
+`/freeforks` and `/logout` never reach the model: `detect()` returns intent `quest` / `logout` and the page runs them (`src/quest.js`).
 
 ## Backends
 - **Claude artifact** — `claude.use("sample")`, `modelTier: "quick"`, streamed text, tools executed in the page. If the viewer declines, upstream falls back to the archive and says so.

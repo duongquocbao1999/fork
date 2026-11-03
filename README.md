@@ -4,8 +4,8 @@
 
 <br>
 
-**Ask where any meme, character or token came from.**<br>
-One question, one answer, one family tree. Every link has a source — and the AI can only show you what the archive can prove.
+**Type anything — a meme, a phrase, a ticker, a link — and see where it came from.**<br>
+One question, one answer, one family tree. 81 lineages are hand-sourced; everything else upstream traces live, fork by fork, up to the thing you asked about.
 
 <br>
 
@@ -13,7 +13,8 @@ One question, one answer, one family tree. Every link has a source — and the A
 [![Zero build](https://img.shields.io/badge/build-none-151A17?style=flat-square&labelColor=090B0A)](#run-it-in-30-seconds)
 [![Vanilla JS](https://img.shields.io/badge/vanilla-JS-151A17?style=flat-square&labelColor=090B0A)](src)
 [![Documented](https://img.shields.io/badge/objects-81%20sourced-2E6B52?style=flat-square&labelColor=090B0A)](#data-you-can-trust)
-[![AI optional](https://img.shields.io/badge/AI-optional%20·%20tool--only-151A17?style=flat-square&labelColor=090B0A)](#upstream-the-ai-that-cant-make-things-up)
+[![AI traces anything](https://img.shields.io/badge/AI-traces%20anything-151A17?style=flat-square&labelColor=090B0A)](#how-upstream-answers)
+[![$FORK](https://img.shields.io/badge/%24FORK-%2Ffreeforks-E8B45A?style=flat-square&labelColor=090B0A)](#fork-freeforks)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-6EE7B7?style=flat-square&labelColor=090B0A)](CONTRIBUTING.md)
 
 [**forks.wiki**](https://forks.wiki) · [**Run it**](#run-it-in-30-seconds) · [**How it works**](#how-it-works) · [**Add a lineage**](CONTRIBUTING.md)
@@ -81,9 +82,9 @@ Ask *"what changed from chill guy to $chillguy?"* and you get **then → now** a
 </tr>
 </table>
 
-## upstream: the AI that can't make things up
+## How upstream answers
 
-forks has two brains, and they never blur.
+forks has two brains: the archive, which only says what it can source, and the model, which traces everything else.
 
 ```mermaid
 flowchart LR
@@ -91,17 +92,17 @@ flowchart LR
   a -- "confident match" --> ans["answer + lineage card<br/><b>label: archive</b>"]
   a -- "not sure" --> m{"model layer<br/>(if available)"}
   m -- "tool calls only" --> t["search_archive · show_lineage<br/>show_mutation · show_sources · show_hot"]
-  t --> ans2["answer + cards<br/><b>label: model</b>"]
-  m -- "not in the archive" --> u["suggest_unverified_lineage<br/>dotted red card · <b>unverified</b>"]
-  m -- "no model" --> nf["“isn't in the tree. i only show what i can source.”"]
+  t --> ans2["answer + cards<br/><b>label: traced</b>"]
+  m -- "not in the archive" --> u["trace_lineage<br/>the line from its origin<br/>to what you asked"]
+  m -- "no model" --> nf["“isn't in the archive yet.”"]
 ```
 
 1. **The archive layer** runs in the browser on every question. Intent detection (origin, became, changed, sources, hot, random — English and Russian), fuzzy and transliterated search, tickers, handles and URLs. If it's confident, it answers instantly and the model is never called.
-2. **The model layer** only sees plain-language questions the archive couldn't place. It has **no copy of the archive** — just tools. It must call `search_archive` before it can show anything, and every card it draws is rendered by the page from sourced data, not from the model's text.
-3. **Outside the archive**, the model may sketch what it remembers with `suggest_unverified_lineage`. The page draws that in **dotted red**, labelled *"from the model's memory, not the archive"*. No sources, no pretending.
+2. **The model layer** takes everything else — a word, a phrase, a whole sentence. It has **no copy of the archive**, just tools. It calls `search_archive` first; archive objects are always shown from sourced data, never retold.
+3. **Outside the archive**, the model traces the line itself with `trace_lineage`: origin → each fork, with a year and what changed → the thing you asked about. The page draws it like any other lineage, your line in mint, every node tappable. The reply is tagged `traced` instead of `archive`, and it never comes with invented links.
 
 <div align="center">
-<img src="docs/media/shot-ai.png" alt="An unverified lineage for Skibidi Toilet, drawn dotted and labelled as model memory" width="92%">
+<img src="docs/media/shot-ai.png" alt="upstream tracing 'touch grass' from a forum insult to a reply verb, drawn as a lineage card" width="92%">
 </div>
 
 Where the model comes from:
@@ -165,13 +166,15 @@ No framework, no bundler, no dependencies. One HTML file and four scripts.
 ```bash
 git clone https://github.com/forkwiki/fork.git
 cd fork
-npm start                          # → http://localhost:5173  (archive only)
+npm start                          # → http://127.0.0.1:5173  (archive only, /freeforks in demo mode)
 FORKS_LLM_KEY=sk-… npm start       # same, with upstream's model layer
 ```
 
+`npm start` runs every function in `netlify/functions` the way Netlify routes them. With the X and Supabase variables set (see [SETUP.ru.md](SETUP.ru.md)) the sign-in and the trials work locally too; without them `/freeforks` runs as a **demo** on localStorage, labelled as such.
+
 ### Deploy your own
 
-- **Netlify** — import the repo. `netlify.toml` validates the data, builds the archive and ships the `/api/ask` function. Add `FORKS_LLM_KEY` in *Site configuration → Environment variables* to switch the model on.
+- **Netlify** — import the repo. `netlify.toml` validates the data, builds the archive and ships the functions (`/api/ask`, sign-in with X, the trials). Environment variables and the step-by-step setup of X, Supabase and Netlify are in **[SETUP.ru.md](SETUP.ru.md)**; `GET /api/health` lists whatever is still missing.
 - **GitHub Pages** — push to `main`; the included workflow publishes the site (archive only). In *Settings → Pages* set the source to **GitHub Actions**.
 - **Anything static** — Vercel, Cloudflare Pages, `npx serve .`. Without the function the site simply stays archive-only.
 
@@ -185,6 +188,9 @@ flowchart LR
   field["src/field.js<br/>the living canopy"] --> app
   app --> html["index.html<br/>tokens + layout"]
   fn["netlify/functions/ask.mjs<br/>optional model proxy"] -. "/api/ask" .-> brain
+  quest["src/quest.js<br/>/freeforks"] --> app
+  api["netlify/functions/api.mjs<br/>auth-start · auth-callback"] -. "/api/* · /auth/x/*" .-> quest
+  api --> db[("Supabase Postgres<br/>server-side only")]
 ```
 
 | File | What it does |
@@ -192,9 +198,14 @@ flowchart LR
 | `src/data.js` | The source of truth. Documented lineages with sources, labelled sample lineages, and everything derived: depth, descendants, fork score, status, momentum, path confidence. |
 | `src/archive.js` | Generated by `npm run build`: only the documented, sourced objects — what the site ships. |
 | `src/brain.js` | upstream. Intent detection, fuzzy + transliterated search, archive answers, the model's tool set and system rules, and the two model backends (Claude `sample` / OpenAI-compatible endpoint). |
-| `src/app.js` | The single screen: hero → chat, typed replies, lineage / mutation / sources / hot / archive / unverified cards, SVG tree layout, full-tree overlay, theme. |
+| `src/app.js` | The single screen: hero → chat, typed replies, lineage / traced / mutation / sources / hot / archive cards, SVG tree layout, full-tree overlay, theme, the $FORK button and header pill. |
+| `src/quest.js` | `/freeforks`: sign-in card, the four trials one by one, wallet, summary. Live backend (`/api/*`) or a labelled demo on localStorage where the functions don't exist. |
+| `src/config.js` | Every public setting in one place — ticker, CA, the X account and post for the trials, links. Read by the page and imported by the functions. |
 | `src/field.js` | The background canopy on canvas: idle growth, *listening* (leans toward the input as you type), *thinking* (signals run from the origin), the lit path on answer, sprouts where you tap. Respects `prefers-reduced-motion`. |
 | `netlify/functions/ask.mjs` | Optional. Keeps the key server-side, sends upstream's own prompt and tools (`netlify/lib/upstream.mjs`, generated), caps payloads, rate-limits, forwards to any OpenAI-compatible chat endpoint. |
+| `netlify/functions/auth-start.mjs`, `auth-callback.mjs` | Sign in with X: OAuth 2.0 + PKCE, read-only scopes, the X token is revoked right after reading the profile; session in a signed HttpOnly cookie. |
+| `netlify/functions/api.mjs` | `/api/health`, `/api/me`, `/api/logout`, `/api/task/open`, `/api/task/claim`, `/api/wallet`. Talks to Supabase over REST with the service key — no dependencies. |
+| `supabase/migrations/0001_init.sql` | Profiles, trials, ledger with idempotency keys, all rewards decided in SQL; every table closed to `anon`. |
 | `scripts/` | `build-archive.cjs`, `build-upstream.cjs` (upstream's prompt and tools for `/api/ask`), `validate.cjs` (CI data checks), `charts.cjs` (README charts + banner), `serve.cjs` (zero-dep dev server that also runs the function). |
 
 ### Talk to it
@@ -206,12 +217,27 @@ flowchart LR
 | `what changed from kabosu photo to dogecoin?` | then → now across eight traits |
 | `what is forking right now?` · `/hot` | the last 30 days |
 | `surprise me` · `/random` | a random deep lineage |
+| `touch grass` · `why does everyone say "it's giving"` | a traced lineage for anything outside the archive |
 | `/sources doge` · `/archive` · `/help` · `/clear` | receipts · every origin · commands · start over |
+| `/freeforks` · the **get +5,000 $FORK** button · `/logout` | the trials · sign out |
 | `откуда взялся чилл гай` | yes, in Russian too |
+
+## $FORK · /freeforks
+
+The button under the input — **get +5,000 $FORK** — or the command `/freeforks` starts the trials in the chat. upstream asks you to sign in with X, then hands out four small forks of your own, one at a time:
+
+| Trial | Opens | Pending $FORK |
+|---|---|---|
+| follow | `x.com/intent/follow?screen_name=…` | 1,500 |
+| like | `x.com/intent/like?tweet_id=…` | 1,000 |
+| repost | `x.com/intent/retweet?tweet_id=…` | 1,250 |
+| comment | the post itself (the reply intent turns into a quote in the X app) | 1,250 |
+
+**GO** opens the link and starts the server's clock; five seconds later the claim counts. The page shows a short *verifying* bar, but nothing is checked against X — the server only checks that the link was opened and the time has passed. Then a Solana wallet for the airdrop, and the summary. The account and the post live in `src/config.js`; the amounts live in the database (`tasks`), never in the browser. Allocations are **pending**, never called a balance.
 
 ## Data you can trust
 
-The site only ships **documented** objects — 81 of them, 2005 → Oct 2026: Jean Philanthrope, Doge, Pepe, Chill Guy, Moo Deng, Italian brainrot, 6-7, the nihilistic penguin, #GrrMondays, Jimothy the raccoon.
+The archive only ships **documented** objects — 81 of them, 2005 → Oct 2026: Jean Philanthrope, Doge, Pepe, Chill Guy, Moo Deng, Italian brainrot, 6-7, the nihilistic penguin, #GrrMondays, Jimothy the raccoon.
 
 - Every object links to the reporting behind its date and its parent.
 - Dates are exact, `~approximate`, or *reported* (first date a source mentions it).
@@ -243,7 +269,9 @@ One question in **Instrument Serif**, everything else in **JetBrains Mono**. Nea
 ## Roadmap
 
 - [x] One-question interface with a reactive background
-- [x] upstream: archive layer + tool-only model layer, unverified sketches
+- [x] upstream: archive layer + tool-only model layer
+- [x] Traced lineages for anything outside the archive
+- [x] $FORK trials with sign-in with X (`/freeforks`)
 - [x] Documented 2005–2026 lineages with sources
 - [ ] Streaming for the endpoint backend
 - [ ] Shareable answer links (`forks.wiki/?q=…`)
