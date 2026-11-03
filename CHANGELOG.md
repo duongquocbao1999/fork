@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.0 — 2026-11-04
+
+- **Every point on a tree is a way out.** Tap a point (on the stage, in a card or in the full view) and its card opens: name, year, what changed, then links — the real sources for archive points, and for traced points searches built from the model's phrase for that point (X, Know Your Meme, Wikipedia, Google; DexScreener for a `$TICKER`). Then *trace from here* and *what did it become?*. A floating card on wide screens, a bottom sheet on phones.
+- `trace_lineage` nodes carry `q`, the search phrase that finds the point on the web. The model still never writes URLs.
+
 ## 2.2.0 — 2026-11-03
 
 - **The trace stage.** Every answer with a tree grows on a wide stage instead of a small card: while upstream looks, probes reach out from the root and fall back; then the line grows from its origin point by point — each point with its year and what changed — side forks sprout as it passes, the status line walks the points, and it arrives at what you asked. Under it, the result: the name, how many forks from which origin, and upstream's lines. Phones grow top → down, one row per point, like `git log --graph`. Tap any point to trace it next; `open ↗` for the full tree.

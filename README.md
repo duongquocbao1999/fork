@@ -84,7 +84,7 @@ Ask *"what changed from chill guy to $chillguy?"* and you get **then → now** a
 
 ## The trace stage
 
-Type anything and the answer **grows**. While upstream looks, probes reach out from a seed and fall back. Then the line grows from its origin, point by point — each point with its year and what changed there — side forks sprout as it passes, the status line walks the points, and it arrives at the thing you asked about, ringed. Under it: the name in serif, how many forks from which origin, and upstream's two or three lines. On a phone the same tree grows top → down, one row per point, like `git log --graph`. Tap any point to trace it next.
+Type anything and the answer **grows**. While upstream looks, probes reach out from a seed and fall back. Then the line grows from its origin, point by point — each point with its year and what changed there — side forks sprout as it passes, the status line walks the points, and it arrives at the thing you asked about, ringed. Under it: the name in serif, how many forks from which origin, and upstream's two or three lines. On a phone the same tree grows top → down, one row per point, like `git log --graph`. Tap any point for its card: the real sources for archive points, searches on X, Know Your Meme, Wikipedia and Google for traced ones (DexScreener for tokens), and *trace from here*.
 
 <div align="center">
 <img src="docs/media/shot-answer.png" alt="Dogecoin traced on the stage: Kabosu photo → Doge → Dogecoin in mint, with the other forks of the family around it" width="92%">

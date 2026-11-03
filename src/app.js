@@ -20,7 +20,7 @@
   const field = new window.ForksField($('#field'));
   const formRect = () => $('#ask').getBoundingClientRect();
   addEventListener('pointerdown', e => {
-    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .toast')) return;
+    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .toast, .point')) return;
     field.tap(e.clientX, e.clientY);
   });
 
@@ -135,7 +135,7 @@
     thread.appendChild(li);
     const m = { li, txt: li.querySelector('.txt'), cards: li.querySelector('.cards'), body: li.querySelector('.result'), head: li.querySelector('.r-head'), sub: li.querySelector('.r-sub') };
     m.stage = window.ForksStage.create(li.querySelector('.stage-host'), {
-      onPick: id => m.pick && m.pick(id),
+      onPick: (id, rect) => m.pick && m.pick(id, rect),
       onFull: () => m.full && m.full(),
       onPoint: (x, y, last) => { if (last) { if (!SMALL()) field.light(Math.max(40, x - 40), y); field.burst(x, y); } }
     });
@@ -146,13 +146,13 @@
     m.head.hidden = false; m.head.textContent = r.focus.name;
     m.sub.hidden = false;
     const when = n => (n.when ? ` · ${esc(n.when)}` : '');
-    m.sub.innerHTML = (r.forks ? `${r.forks} fork${r.forks > 1 ? 's' : ''} from <b>${esc(r.root.name)}</b>${when(r.root)}` : `the origin${when(r.focus)}`) + (sourced ? ' · <span class="sourced">sourced</span>' : '');
+    m.sub.innerHTML = (r.forks ? `${r.forks} fork${r.forks > 1 ? 's' : ''} from <b>${esc(r.root.name)}</b>${when(r.root)}` : `the origin${when(r.focus)}`) + (sourced ? ' · <span class="sourced">sourced</span>' : '') + ' · <span class="hint">tap any point for links</span>';
     scrollDown();
     return r;
   }
   function growArchive(m, rootId, focusId) {
     const ids = [rootId].concat(H.subtree(rootId).map(n => n.id));
-    m.pick = id => send(`/trace ${id}`);
+    m.pick = (id, rect) => pointArchive(id, rect);
     m.full = () => openFull(rootId, focusId);
     m.sourced = focusId;
     return m.stage.grow({
@@ -161,7 +161,7 @@
     }).then(r => result(m, r, true));
   }
   function growTraced(m, c) {
-    m.pick = id => send(`where did ${c.nodes[Number(id)].name} come from?`);
+    m.pick = (id, rect) => pointTraced(c, id, rect);
     m.full = () => showFull(c.title.toLowerCase(), `${c.nodes.length} objects · origin ${c.nodes[0].name.toLowerCase()}${c.nodes[0].when ? ', ' + c.nodes[0].when : ''} · traced to ${c.nodes[c.focus].name.toLowerCase()}`, tracedTree(c, 'full'), pickTraced(c), '<span><i class="p"></i>the traced line</span><span>tap any node to trace it</span>');
     return m.stage.grow({
       root: '0', focus: String(c.focus),
@@ -314,10 +314,66 @@
     });
   }
   function bindTree(el, pick) {
-    el.addEventListener('click', e => { const g = e.target.closest('.n'); if (g) { closeFull(); pick(g.dataset.id); } });
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const g = e.target.closest('.n'); if (g) { e.preventDefault(); closeFull(); pick(g.dataset.id); } } });
+    const at = g => (g.querySelector('circle:not(.ring)') || g).getBoundingClientRect();
+    el.addEventListener('click', e => { const g = e.target.closest('.n'); if (g) pick(g.dataset.id, at(g)); });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const g = e.target.closest('.n'); if (g) { e.preventDefault(); pick(g.dataset.id, at(g)); } } });
   }
-  const pickArchive = id => send(`/trace ${id}`);
+
+  /* ---------- a point's card: what it is, where to read about it, where to go next ---------- */
+  const enc = encodeURIComponent;
+  const plain = s => String(s || '').replace(/["“”«»]/g, '').trim();
+  const SEARCH = [
+    ['search on x', q => `https://x.com/search?q=${enc(q)}&f=top`],
+    ['know your meme', q => `https://knowyourmeme.com/search?q=${enc(q)}`],
+    ['wikipedia', q => `https://en.wikipedia.org/w/index.php?title=Special:Search&go=Go&search=${enc(q)}`],
+    ['google', q => `https://www.google.com/search?q=${enc(q)}`]
+  ];
+  const searchLinks = (q, name) => {
+    const tk = (String(name).match(/\$[A-Za-z][A-Za-z0-9]{1,14}/) || [])[0];
+    return (tk ? [['dexscreener · ' + tk, `https://dexscreener.com/search?q=${enc(tk.slice(1))}`]] : []).concat(SEARCH.map(([l, f]) => [l, f(q)]));
+  };
+  const point = $('#point');
+  function openPoint(o, rect) {
+    point.innerHTML = `<div class="pt-h"><div class="pt-name">${esc(o.name)}</div>${o.meta ? `<div class="pt-meta">${esc(o.meta)}</div>` : ''}</div>` +
+      (o.desc ? `<p class="pt-desc">${esc(o.desc)}</p>` : '') +
+      `<div class="pt-k">${o.sourced ? 'sources' : 'find it'}</div><ul class="pt-links">${o.links.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul>` +
+      `<div class="pt-acts">${o.acts.map(([t], i) => `<button type="button" data-i="${i}">${esc(t)}</button>`).join('')}</div>` +
+      '<button class="pt-x" type="button" aria-label="Close">×</button>';
+    point.querySelectorAll('.pt-acts button').forEach(b => { b.onclick = () => { closePoint(); closeFull(); o.acts[Number(b.dataset.i)][1](); }; });
+    point.querySelector('.pt-x').onclick = closePoint;
+    point.hidden = false; point.classList.toggle('sheet', SMALL());
+    if (!SMALL() && rect) {
+      const w = point.offsetWidth, h = point.offsetHeight;
+      let x = rect.left + rect.width / 2 - 24, y = rect.bottom + 10;
+      if (y + h > innerHeight - 12) y = Math.max(12, rect.top - h - 10);
+      x = Math.max(12, Math.min(innerWidth - w - 12, x));
+      // in page coordinates, so the card stays by its point while the page scrolls (over the full view it is fixed)
+      const fixed = !$('#full').hidden; point.classList.toggle('fixed', fixed);
+      point.style.left = (x + (fixed ? 0 : scrollX)) + 'px'; point.style.top = (y + (fixed ? 0 : scrollY)) + 'px';
+    } else { point.style.left = ''; point.style.top = ''; }
+    const first = point.querySelector('a'); if (first && matchMedia('(pointer: fine)').matches) first.focus({ preventScroll: true });
+  }
+  function closePoint() { point.hidden = true; }
+  addEventListener('pointerdown', e => { if (!point.hidden && !point.contains(e.target) && !e.target.closest('.st-n, .tree .n')) closePoint(); }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !point.hidden) { e.stopPropagation(); closePoint(); } }, true);
+
+  function pointArchive(id, rect) {
+    const n = H.node(id);
+    openPoint({
+      name: n.name, meta: `${n.type.toLowerCase()} · ${H.when(n)} · ${n.plat.toLowerCase()}`, desc: n.desc, sourced: true,
+      links: n.sources.map(([t, u]) => [t, u]).concat([['search on x', `https://x.com/search?q=${enc(n.name)}&f=top`]]),
+      acts: [['trace from here', () => send(`/trace ${id}`)], ['what did it become?', () => send(`/became ${id}`)]]
+    }, rect);
+  }
+  function pointTraced(c, i, rect) {
+    const x = c.nodes[Number(i)], name = plain(x.name);
+    openPoint({
+      name: x.name, meta: [x.when, x.note].filter(Boolean).join(' · '),
+      links: searchLinks(x.q || name, x.name),
+      acts: [['trace from here', () => send(`where did ${name} come from?`)], ['what did it become?', () => send(`what did ${name} become?`)]]
+    }, rect);
+  }
+  const pickArchive = (id, rect) => pointArchive(id, rect);
   // a tree upstream traced itself: nodes [{name, parent, when, note}], focus = the thing asked about
   function tracedTree(c, size) {
     const full = size === 'full', small = innerWidth < 640;
@@ -331,7 +387,7 @@
       colW: full ? 250 : small ? 116 : 138, rowH: full ? 40 : 30, chars: full ? 30 : small ? 15 : 19, grow: !full, label: `lineage of ${c.title}`
     });
   }
-  const pickTraced = c => id => send(`where did ${c.nodes[Number(id)].name} come from?`);
+  const pickTraced = c => (id, rect) => pointTraced(c, id, rect);
 
   /* ---------- cards ---------- */
   function renderCard(m, c) {
@@ -386,7 +442,7 @@
   }
   function closeFull() { $('#full').hidden = true; }
   $('#fullX').addEventListener('click', closeFull);
-  bindTree($('#fullB'), id => fullPick(id));
+  bindTree($('#fullB'), (id, rect) => fullPick(id, rect));
 
   /* ---------- toast ---------- */
   let toastT = 0;

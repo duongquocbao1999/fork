@@ -155,9 +155,9 @@
         }, t.at);
       });
 
-      const pick = id => { if (opts.onPick && id != null) opts.onPick(id); };
-      svg.addEventListener('click', e => { const g = e.target.closest('.st-n'); if (g) pick(g.dataset.id); });
-      svg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const g = e.target.closest('.st-n'); if (g) { e.preventDefault(); pick(g.dataset.id); } } });
+      const pick = g => { if (opts.onPick && g) opts.onPick(g.dataset.id, g.querySelector('.dot').getBoundingClientRect()); };
+      svg.addEventListener('click', e => pick(e.target.closest('.st-n')));
+      svg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { const g = e.target.closest('.st-n'); if (g) { e.preventDefault(); pick(g); } } });
 
       return new Promise(res => setTimeout(() => {
         el.classList.remove('growing'); el.classList.add('grown');
