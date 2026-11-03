@@ -98,8 +98,6 @@ body.chat #newBtn { display: inline-flex; }
 main { position: relative; z-index: 2; }
 .hero { position: relative; overflow-x: clip; min-height: 100svh; display: grid; place-content: center; justify-items: center; gap: 22px; padding: 90px var(--gut-r) 110px var(--gut); text-align: center; }
 .hero::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(1100px, 100vw); height: min(760px, 110vh); transform: translate(-50%, -50%); background: radial-gradient(closest-side, var(--bg) 0%, color-mix(in srgb, var(--bg) 82%, transparent) 55%, transparent 100%); pointer-events: none; }
-.eyebrow { margin: 0; font: 400 11.5px/1.4 var(--mono); color: var(--ink-3); letter-spacing: .02em; }
-.eyebrow b { color: var(--acc); font-weight: 400; }
 .q { margin: 0; font: 400 clamp(46px, 7.4vw, 104px)/.95 var(--serif); letter-spacing: -.025em; text-wrap: balance; position: relative; }
 .q em { font-style: italic; color: var(--acc); }
 .q .w { display: inline-block; opacity: 0; transform: translateY(.18em); filter: blur(6px); animation: wIn .9s var(--ease) forwards; }
@@ -126,10 +124,6 @@ main { position: relative; z-index: 2; }
 .chip { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--rule); background: var(--veil); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font: 400 12.5px/1.2 var(--mono); color: var(--ink-2); transition: color .15s, border-color .15s, transform .15s var(--ease); }
 .chip:hover { color: var(--ink); border-color: var(--rule-2); }
 .chip:active { transform: scale(.97); }
-.now { margin: 0; font: 400 12px/1.6 var(--mono); color: var(--ink-3); max-width: var(--col); }
-.now button { color: var(--ink-2); border-bottom: 1px dotted var(--ink-3); }
-.now button:hover { color: var(--acc); border-color: var(--acc); }
-.now .plus { color: var(--acc); }
 .fine { position: fixed; z-index: 3; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); text-align: center; padding: 0 var(--gut-r) 0 var(--gut); font: 400 11px/1.5 var(--mono); color: var(--ink-3); pointer-events: none; transition: opacity .3s; }
 body.chat .fine { opacity: 0; }
 
@@ -211,6 +205,53 @@ body.chat .thread { display: flex; }
 .srcs a::before { content: "↗"; color: var(--acc); }
 .srcs a:hover { color: var(--ink); }
 
+/* ---------- trace stage ---------- */
+.msg.trace { width: min(1100px, calc(100vw - 32px)); align-self: center; display: grid; gap: 14px; }
+.stage { position: relative; border: 1px solid var(--rule-2); border-radius: 18px; background: color-mix(in srgb, var(--bg-2) 72%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overflow: hidden; height: 250px; transition: height .6s var(--ease); }
+.st-top { position: absolute; z-index: 2; left: 0; right: 0; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; pointer-events: none; }
+.st-top > * { pointer-events: auto; }
+.st-status { display: inline-flex; align-items: center; gap: 9px; min-width: 0; font: 400 11.5px/1.2 var(--mono); color: var(--ink-3); }
+.st-status b { font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--acc); flex: none; }
+.stage.looking .st-status i, .stage.growing .st-status i { animation: thk 1.1s var(--ease) infinite; }
+.stage.grown .st-status { color: var(--ink-2); }
+.st-acts button { font: 400 11.5px var(--mono); color: var(--ink-2); border-bottom: 1px dotted var(--ink-3); }
+.st-acts button:hover { color: var(--acc); border-color: var(--acc); }
+.st-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.st-probe { fill: none; stroke: var(--ink-3); stroke-width: 1.3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; animation: probe 1.9s var(--ease) both; }
+@keyframes probe { 0% { stroke-dashoffset: 1; opacity: 0; } 15% { opacity: .75; } 60% { stroke-dashoffset: 0; opacity: .6; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.st-tip { fill: var(--ink-3); opacity: 0; animation: tip 1.3s ease both; }
+@keyframes tip { 30% { opacity: .9; } 100% { opacity: 0; } }
+.st-seed { fill: var(--acc); animation: seed 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes seed { 50% { transform: scale(1.35); opacity: .7; } }
+.st-e { fill: none; stroke: var(--ink-3); stroke-width: 1.3; stroke-linecap: round; opacity: .7; }
+.st-e.path { stroke: var(--acc); stroke-width: 2.4; opacity: 1; }
+.st-e.likely { stroke-dasharray: 5 4 !important; } .st-e.disputed { stroke-dasharray: 1 4 !important; }
+.st-n { cursor: pointer; outline: none; }
+.st-n .hit { fill: transparent; pointer-events: all; }
+.st-n .dot { fill: var(--bg-2); stroke: var(--ink-3); stroke-width: 1.4; transform-box: fill-box; transform-origin: center; }
+.st-n.path .dot, .st-n.root .dot { fill: var(--acc); stroke: var(--acc); }
+.st-n .ring { fill: none; stroke: var(--acc); stroke-width: 1.4; transform-box: fill-box; transform-origin: center; }
+.stage.grown .st-n.focus .ring { animation: ring 2.4s ease-out 1s infinite; }
+@keyframes ring { 0% { opacity: .9; } 60% { opacity: .25; } 100% { opacity: .9; } }
+.st-n text { font: 400 12.5px var(--mono); fill: var(--ink-3); paint-order: stroke; stroke: var(--bg-2); stroke-width: 5px; stroke-linejoin: round; transform-box: fill-box; }
+.st-n.path text.nm { fill: var(--ink); }
+.st-n.focus text.nm { font-size: 14px; font-weight: 500; fill: var(--ink); }
+.st-n .mt { font-size: 10.5px; fill: var(--ink-3); }
+.st-n.path .mt { fill: var(--ink-2); }
+.st-n:hover text.nm, .st-n:focus-visible text.nm { fill: var(--acc); }
+.st-n:hover .dot { stroke: var(--acc); }
+.result { width: min(720px, 100%); margin: 0 auto; }
+.r-head { font: 400 italic clamp(30px, 4.4vw, 52px)/1.02 var(--serif); color: var(--ink); letter-spacing: -.015em; overflow-wrap: anywhere; animation: rise .5s var(--ease) both; }
+.r-sub { margin: 6px 0 10px; font: 400 12px/1.5 var(--mono); color: var(--ink-3); animation: rise .5s var(--ease) .08s both; }
+.r-sub b { font-weight: 400; color: var(--acc); }
+.r-sub .sourced { color: var(--ink-2); }
+.msg.trace .txt { color: var(--ink); }
+@media (max-width: 640px) {
+  .stage { border-radius: 14px; }
+  .st-n text { font-size: 12.5px; }
+}
+
 /* ---------- $FORK: /freeforks ---------- */
 .ask-sub { display: flex; justify-content: center; margin-top: 10px; }
 .quest { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px; border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--warn) 55%, transparent); background: var(--veil); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font: 400 12px/1 var(--mono); color: var(--ink-2); transition: color .15s, border-color .15s, transform .15s var(--ease); }
@@ -281,8 +322,6 @@ body.chat .dock { display: flex; }
   .pill .lbl { display: none; }
   .pill .mob { display: block; }
   #archBtn { width: 30px; padding: 0; justify-content: center; }
-  #aiPill { width: 30px; padding: 0; justify-content: center; }
-  #aiPill:not(.on) { display: none; }
   .pill.me { padding: 0 7px; }
   .pill.me .demo, .pill.me .tk { display: none; }
   .q-task { flex-wrap: wrap; }
@@ -298,7 +337,7 @@ body.chat .dock { display: flex; }
   .pill.gh { display: none; }
 }
 @media (max-width: 360px) {
-  .pill.me .amt, #aiPill { display: none !important; }
+  .pill.me .amt { display: none !important; }
   .pill.me { width: 30px; padding: 0; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -318,7 +357,6 @@ body.chat .dock { display: flex; }
     <button class="pill" type="button" id="newBtn">new</button>
     <button class="pill" type="button" id="archBtn"><span class="lbl">archive</span><span class="sr">Show the archive</span><svg class="mob" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     <button class="pill me" type="button" id="meBtn" hidden></button>
-    <span class="pill" id="aiPill" title="Where answers come from"><span class="dot" id="aiDot"></span><span class="lbl" id="aiLbl">archive only</span></span>
     <a class="pill icon gh" href="https://github.com/forkwiki/fork" target="_blank" rel="noopener" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
     <button class="pill icon" type="button" id="themeBtn" aria-label="Switch light or dark"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/></svg></button>
   </nav>
@@ -326,14 +364,12 @@ body.chat .dock { display: flex; }
 
 <main>
   <section class="hero" aria-label="Ask">
-    <p class="eyebrow" id="eyebrow"></p>
     <div>
       <h1 class="q" id="q" aria-label="where did it come from?"></h1>
       <svg class="q-fork" viewBox="0 0 420 22" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 4H300C340 4 336 18 380 18"/><circle cx="384" cy="18" r="3"/></svg>
     </div>
     <div id="askSlot"></div>
     <div class="chips" id="chips"></div>
-    <p class="now" id="now"></p>
   </section>
   <ol class="thread" id="thread" aria-live="polite"></ol>
 </main>
@@ -361,6 +397,7 @@ body.chat .dock { display: flex; }
 <script src="src/archive.js"></script>
 <script src="src/field.js"></script>
 <script src="src/brain.js"></script>
+<script src="src/stage.js"></script>
 <script src="src/quest.js"></script>
 <script src="src/app.js"></script>
 </body>

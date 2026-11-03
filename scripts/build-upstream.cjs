@@ -7,7 +7,8 @@ const vm = require('vm');
 
 const root = path.join(__dirname, '..');
 // Just enough of a browser for archive.js + brain.js to load. No fetch, so brain.js stays offline.
-const sandbox = { location: { protocol: 'http:', hostname: 'localhost' }, setTimeout, clearTimeout, console };
+// setTimeout is instant here so brain.js's wait for a Claude viewer doesn't hold the build.
+const sandbox = { location: { protocol: 'http:', hostname: 'localhost' }, setTimeout: f => setImmediate(f), clearTimeout() {}, console, Event: class { constructor(type) { this.type = type; } }, dispatchEvent: () => true };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 for (const file of ['src/archive.js', 'src/brain.js']) {

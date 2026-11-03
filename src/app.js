@@ -20,28 +20,43 @@
   const field = new window.ForksField($('#field'));
   const formRect = () => $('#ask').getBoundingClientRect();
   addEventListener('pointerdown', e => {
-    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .now, .toast')) return;
+    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .toast')) return;
     field.tap(e.clientX, e.clientY);
   });
 
   /* ---------- hero ---------- */
   const Q = ['where', 'did', 'it', '<em>come</em>', '<em>from?</em>'];
   $('#q').innerHTML = Q.map((w, i) => `<span class="w" style="animation-delay:${200 + i * 110}ms">${w}</span>`).join(' ');
-  $('#eyebrow').innerHTML = `upstream · traces anything · <b>${H.count.nodes}</b> sourced objects · <b>${H.count.roots}</b> origins`;
-  const CHIPS = ['where did doge come from?', 'what did chill guy become?', 'trace $JEANPHIL', 'who is jean philanthrope?', 'what is forking right now?', 'surprise me'];
-  $('#chips').innerHTML = CHIPS.map(c => `<button class="chip" type="button">${esc(c)}</button>`).join('');
-  $('#chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) send(b.textContent); });
-  const hot = H.hot().slice(0, 3);
-  $('#now').innerHTML = 'forking now · ' + hot.map(n => `<button type="button" data-q="where did ${esc(n.name)} come from?">${esc(n.name.toLowerCase())}</button> <span class="plus">+${n.forks30}</span>`).join(' · ');
-  $('#now').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) send(b.dataset.q); });
-  const fineBase = `archive lines are hand-sourced · everything else is traced live by upstream · updated ${A.updated.split('-').reverse().join('.')}`;
-  $('#fine').textContent = fineBase;
+  // starters: half answered from the sourced archive, half traced live — a fresh six on every visit
+  const ARCHIVE_STARTS = [
+    ['dogecoin’s bloodline', 'where did dogecoin come from?'],
+    ['who forked kekius maximus?', 'where did kekius maximus come from?'],
+    ['tung tung tung sahur, from the root', 'where did tung tung tung sahur come from?'],
+    ['everything chill guy forked into', 'what did chill guy become?'],
+    ['the upstream of $JEANPHIL', 'where did $JEANPHIL come from?'],
+    ['how nafo got its doge', 'where did nafo fellas come from?']
+  ];
+  const LIVE_STARTS = [
+    ['where did “gm” come from?', 'where did gm come from?'],
+    ['trace “touch grass”', 'where did touch grass come from?'],
+    ['what is “wagmi” a fork of?', 'where did wagmi come from?'],
+    ['the family tree of “rizz”', 'where did rizz come from?'],
+    ['who started the “ratio”?', 'where did ratio come from?'],
+    ['how “skibidi” forked', 'where did skibidi come from?'],
+    ['the ancestors of “based”', 'where did based come from?'],
+    ['what came before the rickroll?', 'where did the rickroll come from?']
+  ];
+  const pickN = (list, n) => list.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]);
+  const starts = pickN(pickN(ARCHIVE_STARTS, 3).concat(pickN(LIVE_STARTS, 3)), 6);
+  $('#chips').innerHTML = starts.map(([label, q]) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(label)}</button>`).join('');
+  $('#chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) send(b.dataset.q); });
+  $('#fine').textContent = 'archive lines are hand-sourced · everything else is traced live by upstream';
 
   /* ---------- input ---------- */
   const inp = $('#inp'), sendBtn = $('#sendBtn'), form = $('#ask');
   $('#askSlot').appendChild(form);
   const SMALL = () => innerWidth < 640;
-  const PH = [SMALL() ? 'a meme, a ticker, a link' : 'paste a meme, a ticker or a link', 'where did doge come from?', '$CHILLGUY', 'instagram.com/jean_philanthrope', 'what did pepe become?', 'what changed from kabosu photo to dogecoin?'];
+  const PH = [SMALL() ? 'type anything' : 'type anything — a word, a meme, a ticker', 'gm', 'touch grass', '$CHILLGUY', 'it’s giving', 'why does everyone say 67?'];
   let phI = 0; inp.placeholder = PH[0];
   setInterval(() => { if (!inp.value && document.activeElement !== inp && !document.body.classList.contains('chat')) { phI = (phI + 1) % PH.length; inp.placeholder = PH[phI]; } }, 3200);
   const listen = () => { field.setFocus(formRect()); field.setMode(busy ? 'thinking' : (inp.value || document.activeElement === inp ? 'listening' : 'idle')); };
@@ -53,18 +68,9 @@
     if (e.key === 'Escape') { if (!$('#full').hidden) closeFull(); else if (busy && ctl) ctl.abort(); }
   });
 
-  /* ---------- AI status ---------- */
-  const setAI = () => {
-    const on = !!B.AI.kind;
-    $('#aiDot').classList.toggle('on', on); $('#aiPill').classList.toggle('on', on);
-    $('#aiLbl').textContent = on ? (B.AI.kind === 'claude' ? 'ai · claude' : 'ai · on') : 'archive only';
-    $('#aiPill').title = on ? 'Plain-language questions go to the model; it can only show archive objects through tools.' : 'Answers come straight from the sourced archive.';
-  };
-  addEventListener('forks-ai', setAI); setAI();
-
   /* ---------- modes ---------- */
   const thread = $('#thread');
-  let history = [], busy = false, ctl = null;
+  let history = [], busy = false, ctl = null, queued = null;
   function toChat() {
     if (document.body.classList.contains('chat')) return;
     document.body.classList.add('chat');
@@ -121,66 +127,130 @@
     field.burst(r.left + 12, r.top + 14);
   }
 
+  /* ---------- trace messages: a stage on top, the result under it ---------- */
+  const wait = ms => new Promise(r => setTimeout(r, RM.matches ? 0 : ms));
+  function addTrace() {
+    const li = document.createElement('li'); li.className = 'msg trace';
+    li.innerHTML = '<div class="stage-host"></div><div class="result"><div class="r-head" hidden></div><div class="r-sub" hidden></div><div class="txt"></div><div class="cards"></div></div>';
+    thread.appendChild(li);
+    const m = { li, txt: li.querySelector('.txt'), cards: li.querySelector('.cards'), body: li.querySelector('.result'), head: li.querySelector('.r-head'), sub: li.querySelector('.r-sub') };
+    m.stage = window.ForksStage.create(li.querySelector('.stage-host'), {
+      onPick: id => m.pick && m.pick(id),
+      onFull: () => m.full && m.full(),
+      onPoint: (x, y, last) => { if (last) { if (!SMALL()) field.light(Math.max(40, x - 40), y); field.burst(x, y); } }
+    });
+    scrollDown();
+    return m;
+  }
+  function result(m, r, sourced) {
+    m.head.hidden = false; m.head.textContent = r.focus.name;
+    m.sub.hidden = false;
+    const when = n => (n.when ? ` · ${esc(n.when)}` : '');
+    m.sub.innerHTML = (r.forks ? `${r.forks} fork${r.forks > 1 ? 's' : ''} from <b>${esc(r.root.name)}</b>${when(r.root)}` : `the origin${when(r.focus)}`) + (sourced ? ' · <span class="sourced">sourced</span>' : '');
+    scrollDown();
+    return r;
+  }
+  function growArchive(m, rootId, focusId) {
+    const ids = [rootId].concat(H.subtree(rootId).map(n => n.id));
+    m.pick = id => send(`/trace ${id}`);
+    m.full = () => openFull(rootId, focusId);
+    m.sourced = focusId;
+    return m.stage.grow({
+      root: rootId, focus: focusId,
+      nodes: ids.map(id => { const n = H.node(id); return { id, name: n.name, when: H.when(n), meta: `${n.type.toLowerCase()} · ${H.when(n)}`, parent: id === rootId ? null : n.parent, rel: n.relation }; })
+    }).then(r => result(m, r, true));
+  }
+  function growTraced(m, c) {
+    m.pick = id => send(`where did ${c.nodes[Number(id)].name} come from?`);
+    m.full = () => showFull(c.title.toLowerCase(), `${c.nodes.length} objects · origin ${c.nodes[0].name.toLowerCase()}${c.nodes[0].when ? ', ' + c.nodes[0].when : ''} · traced to ${c.nodes[c.focus].name.toLowerCase()}`, tracedTree(c, 'full'), pickTraced(c), '<span><i class="p"></i>the traced line</span><span>tap any node to trace it</span>');
+    return m.stage.grow({
+      root: '0', focus: String(c.focus),
+      nodes: c.nodes.map((x, i) => ({ id: String(i), name: x.name, when: x.when, meta: [x.when, x.note].filter(Boolean).join(' · '), parent: x.parent == null ? null : String(x.parent) }))
+    }).then(r => result(m, r, false));
+  }
+
   /* ---------- send ---------- */
   async function send(raw) {
-    raw = String(raw || '').trim(); if (!raw || busy) return;
-    const ans = B.archiveAnswer(raw);
+    raw = String(raw || '').trim(); if (!raw) return;
+    if (busy) { queued = raw; inp.value = ''; sendBtn.disabled = true; return; } // goes out as soon as this answer lands
+    const ans = B.archiveAnswer(raw, { strict: true }); // the archive answers alone only when you name one of its objects
     if (ans.clear) { reset(); return; }
     if (ans.quest) { // /freeforks and /logout run in the page, never through the model
       toChat(); inp.value = ''; sendBtn.disabled = true; addYou(raw);
       busy = true; field.setMode('thinking');
-      try { await QUEST.run(ans.quest); } finally { busy = false; field.setMode('idle'); scrollDown(); }
+      try { await QUEST.run(ans.quest); } finally {
+        busy = false; field.setMode('idle'); scrollDown();
+        if (queued) { const q = queued; queued = null; setTimeout(() => send(q), 0); }
+      }
       return;
     }
     toChat(); inp.value = ''; sendBtn.disabled = true;
     addYou(raw);
     history.push({ role: 'user', content: raw });
     busy = true; field.setFocus(formRect()); field.setMode('thinking');
-    const m = addUp();
+    const say = async (m, text, cards, more) => {
+      await type(m.txt, text);
+      (cards || []).forEach(c => renderCard(m, c));
+      follow(m, more);
+      history.push({ role: 'assistant', content: text });
+    };
     try {
-      if (ans.confident) {
-        await new Promise(r => setTimeout(r, RM.matches ? 0 : 520));
-        m.src.hidden = false; m.src.textContent = 'archive';
-        await type(m.txt, ans.text);
-        (ans.cards || []).forEach(c => renderCard(m, c));
-        follow(m, ans.follow);
-        if (ans.light) lightUp(m);
-        history.push({ role: 'assistant', content: ans.text });
-      } else if (B.AI.kind) {
-        m.src.hidden = false; m.src.textContent = 'traced';
-        ctl = new AbortController();
-        const stop = document.createElement('button'); stop.className = 'stop'; stop.type = 'button'; stop.textContent = 'stop';
-        stop.onclick = () => ctl && ctl.abort(); m.li.querySelector('.who').appendChild(stop);
-        let got = false;
-        const ui = {
-          card: c => { renderCard(m, c); scrollDown(); },
-          light: () => lightUp(m),
-          stream: t => { got = true; m.txt.textContent = t; scrollDown(); }
-        };
-        let text = '';
-        try { text = await B.modelAnswer(history.slice(-10), ui, ctl.signal); }
-        catch (e) {
-          const code = e && e.code;
-          if (code === 'cancelled') text = (e.text || m.txt.textContent || '').trim() || 'stopped.';
-          else {
-            const nf = B.R.notFound(ans.q, ans.near || []);
-            text = (code === 'not_granted' ? 'the model is switched off for this page, so here is what the archive says.\n' : code === 'rate_limited' ? 'the model needs a breather. the archive says:\n' : '') + nf.text;
-            m.src.textContent = 'archive';
-            await type(m.txt, text); follow(m, nf.follow); got = true;
-          }
-        }
-        stop.remove();
-        if (text) m.txt.textContent = text; else if (!got) m.txt.textContent = '…';
-        history.push({ role: 'assistant', content: text || m.txt.textContent });
-      } else {
-        const nf = B.R.notFound(ans.q, ans.near || []);
-        m.src.hidden = false; m.src.textContent = 'archive';
-        await type(m.txt, nf.text);
-        follow(m, nf.follow);
-        history.push({ role: 'assistant', content: nf.text });
+      const tree = ans.confident && ans.cards && ans.cards[0] && ans.cards[0].type === 'lineage';
+      if (ans.confident && !tree) { // who are you, /help, /hot, /archive, what changed, sources
+        const m = addUp(); await wait(420);
+        await say(m, ans.text, ans.cards, ans.follow);
+        return;
       }
+      const m = addTrace();
+      if (tree) {
+        await wait(900);
+        await growArchive(m, ans.cards[0].root, ans.cards[0].focus);
+        await say(m, ans.text, ans.cards.slice(1), ans.follow);
+        return;
+      }
+
+      // anything else: upstream traces it
+      await B.AI.ready;
+      let note = '';
+      if (B.AI.kind) {
+        ctl = new AbortController();
+        const acts = m.stage.el.querySelector('.st-acts');
+        acts.innerHTML = '<button type="button">stop</button>'; acts.querySelector('button').onclick = () => ctl && ctl.abort();
+        let streamed = '';
+        const ui = {
+          card: c => {
+            if ((c.type === 'lineage' || c.type === 'traced') && !m.growP) m.growP = c.type === 'lineage' ? growArchive(m, c.root, c.focus) : growTraced(m, c);
+            else { renderCard(m, c); scrollDown(); }
+          },
+          light: () => {},
+          stream: t => { streamed = t; }
+        };
+        let text = '', err = null;
+        try { text = await B.modelAnswer(history.slice(-10), ui, ctl.signal); } catch (e) { err = e; }
+        if (m.growP) {
+          const r = await m.growP;
+          const t = String(text || streamed || '').trim();
+          if (t) await type(m.txt, t);
+          follow(m, m.sourced ? [`what did ${r.root.name} become?`, `/sources ${m.sourced}`] : [`where did ${r.root.name} come from?`, `what did ${r.focus.name} become?`]);
+          history.push({ role: 'assistant', content: t || `${r.focus.name}: ${r.forks} forks from ${r.root.name}` });
+          return;
+        }
+        if (err && (err.code === 'cancelled' || (ctl && ctl.signal.aborted))) { m.stage.remove(); await say(m, String((err && err.text) || streamed || '').trim() || 'stopped.'); return; }
+        note = err && err.code === 'not_granted' ? 'the model is switched off for this page.\n' : err && err.code === 'rate_limited' ? 'too many traces at once. give it a minute.\n' : '';
+      }
+      // no model, or no tree came back: the archive's closest line, if it has one
+      const loose = B.archiveAnswer(raw, { strict: false });
+      if (loose.confident && loose.cards && loose.cards[0] && loose.cards[0].type === 'lineage') {
+        await growArchive(m, loose.cards[0].root, loose.cards[0].focus);
+        await say(m, note + loose.text, loose.cards.slice(1), loose.follow);
+        return;
+      }
+      m.stage.remove();
+      const nf = B.R.notFound(loose.q || ans.q, loose.near || ans.near || []);
+      await say(m, note + nf.text, [], nf.follow);
     } finally {
       busy = false; ctl = null; field.setMode('idle'); scrollDown();
+      if (queued) { const q = queued; queued = null; setTimeout(() => send(q), 0); }
       if (matchMedia('(pointer: fine)').matches) inp.focus();
     }
   }

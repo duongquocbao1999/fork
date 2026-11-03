@@ -7,7 +7,9 @@ Runs first, in the browser, on every message.
 
 1. **detect()** — slash commands, then intent by pattern (English + Russian): persona, help, hot, archive, random, sources, changed, became, origin, describe. Stop-words are removed to leave the entity.
 2. **H.search()** — exact name (98) → ticker (100) → handle / URL from sources (92–96) → aliases (94) → prefix / contains → word hits; then Levenshtein similarity ≥ 0.72 on names and aliases; Cyrillic is also tried transliterated (`чилл гай` → `chill gay` → Chill Guy).
-3. **archiveAnswer()** — a hit scoring ≥ 58 is *confident*: the reply is composed from sourced fields only, with cards and follow-ups. Below that, the message goes to the model if one is available, otherwise upstream says the thing isn't in the tree and offers the nearest matches.
+3. **archiveAnswer(raw, { strict })** — with a model available the page calls it strict: the archive answers by itself only when the query names one of its objects exactly (`H.exact`: name, alias, ticker, handle, source URL or id). Everything else goes to the model. Without a model a hit scoring ≥ 58 is enough, and below that upstream offers the nearest matches.
+
+Keyword shortcuts (hot, archive, random, help) only work as slash commands; plain words are always traced. Persona answers only for exact questions like "who are you".
 
 ## Model layer
 Everything the archive couldn't place — a word, a phrase, a name, a whole sentence. The model gets the last ten turns and a system brief (`RULES` in `brain.js`). It **does not get the archive** — it gets tools that run in the page:
@@ -21,7 +23,7 @@ Everything the archive couldn't place — a word, a phrase, a name, a whole sent
 | `show_hot()` | draws forking now | names + 30-day forks |
 | `trace_lineage(title, nodes)` | draws a lineage card for anything outside the archive: 2–9 nodes, `nodes[0]` the origin, each node `{name, parent, when, note}`, the asked-about node marked `query: true`; the line to it is lit in mint | "drawn for the user" |
 
-Rules the model is given: reply in the user's language; search first and never change archive facts; outside the archive, trace with `trace_lineage` (4–9 nodes, a year per node, what changed at each fork), keep to the account most people who know the subject would agree with and give years when exact dates aren't well known; state the takeaway plainly; never invent links or sources; no financial advice; point $FORK questions to `/freeforks`; one line for off-topic questions.
+Every message must end with exactly one tree; if a reply comes back without one, the page asks again with `trace_lineage` forced (endpoint: `force` → `tool_choice`; Claude: the instruction appended to the last turn). Rules the model is given: reply in the user's language; search once and never change archive facts; anything counts, from a single word to a whole sentence; outside the archive, trace with `trace_lineage` (4–9 nodes, a year per node, what changed at each fork), keep to the account most people who know the subject would agree with and give years when exact dates aren't well known; state the takeaway plainly; never invent links or sources; no financial advice; point $FORK questions to `/freeforks`; one line for off-topic questions.
 
 Traced answers are tagged `traced` (archive answers `archive`), and the home screen's fine print says archive lines are hand-sourced and everything else is traced live.
 

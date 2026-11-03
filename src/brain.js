@@ -72,6 +72,15 @@
     for (const c of [n.name].concat(n.aliases)) { const t = norm(c); const d = lev(q, t); const sim = 1 - d / Math.max(q.length, t.length); if (sim >= .72) best = Math.max(best, 60 + sim * 20); }
     return best;
   }
+  // the query names this object exactly: its name, an alias, its ticker, its handle, a source URL or its id
+  H.exact = (n, q) => {
+    q = norm(q); if (!q) return false;
+    const u = bareUrl(q), h = q.replace(/^@|^u\//, '');
+    return norm(n.name) === q || n.id === q || n.aliases.some(a => norm(a) === q) ||
+      (!!n.ticker && (norm(n.ticker) === q || norm(n.ticker).slice(1) === q)) ||
+      (!!n.handle && norm(n.handle).replace(/^@|^u\//, '') === h) ||
+      (/^(https?:\/\/|www\.)|\.[a-z]{2,}\//.test(q) && n.sources.some(([, url]) => bareUrl(url) === u));
+  };
   H.search = (q, limit = 6) => {
     q = norm(q); if (!q) return [];
     const qs = /[а-яё]/.test(q) ? [q, translit(q)] : [q];
@@ -101,7 +110,7 @@
     const cmd = t.match(/^\/(\w+)\s*(.*)$/);
     if (cmd) return { intent: { trace: 'origin', origin: 'origin', became: 'became', forks: 'became', changed: 'changed', mutation: 'changed', sources: 'sources', hot: 'hot', random: 'random', archive: 'archive', help: 'help', clear: 'clear', about: 'persona', freeforks: 'quest', logout: 'logout', signout: 'logout' }[cmd[1]] || 'unknown', q: cmd[2], cmd: true };
     if (RX.quest.test(t)) return { intent: 'quest', q: '' };
-    for (const k of ['persona', 'help', 'hot', 'archive', 'random']) if (RX[k].test(t) && entityText(raw).length < 3) return { intent: k, q: '' };
+    if (/^(who are you|what are you|what is (this|forks|forks\.wiki)|how does (this|it) work|кто ты|ты кто|что это)\??$/.test(t)) return { intent: 'persona', q: '' };
     for (const k of ['sources', 'changed', 'became', 'origin', 'describe']) if (RX[k].test(t)) return { intent: k, q: entityText(raw) };
     return { intent: 'auto', q: /^(https?:\/\/|www\.)|^[\w-]+(\.[\w-]+)*\.[a-z]{2,}\//.test(t) ? t : (t.startsWith('$') ? t.split(' ')[0] : entityText(raw) || t) };
   }
@@ -162,7 +171,8 @@
     follow: near.length ? near.slice(0, 3).map(([n]) => `where did ${n.name} come from?`) : ['/archive', 'surprise me']
   });
 
-  function archiveAnswer(raw) {
+  function archiveAnswer(raw, opts) {
+    const strict = !!(opts && opts.strict);
     const d = detect(raw);
     if (d.intent === 'clear') return { clear: true };
     if (d.intent === 'quest' || d.intent === 'logout') return { quest: d.intent };
@@ -177,7 +187,7 @@
     }
     const hits = byId.has(q) ? [[byId.get(q), 100]] : H.search(q);
     const best = hits[0];
-    if (!best || best[1] < 58) return { confident: false, q, near: hits.filter(h => h[1] >= 30), intent: d.intent, cmd: d.cmd };
+    if (!best || best[1] < 58 || (strict && !H.exact(best[0], q))) return { confident: false, q, near: hits.filter(h => h[1] >= 30), intent: d.intent, cmd: d.cmd };
     const n = best[0];
     const intent = d.intent === 'auto' ? (n.parent ? 'origin' : 'became') : d.intent;
     const out = intent === 'became' ? R.became(n, !n.parent) : intent === 'changed' ? R.changed(n) : intent === 'sources' ? R.sources(n) : intent === 'describe' ? R.describe(n) : R.origin(n);
@@ -189,14 +199,13 @@
 
 Voice: lowercase, short, dry, a little aloof, sure of yourself. No emoji. No hype. Two to four short lines. Reply in the language the user writes in.
 
-How to answer:
-1. Call search_archive first. The archive has ${H.count.nodes} hand-sourced objects in ${H.count.roots} lineages (origins: ${H.roots().map(r => r.name).join(', ')}). If it has the thing, show it with show_lineage (or show_mutation / show_sources when asked) and never change its facts.
-2. If the archive doesn't have it, call trace_lineage: the line from the earliest origin to the thing the user asked about. 4 to 9 nodes. nodes[0] is the origin; mark the node that is what the user asked about with "query": true. Add one to three side forks that branched off the line when they exist. Each node gets a short name, when (a year, or month and year) and a note of what changed at that fork, a few words ("+ ticker", "moved to tiktok", "lost the image").
-3. Keep to the account most people who know the subject would agree with. When an exact date isn't well known, give the year. A plain word or a sentence: trace the phrase, format or idea itself and how it travelled online.
-4. Then write the one thing worth knowing about the line. State it plainly. Don't hedge and don't talk about memory, guesses or verification: the page shows where each tree comes from.
-5. Never invent links or sources. Never give financial advice about tokens. Never ask for wallets, keys or personal data.
-6. $FORK rewards are handled by the page: if asked about them, tell the user to type /freeforks.
-7. For questions unrelated to internet culture, answer in one line and steer back.`;
+How to answer — every message gets exactly one tree, no exceptions:
+1. Call search_archive once. The archive has ${H.count.nodes} hand-sourced objects in ${H.count.roots} lineages (origins: ${H.roots().map(r => r.name).join(', ')}). If one of the results is the thing asked about, show it with show_lineage (or show_mutation / show_sources when asked) and never change its facts.
+2. Otherwise call trace_lineage: the line from the earliest origin to the thing the user asked about. 4 to 9 nodes. nodes[0] is the origin; mark the node that is what the user asked about with "query": true. Add one to three side forks that branched off the line. Each node gets a short name, when (a year, or month and year) and a note of what changed at that fork, a few words ("+ ticker", "moved to tiktok", "lost the image").
+3. Anything counts: a single word, slang, a name, a brand, a greeting, a typo, a whole sentence, a question about you. Trace the word, phrase, format or idea itself and how it travelled — into internet culture when it got there. Never answer with text alone.
+4. Keep to the account most people who know the subject would agree with. When an exact date isn't well known, give the year.
+5. After the tree, write one to three short lines: the one thing worth knowing about the line. State it plainly; don't hedge and don't talk about memory, guesses or verification.
+6. Never invent links or sources. Never give financial advice about tokens. Never ask for wallets, keys or personal data. $FORK rewards: tell the user to type /freeforks.`;
 
   function toolsFor(ui) {
     const lean = n => ({ id: n.id, name: n.name, type: n.type, when: H.when(n), platform: n.plat, family: famName(n.family), parent: n.parent ? byId.get(n.parent).name : null, descendants: n.descendants });
@@ -230,41 +239,70 @@ How to answer:
     ];
   }
 
-  const AI = { kind: null, sample: null };
-  (async () => {
-    const hosted = !/^https?:$/.test(location.protocol) || /claude\.ai|claudeusercontent|anthropic/.test(location.hostname);
-    for (let i = 0; hosted && i < 30 && !(window.claude && window.claude.use); i++) await new Promise(r => setTimeout(r, 100));
-    try { if (window.claude && window.claude.use) { const s = await window.claude.use('sample'); if (s) { AI.sample = s; AI.kind = 'claude'; window.dispatchEvent(new Event('forks-ai')); return; } } } catch (_) { }
-    if (hosted) return;
-    try { const r = await fetch('/api/ask', { method: 'GET' }); if (r.ok) { const j = await r.json(); if (j && j.ok) { AI.kind = 'endpoint'; window.dispatchEvent(new Event('forks-ai')); } } } catch (_) { }
+  const AI = { kind: null, sample: null, ready: null };
+  // claude.use() answers a moment after the page's first script run (null after ~10 s with no viewer),
+  // so wait for it whatever the host is; on our own site /api/ask answers first.
+  AI.ready = (async () => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const endpoint = (typeof fetch === 'function' ? fetch('/api/ask', { method: 'GET', cache: 'no-store' }) : Promise.reject(new Error('no fetch')))
+      .then(r => (r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : null)).then(j => !!(j && j.ok)).catch(() => false);
+    const viewer = (async () => {
+      for (let i = 0; i < 30 && !(window.claude && window.claude.use); i++) await sleep(100);
+      if (!(window.claude && window.claude.use)) return null;
+      try { return await window.claude.use('sample'); } catch (_) { return null; }
+    })();
+    if (await endpoint) AI.kind = 'endpoint';
+    else { const s = await viewer; if (s) { AI.sample = s; AI.kind = 'claude'; } }
+    window.dispatchEvent(new Event('forks-ai'));
+    return AI.kind;
   })();
 
+  const TREES = new Set(['show_lineage', 'trace_lineage']);
+  const INSIST = 'draw the tree now: show_lineage if the archive has it, otherwise trace_lineage.';
+
+  async function claudeRound(turns, tools, ui, signal) {
+    const { text } = await AI.sample(turns, { tools, modelTier: 'quick', cache: false, signal, onText: ({ text }) => ui.stream(text) });
+    return text || '';
+  }
+  async function endpointRound(msgs, tools, ui, signal, force) {
+    for (let round = 0; round < 5; round++) {
+      const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(force && round === 0 ? { messages: msgs, force } : { messages: msgs }), signal });
+      if (!r.ok) throw { code: r.status === 429 ? 'rate_limited' : 'upstream_error' };
+      const m = (await r.json()).message;
+      msgs.push(m);
+      if (!m.tool_calls || !m.tool_calls.length) { ui.stream(m.content || ''); return m.content || ''; }
+      for (const c of m.tool_calls) {
+        const t = tools.find(x => x.name === c.function.name); let out;
+        try { out = t ? await t.execute(JSON.parse(c.function.arguments || '{}'), { signal }) : 'unknown tool'; } catch (e) { out = 'Error: ' + (e.message || e); }
+        msgs.push({ role: 'tool', tool_call_id: c.id, content: typeof out === 'string' ? out : JSON.stringify(out) });
+      }
+    }
+    return '';
+  }
+
   async function modelAnswer(history, ui, signal) {
-    const tools = toolsFor(ui);
+    if (AI.ready) await AI.ready;
+    let drew = false;
+    const card = ui.card;
+    const tools = toolsFor({ ...ui, card: c => { if (c.type === 'lineage' || c.type === 'traced') drew = true; card(c); } });
     if (AI.kind === 'claude') {
       const turns = history.map(h => ({ role: h.role, content: String(h.content || '') })).filter(h => h.content);
       while (turns.length && turns[0].role !== 'user') turns.shift();
       if (!turns.length) throw { code: 'no_model' };
       turns[0] = { role: 'user', content: RULES + '\n\n---\n\n' + turns[0].content };
-      const { text } = await AI.sample(turns, { tools, modelTier: 'quick', signal, onText: ({ text }) => ui.stream(text) });
+      let text = await claudeRound(turns, tools, ui, signal);
+      if (!drew && !signal.aborted) {
+        const again = turns.slice(); again[again.length - 1] = { role: 'user', content: again[again.length - 1].content + '\n\n(' + INSIST + ')' };
+        text = (await claudeRound(again, tools, ui, signal)) || text;
+      }
       return text;
     }
     if (AI.kind === 'endpoint') {
       // The server adds RULES and the tool list itself (netlify/lib/upstream.mjs, generated from this file).
-      const msgs = history.map(h => ({ role: h.role, content: String(h.content || '') })).filter(h => h.content);
-      for (let round = 0; round < 5; round++) {
-        const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ messages: msgs }), signal });
-        if (!r.ok) throw { code: r.status === 429 ? 'rate_limited' : 'upstream_error' };
-        const m = (await r.json()).message;
-        msgs.push(m);
-        if (!m.tool_calls || !m.tool_calls.length) { ui.stream(m.content || ''); return m.content || ''; }
-        for (const c of m.tool_calls) {
-          const t = tools.find(x => x.name === c.function.name); let out;
-          try { out = t ? await t.execute(JSON.parse(c.function.arguments || '{}'), { signal }) : 'unknown tool'; } catch (e) { out = 'Error: ' + (e.message || e); }
-          msgs.push({ role: 'tool', tool_call_id: c.id, content: typeof out === 'string' ? out : JSON.stringify(out) });
-        }
-      }
-      return '';
+      const base = history.map(h => ({ role: h.role, content: String(h.content || '') })).filter(h => h.content);
+      let text = await endpointRound(base.slice(), tools, ui, signal);
+      if (!drew && !signal.aborted) text = (await endpointRound(base.slice(), tools, ui, signal, 'trace_lineage')) || text;
+      return text;
     }
     throw { code: 'no_model' };
   }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.0 — 2026-11-03
+
+- **The trace stage.** Every answer with a tree grows on a wide stage instead of a small card: while upstream looks, probes reach out from the root and fall back; then the line grows from its origin point by point — each point with its year and what changed — side forks sprout as it passes, the status line walks the points, and it arrives at what you asked. Under it, the result: the name, how many forks from which origin, and upstream's lines. Phones grow top → down, one row per point, like `git log --graph`. Tap any point to trace it next; `open ↗` for the full tree.
+- **Any word gets a tree.** The archive answers by itself only when you name one of its objects exactly (name, alias, ticker, handle, source link); everything else goes to upstream, which must draw a tree for every message. A reply without a tree is asked again with `trace_lineage` forced (`force` on `/api/ask` → `tool_choice`).
+- Keyword shortcuts (`hot`, `latest`, `anything`, `help`…) are slash commands only, so plain words are traced.
+- Fixed: Claude in the artifact viewer is waited for whatever the host (`claude.use` answers after the first script run); `cache: false` for chat.
+- Home: no counter line, no "forking now", no AI pill, no update date; six starters picked fresh per visit, half from the archive, half traced live.
+- A message sent while upstream is still answering is queued, not dropped. Bigger tap targets on tree points.
+
 ## 2.1.0 — 2026-11-03
 
 - **Any input gets a tree.** Outside the archive, upstream traces the line itself with `trace_lineage`: origin → each fork with a year and what changed → the thing you asked about. Drawn like any lineage (mint path, tappable nodes, full view), tagged `traced`. Replaces the dotted "unverified" sketch.

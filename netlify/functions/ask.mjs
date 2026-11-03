@@ -18,7 +18,7 @@ const MAX_BODY = 64_000;          // bytes of JSON per request
 const MAX_MESSAGES = 60;          // 10 chat turns + up to 5 tool rounds
 const MAX_CALLS = 6;              // tool calls per assistant turn
 const LIMIT = { user: 500, assistant: 2000, tool: 8000, args: 2000, id: 80 };
-const WINDOW_MS = 60_000, PER_WINDOW = 12;
+const WINDOW_MS = 60_000, PER_WINDOW = Number(process.env.FORKS_ASK_PER_MIN) || 12; // per IP, per warm instance
 const UPSTREAM_TIMEOUT_MS = 9_000; // answer before the platform kills the function
 const NAMES = new Set(TOOLS.map(t => t.function.name));
 const hits = new Map(); // best-effort, per warm instance
@@ -87,11 +87,13 @@ export default async (req, context) => {
   try { body = JSON.parse(raw); } catch { return json({ error: 'bad json' }, 400); }
   const messages = clean(body && body.messages);
   if (!messages) return json({ error: 'bad messages' }, 400);
+  // the page asks once more with force=trace_lineage when a reply came back without a tree
+  const force = body.force && NAMES.has(body.force) ? { type: 'function', function: { name: body.force } } : undefined;
 
   const r = await fetch(process.env.FORKS_LLM_URL || 'https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: process.env.FORKS_LLM_MODEL || 'gpt-4o-mini', messages: [{ role: 'system', content: SYSTEM }, ...messages], tools: TOOLS, temperature: 0.4, max_tokens: 700 }),
+    body: JSON.stringify({ model: process.env.FORKS_LLM_MODEL || 'gpt-4o-mini', messages: [{ role: 'system', content: SYSTEM }, ...messages], tools: TOOLS, tool_choice: force, temperature: 0.4, max_tokens: 900 }),
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)
   }).catch(e => (e && e.name === 'TimeoutError' ? 'timeout' : null));
   if (r === 'timeout') return json({ error: 'upstream timeout' }, 504);
