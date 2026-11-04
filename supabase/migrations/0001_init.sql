@@ -181,8 +181,7 @@ insert into tasks (id, type, reward, min_wait_sec, sort) values
   ('like',    'like',    2000, 5, 2),
   ('repost',  'repost',  2500, 5, 3),
   ('comment', 'comment', 2500, 5, 4)
-on conflict (id) do update set type = excluded.type, reward = excluded.reward,
-  min_wait_sec = excluded.min_wait_sec, sort = excluded.sort;
+on conflict (id) do nothing; -- later migrations own the amounts; re-running this one never resets them
 
 insert into meta (key, value) values ('schema', '1')
-on conflict (key) do update set value = excluded.value;
+on conflict (key) do update set value = greatest(meta.value, excluded.value);

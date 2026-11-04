@@ -16,8 +16,9 @@ export default async req => {
       if (!missing.some(m => m.startsWith('SUPABASE'))) {
         try { db = await rpc('api_health'); } catch (e) { db = { ok: false, error: String(e.message).slice(0, 200) }; }
       }
-      // schema '2' = 0001_init.sql + 0002_scan.sql; anything older still needs a migration run in the SQL editor
-      const migrations = db && db.ok && Number(db.schema) < 2 ? ['supabase/migrations/0002_scan.sql'] : [];
+      // schema '3' = 0001 + 0002 + 0003; anything older still needs migrations run in the SQL editor
+      const MIGRATIONS = ['supabase/migrations/0002_scan.sql', 'supabase/migrations/0003_refs.sql'];
+      const migrations = db && db.ok ? MIGRATIONS.slice(Math.max(0, Number(db.schema) - 1)) : [];
       return json({
         ok: !missing.length && !config.length && !!(db && db.ok) && !migrations.length && !!process.env.GITHUB_TOKEN,
         missing: missing.concat(process.env.GITHUB_TOKEN ? [] : ['GITHUB_TOKEN']), config, db, migrations,
@@ -52,7 +53,10 @@ export default async req => {
       const task = String(body.task_id || '');
       if (!TASK_ID.test(task)) return json({ ok: false, error: 'unknown_task' }, 400);
       if (!C.questOpen()) return json({ ok: false, error: 'closed' }, 409);
-      return json(await rpc(path.endsWith('open') ? 'api_task_open' : 'api_task_claim', { p_user: s.uid, p_task: task }));
+      const args = { p_user: s.uid, p_task: task };
+      // the quote trial is checked by the link to the post (0003_refs.sql → quote_check)
+      if (path.endsWith('claim') && body.proof != null) args.p_proof = String(body.proof).slice(0, 300);
+      return json(await rpc(path.endsWith('open') ? 'api_task_open' : 'api_task_claim', args));
     }
     if (path === '/api/scan/seen') return json(await rpc('api_scan_seen', { p_user: s.uid }));
     // a stat for the summary card, never a reward: one tree at a time, or the trees grown before sign-in (capped in SQL)

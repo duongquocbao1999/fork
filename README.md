@@ -96,12 +96,19 @@ Set the environment variables in Netlify first, then deploy:
 The **get +10,000 $FORK** button, or `/freeforks`:
 
 1. **Sign in with X.** upstream reads the account first — how long it has been on X, followers, posts, lists, verified — and forks it a one-time pending allocation. The page plays the reading back line by line, then the tokens fly up into the header.
-2. **Four trials**, one at a time — follow, like, repost, comment, 10,000 together — each counted by the server five seconds after its link opens.
-3. **Your fork**: the allocation and what it is made of, the trees you grew and the repositories you saw, the Solana wallet, a share button.
+2. **Six trials**, one at a time, 10,000 together: follow, like, retweet, comment (each counted by the server five seconds after its link opens), **ask upstream anything** (counted when your tree grows), and **quote the post with your fork card** (counted by the link to your quote: your handle, a post newer than your account, never counted twice).
+3. **Your fork**: a card drawn like a repository page — the commits that made your allocation, where it came from, your invite link as a clone URL. Copy it as a picture, quote on X, save it; then the Solana wallet.
 
-<img src="docs/media/shot-scan.png" alt="the x scan in the demo: four lines read in — on x for 10 yrs +3,350, followers 21 +2,150, posts 1,465 +2,450, in lists 1 +250 — the total 8,200 $FORK, tokens flying up into the header" width="100%">
+**Invite**: `forks.wiki/r/<handle>`. +2,000 $FORK, pending, for every friend who signs in through your link and finishes three trials.
 
-Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and its knobs in `app_config` for the scan. Follow along: [@forkwikis](https://x.com/forkwikis).
+<table>
+<tr>
+<td width="50%"><img src="docs/media/shot-scan.png" alt="the x scan in the demo: four lines read in — on x for 10 yrs +3,350, followers 21 +2,150, posts 1,465 +2,450, in lists 1 +250 — the total 8,200 $FORK, tokens flying up into the header"></td>
+<td width="50%"><img src="docs/media/shot-card.png" alt="an example fork card (demo): forkwiki / @forkwikis with a Fork button counting 21,550, the commits — read the x account +9,550, merge 6/6 trials +10,000, grow 14 trees, invite 1 friend +2,000 — HEAD at 21,550 $FORK, an allocation bar, squares of 500, and git clone forks.wiki/r/forkwikis"></td>
+</tr>
+</table>
+
+Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and the `scan.*` / `ref.*` knobs in `app_config`. Follow along: [@forkwikis](https://x.com/forkwikis).
 
 ## Inside
 
@@ -113,13 +120,15 @@ src/
   stage.js               the growing tree
   app.js                 input, results, the repository list, cards, full view
   field.js               the living canopy behind everything
-  quest.js · config.js   /freeforks and every public setting
+  quest.js · config.js   /freeforks, /invite and every public setting
+  card.js                your fork as a picture: drawn on a canvas, copied, quoted
 netlify/
   functions/trace.mjs    one request → one answer: candidates, one model call, the check, the cache
   functions/repos.mjs    GitHub for the fallback
-  functions/auth-*.mjs · api.mjs    sign in with X, the trials
+  functions/auth-*.mjs · api.mjs    sign in with X (and who invited you), the trials
   lib/github.mjs · lineage.mjs      GitHub GraphQL and search; proposal → tree of real repos
-supabase/migrations/     the trials' database, closed to anon
+supabase/migrations/     the trials' database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials)
+fonts/                   Anybody and JetBrains Mono, self-hosted (OFL)
 ```
 
 More: [docs/UPSTREAM.md](docs/UPSTREAM.md) · [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) · [docs/DECISIONS.md](docs/DECISIONS.md) · [CHANGELOG.md](CHANGELOG.md)

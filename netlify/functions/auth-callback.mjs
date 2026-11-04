@@ -48,22 +48,22 @@ export default async req => {
       p_x_created_at: x.created_at || null,
       p_followers: x.public_metrics ? x.public_metrics.followers_count : null
     };
+    // what the X scan reads (0002_scan.sql → scan_lines) and who invited them (0003_refs.sql)
+    const scan = {
+      p_following: x.public_metrics ? x.public_metrics.following_count : null,
+      p_tweets: x.public_metrics ? x.public_metrics.tweet_count : null,
+      p_listed: x.public_metrics ? x.public_metrics.listed_count : null,
+      p_verified: !!x.verified,
+      p_verified_type: x.verified_type || null
+    };
+    // newest signature first; a database that hasn't run a migration yet answers PGRST202 and gets the older call
+    const tries = [{ ...base, ...scan, p_ref: saved.ref || null }, { ...base, ...scan }, base];
     let uid;
-    try {
-      // what the X scan reads (supabase/migrations/0002_scan.sql → scan_lines)
-      uid = await rpc('upsert_x_user', {
-        ...base,
-        p_following: x.public_metrics ? x.public_metrics.following_count : null,
-        p_tweets: x.public_metrics ? x.public_metrics.tweet_count : null,
-        p_listed: x.public_metrics ? x.public_metrics.listed_count : null,
-        p_verified: !!x.verified,
-        p_verified_type: x.verified_type || null
-      });
-    } catch (e) {
-      // 0002 not run yet: PostgREST can't find the new signature (PGRST202). Sign in on the old one, no scan.
-      if (!/PGRST202/.test(e.message)) { console.error(e); return fail('database'); }
-      console.warn('upsert_x_user: run supabase/migrations/0002_scan.sql for the X scan');
-      try { uid = await rpc('upsert_x_user', base); } catch (e2) { console.error(e2); return fail('database'); }
+    for (const args of tries) {
+      try { uid = await rpc('upsert_x_user', args); break; } catch (e) {
+        if (!/PGRST202/.test(e.message) || args === base) { console.error(e); return fail('database'); }
+        console.warn('upsert_x_user: an older schema — run the newest supabase/migrations');
+      }
     }
     if (!uid) return fail('database');
 

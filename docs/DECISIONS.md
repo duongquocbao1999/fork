@@ -18,6 +18,11 @@ Non-obvious choices, one line of why each.
 - **No range on the site** — the scan shows what it read and what each line added, never a minimum or a maximum; the numbers live in SQL and `app_config`.
 - **The header waits for the scan** — until `/api/scan/seen`, the pill shows the allocation without the scan, so the tokens have somewhere to land.
 - **Trees grown are a stat, not a reward** — counted from the page (one tree per call, at most 20 repos; a signed-out tally goes up once, capped at 25 trees), so they never touch the ledger.
+- **The quote is checked by its link, not the X API** — free and honest enough: the handle in the URL must be yours, the status id says when it was posted (snowflake), and one id counts once across everyone. It can't prove the post quotes ours.
+- **The chat trial counts a real tree** — the server notes your tree count when the trial opens and pays when it has grown; the count comes from the page, so it's a small reward.
+- **Referrals bind once, at account creation** — `?ref` rides in the signed OAuth cookie; only a freshly inserted profile gets a referrer, never itself; the inviter is paid when the friend finishes three trials (ledger key `ref:<friend>`).
+- **The share card is a canvas, not a screenshot** — drawn from the server's numbers with self-hosted fonts, so it looks the same everywhere and copies as a PNG. GitHub's look, none of its marks.
+- **Self-hosted fonts** — the canvas needs fonts it can wait for, and X's in-app browser is slow to reach Google Fonts.
 - **Amounts live in SQL** — `tasks.reward`; the browser sends a task id, the ledger key `task:<uid>:<task>` makes every credit land once, and the claim reports what was actually credited.
 - **No count over profiles on `/api/me`** — glyph lost its database to that under load.
 - **One config for page and server** — `src/config.js` is a classic script in the page and a CommonJS module for the functions, so the X account and post can't drift between them.

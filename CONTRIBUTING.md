@@ -16,7 +16,7 @@ With `GITHUB_TOKEN` and `FORKS_LLM_KEY` (DeepSeek) set, upstream traces locally.
 - `src/prompt.js` — upstream's brief and its json; `src/brain.js` — routing and which brain the page has.
 - `src/stage.js` — the growing tree.
 - `src/app.js` — the page: input, messages, repository cards, full view.
-- `src/quest.js`, `supabase/`, `netlify/functions/{auth-*,api}.mjs` — `/freeforks`.
+- `src/quest.js`, `src/card.js`, `supabase/`, `netlify/functions/{auth-*,api}.mjs` — `/freeforks`, `/invite`, the fork card.
 - `netlify/functions/trace.mjs` (+ `netlify/lib/`) — the answer: candidates, one model call, the GitHub check, the cache; `repos.mjs` — GitHub for the fallback.
 
 ## Rules

@@ -1,6 +1,6 @@
 {
   "name": "forks",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Type anything and watch the line of GitHub repositories it came from grow — every point a real repo, checked against GitHub. Plus $FORK trials with sign-in with X.",
   "license": "MIT",
   "private": false,

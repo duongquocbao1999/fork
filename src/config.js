@@ -10,7 +10,7 @@
       chain: 'solana'
     },
     // The /freeforks trials. handle without @ (the account to follow); post = the numeric id from
-    // x.com/<postBy>/status/<post> (the post to like, repost and comment on); postBy = its author.
+    // x.com/<postBy>/status/<post> (the post to like, retweet, comment on and quote); postBy = its author.
     // For now the post is the first post on Twitter, so the trials can be tested; swap in your own.
     // handle or post empty = the trials stay closed and /api/health lists them as missing.
     x: { handle: 'forkwikis', post: '20', postBy: 'jack' },

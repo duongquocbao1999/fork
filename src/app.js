@@ -240,12 +240,12 @@
       }
       if (m.growP) {
         const g = await m.growP;
-        QUEST.noteTrace(m.tree.nodes.length); // for the summary card: trees grown, repositories seen
         const t = String(note || text || streamed || '').trim();
         if (t) await type(m.txt, t);
         renderLine(m, m.tree);
         const root = g.root.name, focus = g.focus.name;
         follow(m, [g.forks ? `where did ${root} come from?` : `what did ${focus} become?`, g.forks ? `what did ${focus} become?` : `where did ${focus} come from?`]);
+        QUEST.noteTrace(m.tree.nodes.length); // your fork card: trees grown, repositories seen; and the chat trial
         history.push({ role: 'assistant', content: t || `${focus}: ${g.forks} forks from ${root}` });
         return;
       }
@@ -404,6 +404,7 @@
     }
   });
   $('#questBtn').addEventListener('click', () => send(C.quest.command));
+  $('#invBtn').addEventListener('click', () => send('/invite'));
   meBtn.addEventListener('click', () => send(C.quest.command));
   QUEST.onChange(({ mode, me, shown }) => {
     const qb = $('#questBtn'), T = C.token.ticker;

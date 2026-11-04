@@ -1,4 +1,4 @@
-// GET /auth/x/start?return=/path — send the user to X to sign in (OAuth 2.0 with PKCE).
+// GET /auth/x/start?return=/path&ref=code — send the user to X to sign in (OAuth 2.0 with PKCE).
 import { createHash, randomBytes } from 'node:crypto';
 import { CALLBACK_PATH, OAUTH_COOKIE, missingEnv, redirect, safeReturn, seal, setCookie, siteOrigin, xClient } from '../lib/server.mjs';
 
@@ -20,8 +20,9 @@ export default async req => {
     code_challenge_method: 'S256'
   }).toString();
 
-  // State, PKCE verifier and the return path travel in a signed, short-lived cookie.
-  const cookie = seal({ state, verifier, ret: safeReturn(params.get('return')) }, 600);
+  // State, PKCE verifier, the return path and who invited them travel in a signed, short-lived cookie.
+  const ref = /^[a-z0-9_-]{1,40}$/i.test(params.get('ref') || '') ? params.get('ref').toLowerCase() : null;
+  const cookie = seal({ state, verifier, ret: safeReturn(params.get('return')), ref }, 600);
   return redirect(url.toString(), [setCookie(req, OAUTH_COOKIE, cookie, 600)]);
 };
 

@@ -7,7 +7,7 @@
 | Где | Что | Пример |
 |---|---|---|
 | `src/config.js` → `x.handle` | X-аккаунт для задания follow, без `@` | `forkwikis` |
-| `src/config.js` → `x.post` | ID поста для like / repost / comment (число из `x.com/<автор>/status/<ID>`) | `20` |
+| `src/config.js` → `x.post` | ID поста для like / retweet / comment / quote (число из `x.com/<автор>/status/<ID>`) | `20` |
 | `src/config.js` → `x.postBy` | автор этого поста, без `@` (для ссылки на коммент) | `jack` |
 | `src/config.js` → `links.x` | ссылка на X в шапке | `https://x.com/forkwikis` |
 | `src/config.js` → `token.ca` | Solana CA, когда появится; пусто = «launching soon» | |
@@ -41,7 +41,12 @@
 ## 2. Supabase
 
 1. Создать проект (регион us-east ближе к функциям Netlify).
-2. SQL Editor → вставить `supabase/migrations/0001_init.sql` → Run, затем `supabase/migrations/0002_scan.sql` → Run. Обе можно запускать повторно; порядок важен. Если база уже была на 3.2 — достаточно запустить `0002_scan.sql`. Пока 0002 не запущена, вход работает, но без X-скана, а `/api/health` пишет её в `migrations`.
+2. SQL Editor → по очереди, каждый файл в новом запросе → Run:
+   - `supabase/migrations/0001_init.sql`;
+   - `supabase/migrations/0002_scan.sql` — X-скан;
+   - `supabase/migrations/0003_refs.sql` — шесть заданий, квоут, рефералка.
+
+   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 3.3 — достаточно `0003_refs.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
 3. Advisors → Security: не должно быть «RLS disabled».
 4. Project Settings → API (или API Keys):
    - `SUPABASE_URL` = Project URL;
@@ -75,7 +80,7 @@
 3. **После изменения env заново задеплой** (`npx netlify-cli deploy --prod` или Deploys → Trigger deploy). Без этого функции не видят новые значения.
 4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "1"`, `github: true`, `model: true`. Поле `callback_url` скопировать в X Portal символ в символ.
 5. DeepSeek работает по предоплате: сколько положил на баланс, больше не потратится. Один новый вопрос — около 700 токенов на вход (большая часть — одинаковый промпт, он идёт по цене кэша) и около 250 на выход; повторный вопрос модель не трогает (кэш на неделю). В логах функции `trace` видно токены каждого вызова.
-6. Пройти вход целиком с телефона, в том числе из браузера внутри X: кнопка **get +10,000 $FORK** → sign in with x → X → назад → анимация X-скана → четыре задания → карточка «your fork» с кошельком.
+6. Пройти вход целиком с телефона, в том числе из браузера внутри X: кнопка **get +10,000 $FORK** → sign in with x → X → назад → анимация X-скана → follow, like, retweet, comment → вопрос в чат → карточка: copy card → quote on x → вставить ссылку на свой квоут → кошелёк. Потом открыть `forks.wiki/r/<твой хендл>` в другом браузере и войти другим аккаунтом.
 
 ## 4. Локально
 
@@ -95,6 +100,10 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | «Sign-in took too long» / «check failed» (`expired`, `state`) | Заблокированы куки, вход дольше 10 минут, начали на www, а вернулись без www (поставь `SITE_URL`) |
 | «Could not read your X profile» (`profile`) | App не привязан к Project, нет доступа к X API v2 |
 | «Could not save your account» (`database`) | `0001_init.sql` не запущена, неверный service key, проект Supabase на паузе |
+| Квоут: «another account» | Вставлена ссылка на чужой пост; нужна ссылка вида `x.com/<свой хендл>/status/…` |
+| Квоут: «older than your fork» | Пост сделан раньше, чем человек впервые вошёл на forks; нужен новый квоут |
+| Квоут: «already been counted» | Этот пост уже засчитан (себе или другому аккаунту) |
+| Не начисляется за друга | Друг не новый (уже входил раньше), зашёл не по ссылке, ещё не сделал 3 задания, или сработал `ref.min_followers` |
 | Нет анимации X-скана после входа | Не запущена `0002_scan.sql` (смотри `migrations` в `/api/health`) или аккаунт уже сканировался |
 | «Sign-in is not set up» (`setup`) | Не заданы env в Netlify или не было редеплоя |
 | «too new» (`too_new`) | Аккаунт моложе `X_MIN_ACCOUNT_AGE_DAYS` |
@@ -129,6 +138,31 @@ on conflict (key) do update set value = excluded.value;
 
 Меняется только для новых сканов. Против ферм ботов — `X_MIN_ACCOUNT_AGE_DAYS` (например 30).
 
+## 5.6. Задания, квоут и рефералка
+
+| Задание | Сумма | Как засчитывается |
+|---|---|---|
+| follow | 2 000 | через 5 с после открытия ссылки (часы сервера) |
+| like | 1 000 | так же |
+| retweet (`repost`) | 1 500 | так же |
+| comment | 1 500 | так же |
+| chat — ask upstream anything | 1 000 | когда у человека выросло новое дерево после открытия задания |
+| quote | 3 000 | по ссылке на квоут: хендл свой, пост новее аккаунта на forks (время из ID поста), один пост — один раз на всех |
+
+Квоут-пост в X не проверяется через API: сайт не видит, что это именно квоут нашего поста. Это честный бесплатный уровень проверки.
+
+Рефералка:
+- ссылка `forks.wiki/r/<хендл>` (редирект в `netlify.toml`) → `?ref=` хранится в браузере 30 дней → уходит через вход в X;
+- привязка один раз, только к новому аккаунту, не к себе;
+- +2 000 пригласившему, когда друг сделает 3 задания.
+
+Ручки в `app_config`: `ref.reward` (2000), `ref.min_tasks` (3), `ref.min_followers` (0 — без порога). Например, не платить за ботов без подписчиков:
+
+```sql
+insert into app_config (key, value) values ('ref.min_followers', 5)
+on conflict (key) do update set value = excluded.value;
+```
+
 ## 6. Админ-сниппеты (SQL Editor)
 
 ```sql
@@ -140,9 +174,9 @@ select count(*) from profiles p
 where (select count(*) from task_completions c where c.user_id = p.id and c.completed_at is not null) = (select count(*) from tasks where active);
 
 -- Новый пост для заданий: сначала поменять x.post в src/config.js и задеплоить, затем
--- дать всем пройти like / repost / comment заново (follow остаётся):
-delete from ledger where idempotency_key like 'task:%:like' or idempotency_key like 'task:%:repost' or idempotency_key like 'task:%:comment';
-delete from task_completions where task_id in ('like', 'repost', 'comment');
+-- дать всем пройти like / retweet / comment / quote заново (follow остаётся):
+delete from ledger where idempotency_key like 'task:%:like' or idempotency_key like 'task:%:repost' or idempotency_key like 'task:%:comment' or idempotency_key like 'task:%:quote';
+delete from task_completions where task_id in ('like', 'repost', 'comment', 'quote');
 update profiles p set allocation = coalesce((select sum(amount) from ledger l where l.user_id = p.id), 0) where p.id is not null;
 
 -- Поменять награду за задание
@@ -151,6 +185,14 @@ update tasks set reward = 2000 where id = 'follow';
 -- Сколько дал X-скан: распределение и топ
 select (scan->>'total')::int t, count(*) from profiles where scan is not null group by 1 order by 1;
 select x_username, (scan->>'total')::int t, followers, tweets, listed, verified from profiles where scan is not null order by t desc limit 20;
+
+-- Топ пригласивших
+select p.x_username, count(*) invited, count(r.qualified_at) counted
+from referrals r join profiles p on p.id = r.referrer_id group by 1 order by counted desc, invited desc limit 20;
+
+-- Квоуты: кто и каким постом
+select p.x_username, 'https://x.com/' || p.x_username || '/status/' || c.proof url, c.completed_at
+from task_completions c join profiles p on p.id = c.user_id where c.task_id = 'quote' order by c.completed_at desc limit 50;
 
 -- Деревья и репозитории по людям (статистика с карточки «your fork»)
 select x_username, traces, repos_seen from profiles order by traces desc limit 20;

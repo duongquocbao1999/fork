@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+# forks.wiki/r/<handle> — a friend's invite link
+[[redirects]]
+  from = "/r/:code"
+  to = "/?ref=:code"
+  status = 302
+
 [functions]
   node_bundler = "esbuild"
 

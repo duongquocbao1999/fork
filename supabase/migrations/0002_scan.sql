@@ -132,10 +132,9 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- ---------------------------------------------------------------- the trials: 10,000 in total
-update tasks set reward = 3000 where id = 'follow';
-update tasks set reward = 2000 where id = 'like';
-update tasks set reward = 2500 where id = 'repost';
-update tasks set reward = 2500 where id = 'comment';
+-- only on the way up from schema 1, so re-running this file after a later migration changes nothing
+update tasks set reward = case id when 'follow' then 3000 when 'like' then 2000 when 'repost' then 2500 when 'comment' then 2500 else reward end
+where coalesce((select value from meta where key = 'schema'), '1') < '2';
 
 -- ---------------------------------------------------------------- lockdown, again for the new table and functions
 revoke all on all tables in schema public from anon, authenticated;
@@ -143,4 +142,4 @@ revoke execute on all functions in schema public from public, anon, authenticate
 grant execute on all functions in schema public to service_role;
 
 insert into meta (key, value) values ('schema', '2')
-on conflict (key) do update set value = excluded.value;
+on conflict (key) do update set value = greatest(meta.value, excluded.value);

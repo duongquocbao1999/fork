@@ -2,9 +2,11 @@
    1. the x scan. At the first sign-in the server reads the account (age, followers, posts, lists,
       verified) and forks it a one-time allocation. The page plays that reading back line by line,
       then the tokens fly up into the header.
-   2. four small trials on x. upstream hands them out one at a time in the chat. GO opens the link;
-      the server starts its own clock, and after the trial's wait (5 s) the claim counts.
-   Then a card: the allocation, what it is made of, the trees grown and the repositories seen.
+   2. six trials, one at a time in the chat: follow, like, retweet, comment (GO opens the link; the
+      server's clock counts it after 5 s), grow a tree in the chat (counted when the tree lands),
+      and quote the post with your fork card (counted by the link to your quote).
+   3. your fork: the card as a picture (copy, save, quote on x), the wallet, the invite link.
+   Referrals: forks.wiki/r/<handle> → ?ref= → kept here → through the X sign-in → bound to new accounts.
    Amounts come from the server only. Two backends with one interface: the live API (Netlify
    functions + Supabase) and a demo on localStorage, used where the functions don't exist
    (local preview, the Claude artifact). */
@@ -24,9 +26,12 @@
   const TRIAL = {
     follow: { verb: 'follow', title: () => (C.x.handle ? `follow @${C.x.handle} on x` : 'follow forks on x'), done: 'followed.' },
     like: { verb: 'like', title: () => 'like the post', done: 'liked.' },
-    repost: { verb: 'repost', title: () => 'repost it to your timeline', done: 'reposted. the line spreads.' },
-    comment: { verb: 'comment', title: () => 'leave a comment under the post', done: 'heard you.' }
+    repost: { verb: 'retweet', title: () => 'retweet the post', done: 'retweeted. the line spreads.' },
+    comment: { verb: 'comment', title: () => 'leave a comment under the post', done: 'heard you.' },
+    chat: { verb: 'ask upstream', title: () => 'ask upstream anything', done: 'that\'s how it works.' },
+    quote: { verb: 'quote', title: () => 'quote the post with your fork', done: 'quoted. the line spreads.' }
   };
+  const ASK = ['where did llama.cpp come from?', 'what did bitcoin/bitcoin become?', 'where did neovim come from?', 'the family tree of doge', 'who came before bun?', 'what is ollama built on?'];
   // what each line of the x scan reads; the amounts next to them come from the server
   const SCAN_K = {
     age: ['on x for', n => (n >= 1 ? `${n} yrs` : `${Math.max(1, Math.round(n * 12))} mo`)],
@@ -47,7 +52,15 @@
     setup: 'Sign-in is not set up on this site yet.',
     server: 'Something broke on our side. Try again.'
   };
-  const CLAIM_ERRORS = { too_early: 'give it a few more seconds.', not_opened: 'open the link first.', closed: 'the trials are closed right now.', unknown_task: 'that trial is gone.', server: 'the ledger hiccuped. try again.' };
+  const CLAIM_ERRORS = { too_early: 'give it a few more seconds.', not_opened: 'open the link first.', closed: 'the trials are closed right now.', unknown_task: 'that trial is gone.', server: 'the ledger hiccuped. try again.',
+    bad_link: 'That is not a link to a post. Copy it from X: share → copy link.', not_yours: 'That post is from another account. Paste the link to your own quote.',
+    too_old: 'That post is older than your fork. Quote the post now and paste the new link.', link_used: 'That post has already been counted.', no_tree: 'Grow a tree first: ask upstream anything.' };
+
+  /* ---------- who invited you: ?ref= (or /r/<code>) kept for 30 days, sent through the X sign-in ---------- */
+  const REF = 'forks-ref', REF_OK = /^[a-z0-9_-]{1,40}$/i;
+  const getRef = () => { try { const r = JSON.parse(localStorage.getItem(REF) || 'null'); return r && Date.now() - r.at < 30 * 864e5 ? r.code : null; } catch (_) { return null; } };
+  const setRef = code => { try { if (code) localStorage.setItem(REF, JSON.stringify({ code: code.toLowerCase(), at: Date.now() })); else localStorage.removeItem(REF); } catch (_) { } };
+  const refLink = code => `${C.site.url}/r/${code}`;
 
   /* ---------- live backend ---------- */
   async function req(path, body) {
@@ -61,9 +74,9 @@
   const live = {
     kind: 'live',
     async me() { const r = await req('/api/me'); if (r.status === 401) return null; if (r.status !== 200 || !r.data) throw new Error('down'); return r.data; },
-    login() { location.href = `/auth/x/start?return=${encodeURIComponent('/?resume=freeforks')}`; },
+    login(resume) { const r = getRef(); location.href = `/auth/x/start?return=${encodeURIComponent('/?resume=' + (resume || 'freeforks'))}${r ? `&ref=${encodeURIComponent(r)}` : ''}`; },
     async open(id) { return (await req('/api/task/open', { task_id: id })).data || { ok: false, error: 'server' }; },
-    async claim(id) { return (await req('/api/task/claim', { task_id: id })).data || { ok: false, error: 'server' }; },
+    async claim(id, proof) { return (await req('/api/task/claim', proof == null ? { task_id: id } : { task_id: id, proof })).data || { ok: false, error: 'server' }; },
     async wallet(w) { return (await req('/api/wallet', { wallet: w })).data || { ok: false, error: 'server' }; },
     async scanSeen() { await req('/api/scan/seen', {}); },
     async seen(traces, repos) { return (await req('/api/seen', { traces, repos })).data; },
@@ -71,7 +84,7 @@
   };
 
   /* ---------- demo backend (no functions: preview, artifact) ---------- */
-  const DEMO_TASKS = [['follow', 3000], ['like', 2000], ['repost', 2500], ['comment', 2500]];
+  const DEMO_TASKS = [['follow', 2000, 'timer'], ['like', 1000, 'timer'], ['repost', 1500, 'timer'], ['comment', 1500, 'timer'], ['chat', 1000, 'trees'], ['quote', 3000, 'link']];
   // the same lines as scan_lines() in supabase/migrations/0002_scan.sql, for the demo only
   function scanLines(yrs, followers, posts, listed, verified) {
     const r50 = v => Math.round(v / 50) * 50, lg = n => Math.log10(Math.max(0, n) + 1);
@@ -99,20 +112,32 @@
     kind: 'demo',
     async me() {
       const d = load(); if (!d.user) return null;
-      const tasks = DEMO_TASKS.map(([id, reward]) => ({ id, type: id, reward, waitSec: 5, openedAt: (d.opened || {})[id] || null, completedAt: (d.done || {})[id] || null }));
+      const tasks = DEMO_TASKS.map(([id, reward, verify]) => ({ id, type: id, reward, verify, waitSec: verify === 'timer' ? 5 : 0, openedAt: (d.opened || {})[id] || null, completedAt: (d.done || {})[id] || null }));
       const tasksTotal = tasks.filter(t => t.completedAt).reduce((s, t) => s + t.reward, 0), scan = d.scan || null;
       return {
         user: { username: d.user, name: d.user, avatar: null }, allocation: (scan ? scan.total : 0) + tasksTotal, wallet: d.wallet || null,
         scan, scanSeen: !!d.scanSeen, scanTotal: scan ? scan.total : 0, tasksTotal, traces: d.traces || 0, reposSeen: d.repos || 0,
+        ref: { code: d.user, reward: 2000, minTasks: 3, invited: 0, counted: 0, earned: 0, by: d.by || null },
         tasks, now: new Date().toISOString()
       };
     },
-    signIn(handle) { const d = load(); d.user = handle; d.scan = demoScan(handle); d.scanSeen = false; save(d); },
-    async open(id) { const d = load(); d.opened = d.opened || {}; d.opened[id] = d.opened[id] || new Date().toISOString(); save(d); return { ok: true }; },
-    async claim(id) {
+    signIn(handle) { const d = load(); d.user = handle; d.scan = demoScan(handle); d.scanSeen = false; const r = getRef(); d.by = r && r !== handle ? r : null; save(d); },
+    async open(id) {
+      const d = load(); d.opened = d.opened || {}; d.base = d.base || {};
+      if (!d.opened[id]) { d.opened[id] = new Date().toISOString(); d.base[id] = d.traces || 0; }
+      save(d); return { ok: true };
+    },
+    async claim(id, proof) {
       const d = load(), t = DEMO_TASKS.find(x => x[0] === id); if (!t) return { ok: false, error: 'unknown_task' };
-      const at = d.opened && d.opened[id]; if (!at) return { ok: false, error: 'not_opened' };
-      const left = 5 - (Date.now() - Date.parse(at)) / 1000; if (left > 0) return { ok: false, error: 'too_early', wait: left };
+      if (t[2] === 'link') {
+        const m = String(proof || '').trim().match(/^(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x|twitter)\.com\/(\w{1,15})\/status(?:es)?\/(\d{6,25})(?:[/?#].*)?$/i);
+        if (!m) return { ok: false, error: 'bad_link' };
+        if (m[1].toLowerCase() !== d.user) return { ok: false, error: 'not_yours' };
+      } else {
+        const at = d.opened && d.opened[id]; if (!at) return { ok: false, error: 'not_opened' };
+        if (t[2] === 'trees' && (d.traces || 0) <= ((d.base || {})[id] || 0)) return { ok: false, error: 'no_tree' };
+        const left = (t[2] === 'timer' ? 5 : 0) - (Date.now() - Date.parse(at)) / 1000; if (left > 0) return { ok: false, error: 'too_early', wait: left };
+      }
       d.done = d.done || {}; const already = !!d.done[id]; d.done[id] = d.done[id] || new Date().toISOString(); save(d);
       return { ok: true, reward: already ? 0 : t[1], allocation: (await demo.me()).allocation };
     },
@@ -133,7 +158,7 @@
   async function detect() {
     try {
       const r = await req('/api/me');
-      if (r.status === 401 || r.status === 200) { B = live; mode = 'live'; me = r.status === 200 ? r.data : null; await flush(); return; }
+      if (r.status === 401 || r.status === 200) { B = live; mode = 'live'; me = r.status === 200 ? r.data : null; if (me) setRef(null); await flush(); return; }
       if (r.status === 503 && r.data && r.data.error === 'not_configured' && !LIVE_HOST.test(location.hostname)) throw new Error('demo');
       if (LIVE_HOST.test(location.hostname)) { B = live; mode = 'down'; return; }
       throw new Error('demo');
@@ -142,7 +167,7 @@
       B = demo; mode = 'demo'; me = await demo.me();
     }
   }
-  async function refresh() { try { me = await B.me(); await flush(); } catch (_) { } emit(); return me; }
+  async function refresh() { try { me = await B.me(); await flush(); } catch (_) { } if (me) setRef(null); emit(); return me; }
 
   /* ---------- trees grown and repos seen: a stat for the summary, never a reward ---------- */
   // signed out on the live site, the count waits in this browser and goes up once with the sign-in
@@ -162,7 +187,9 @@
     if (!B || mode === 'down') return;
     const r = await B.seen(1, repos).catch(() => null);
     if (r && r.ok && me) { me.traces = r.traces; me.reposSeen = r.reposSeen; }
+    if (chatWait) chatWait();
   }
+  let chatWait = null; // set while the "ask upstream anything" trial is on screen
 
   /* ---------- chat flow ---------- */
   const pending = () => `${fmt(me ? me.allocation : 0)} ${TICK}`;
@@ -188,8 +215,12 @@
     if (!C.questOpen() && mode !== 'demo') return say(`the trials open soon. ${TICK} is still being forked.`);
     if (mode === 'down') return say(`the ledger isn't answering right now. try again in a minute.`);
     await refresh();
+    if (kind === 'invite') {
+      if (!me) { const m = await say(`your invite link is your x handle. sign in first.`, 'invite'); return signInCard(m, 'invite'); }
+      return inviteCard();
+    }
     if (!me) {
-      const m = await say(`${TICK} isn't handed out by the click. it's forked from your x.\nsign in and i'll read your account, then four small trials for +${fmt(C.quest.total)} more.`);
+      const m = await say(`${TICK} isn't handed out by the click. it's forked from your x.\nsign in and i'll read your account, then six trials for +${fmt(C.quest.total)} more.`);
       return signInCard(m);
     }
     return next(true);
@@ -200,15 +231,24 @@
     if (me.scan && !me.scanSeen) return scan();
     const left = todo(), total = me.tasks.length;
     if (left.length) {
-      const n = total - left.length + 1;
-      const m = await say(fresh
-        ? (n === 1 ? `four trials on x, one at a time. +${fmt(C.quest.total)} ${TICK} for all four.` : `picking up where you left off. trial ${n} of ${total}.`)
-        : left[0].type === 'comment' ? 'last one. say something under the post.' : `trial ${n} of ${total}.`);
-      return taskCard(m, left[0], n, total);
+      const t = left[0], n = total - left.length + 1;
+      const lead = fresh
+        ? (n === 1 ? `${total} trials, one at a time. +${fmt(C.quest.total)} ${TICK} for all ${total}.\n` : `picking up where you left off. `)
+        : '';
+      if (t.type === 'quote') {
+        const m = await say(`${lead}trial ${n} of ${total}, the last: post your fork.\ncopy the card, quote the post on x with it, then paste the link to your quote here. +${fmt(t.reward)} ${TICK}.`);
+        return forkCard(m, t);
+      }
+      if (t.type === 'chat') {
+        const m = await say(`${lead}trial ${n} of ${total}: see how i work. ask me anything below — a word, a project, a repo — and watch its tree grow.`);
+        return chatCard(m, t, n, total);
+      }
+      const m = await say(`${lead}${t.type === 'comment' ? 'say something under the post. ' : ''}trial ${n} of ${total}.`.replace(/^\s+/, ''));
+      return taskCard(m, t, n, total);
     }
     const m = await say((fresh ? 'your fork, as it stands.' : `all ${total} trials done. here's your fork.`) +
       (me.wallet ? '' : '\ndrop a solana wallet so the airdrop knows where to land.'));
-    return summaryCard(m);
+    return forkCard(m, null);
   }
 
   function card(m, head, body) {
@@ -220,19 +260,19 @@
     ? `<img src="${ctx.esc(u.avatar)}" alt="" width="${size}" height="${size}">`
     : `<span class="ini">${ctx.esc((u.username || '?')[0])}</span>`);
 
-  function signInCard(m) {
+  function signInCard(m, resume) {
     if (mode === 'demo') {
       const el = card(m, `// sign in${tag()}`, `<form class="q-row"><input class="q-in" name="h" placeholder="@yourhandle" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Your X handle"><button class="q-btn" type="submit">enter</button></form><p class="q-note">demo: no x sign-in here. any handle works; the reading is simulated and stays in this browser.</p>`);
       el.querySelector('form').addEventListener('submit', async e => {
         e.preventDefault(); const h = el.querySelector('input').value.trim().replace(/^@/, '');
         if (!/^\w{1,15}$/.test(h)) { ctx.toast('That is not an X handle.'); return; }
         demo.signIn(h.toLowerCase()); el.querySelector('form').innerHTML = `<span class="q-done">✓ @${ctx.esc(h.toLowerCase())}</span>`;
-        await refresh(); next(true);
+        await refresh(); if (resume === 'invite') inviteCard(); else next(true);
       });
       return;
     }
     const el = card(m, '// sign in', `<button class="q-btn x" type="button">${XLOGO}sign in with x</button><p class="q-note">read-only: your public profile and its numbers. we never post for you.</p>`);
-    el.querySelector('button').addEventListener('click', () => B.login());
+    el.querySelector('button').addEventListener('click', () => B.login(resume));
   }
 
   /* ---------- the x scan, played back ---------- */
@@ -291,8 +331,8 @@
     await B.scanSeen().catch(() => {});
     const left = todo();
     const m2 = await say(`${fmt(s.total)} ${TICK}, pending. that's what your x forks into.` +
-      (left.length ? `\nnow four small trials on x: +${fmt(C.quest.total)} more, one at a time.` : ''));
-    if (!left.length) return next(false);
+      (left.length ? `\nnow ${me.tasks.length} trials: +${fmt(C.quest.total)} more, one at a time.` : ''));
+    if (!left.length || left[0].type !== 'follow') return next(false);
     return taskCard(m2, left[0], me.tasks.length - left.length + 1, me.tasks.length);
   }
 
@@ -365,28 +405,105 @@
     }
   }
 
-  /* ---------- your fork: the summary ---------- */
-  function summaryCard(m) {
-    const u = me.user, all = me.tasks.length, done = me.tasks.filter(t => t.completedAt).length;
-    const trials = me.tasksTotal != null ? me.tasksTotal : me.tasks.filter(t => t.completedAt).reduce((s, t) => s + t.reward, 0);
-    const share = `my x forked into ${fmt(me.allocation)} ${TICK} on ${C.site.host}. where did it all come from?`;
-    const el = card(m, `// your fork${tag()}`, `<div class="fs">
-      <div class="fs-top"><div class="q-who">${face(u, 28)}<span>@${ctx.esc(u.username)}</span></div><span class="fs-p">pending</span></div>
-      <div class="fs-big"><b>${fmt(RM() ? me.allocation : 0)}</b> <span>${TICK}</span></div>
-      <div class="fs-rows">
-        ${me.scanTotal ? `<div class="fs-r"><span>x scan</span><b>${fmt(me.scanTotal)}</b></div>` : ''}
-        <div class="fs-r"><span>trials · ${done}/${all}</span><b>${fmt(trials)}</b></div>
+  /* ---------- trial: ask upstream anything (counted when a tree lands) ---------- */
+  function chatCard(m, t, n, total) {
+    const T = TRIAL.chat, picks = ASK.map(q => [Math.random(), q]).sort((a, b) => a[0] - b[0]).slice(0, 3).map(x => x[1]);
+    const el = card(m, `// trial ${n} of ${total} · ${T.verb}${tag()}`,
+      `<div class="q-task"><div><div class="q-title">${ctx.esc(T.title())}</div><div class="q-reward">+${fmt(t.reward)} ${TICK} <span>pending · counts when your tree grows</span></div></div></div>
+       <div class="q-chips">${picks.map(q => `<button class="chip" type="button">${ctx.esc(q)}</button>`).join('')}</div>
+       <div class="q-state"><span class="q-msg">waiting for your first tree · or type your own below</span></div>`);
+    const msg = el.querySelector('.q-msg');
+    el.querySelector('.q-chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) ctx.send(b.textContent); });
+    B.open(t.id).catch(() => null); // the server notes how many trees you had; the next one counts
+    let busy = false;
+    chatWait = async () => {
+      if (busy) return; busy = true;
+      const r = await B.claim(t.id).catch(() => null);
+      busy = false;
+      if (!r || !r.ok) { if (r && r.error !== 'no_tree') msg.textContent = CLAIM_ERRORS[r.error] || CLAIM_ERRORS.server; return; }
+      chatWait = null;
+      const got = typeof r.reward === 'number' ? r.reward : 0;
+      el.classList.add('done'); el.querySelector('.q-chips').remove();
+      el.querySelector('.q-task').innerHTML = `<div><div class="q-title">${ctx.esc(T.title())}</div><div class="q-reward ok">✓ ${got ? `+${fmt(got)} ${TICK} <span>pending</span>` : '<span>already counted</span>'}</div></div>`;
+      el.querySelector('.q-state').hidden = true;
+      await refresh();
+      await say(got ? `that's how i work: every point is a real repository — tap one for github. +${fmt(got)} ${TICK}, pending.` : 'that one was already counted.');
+      next(false);
+    };
+  }
+
+  /* ---------- your fork: the card to quote, the wallet, the invite ---------- */
+  const trialsOf = () => {
+    const done = me.tasks.filter(t => t.completedAt);
+    return { done: done.length, all: me.tasks.length, amount: me.tasksTotal != null ? me.tasksTotal : done.reduce((s, t) => s + t.reward, 0) };
+  };
+  const quoteOf = () => `https://x.com/${encodeURIComponent(C.x.postBy || C.x.handle)}/status/${encodeURIComponent(C.x.post)}`;
+  function quoteText() {
+    const u = me.user.username, tr = trialsOf(), code = me.ref && me.ref.code;
+    return [`my x forked into ${fmt(me.allocation)} ${TICK}`, '', `$ git log --graph @${u}`,
+      me.scanTotal ? `* x scan +${fmt(me.scanTotal)}` : null,
+      tr.amount ? `* trials +${fmt(tr.amount)}` : null,
+      me.traces ? `* ${fmt(me.traces)} ${me.traces === 1 ? 'tree' : 'trees'} grown` : null,
+      me.ref && me.ref.earned ? `* invites +${fmt(me.ref.earned)}` : null,
+      '', 'where did yours come from?', code ? refLink(code) : C.site.url].filter(x => x != null).join('\n');
+  }
+  async function drawCard() {
+    const u = me.user, tr = trialsOf(), code = me.ref && me.ref.code;
+    return window.ForksCard.render({
+      handle: u.username, avatar: u.avatar, ticker: TICK, allocation: me.allocation, scan: me.scanTotal,
+      trialsDone: tr.done, trialsAll: tr.all, trialsAmount: tr.amount, traces: me.traces, repos: me.reposSeen,
+      refs: (me.ref && me.ref.counted) || 0, refsAmount: (me.ref && me.ref.earned) || 0,
+      link: code ? `${C.site.host}/r/${code}` : C.site.host, demo: mode === 'demo'
+    });
+  }
+
+  async function forkCard(m, quote) {
+    const u = me.user, alt = `${u.username}'s fork: ${fmt(me.allocation)} ${TICK} pending`;
+    const intent = `https://x.com/intent/tweet?text=${encodeURIComponent(quoteText())}&url=${encodeURIComponent(quoteOf())}`;
+    const el = card(m, `// your fork · @${ctx.esc(u.username)}${tag()}`, `<div class="fk">
+      <div class="fk-pic"><div class="fk-wait">printing your fork…</div></div>
+      <div class="fk-acts">
+        <button class="q-btn" type="button" data-a="copy"><b>1</b> copy card</button>
+        <a class="q-btn x" href="${ctx.esc(intent)}" target="_blank" rel="noopener" data-a="quote"><b>2</b> quote on x ↗</a>
+        <button class="q-link" type="button" data-a="save">save image</button>
       </div>
-      <div class="fs-stats">
-        <div><b>${fmt(me.traces)}</b><span>${me.traces === 1 ? 'tree' : 'trees'} grown</span></div>
-        <div><b>${fmt(me.reposSeen)}</b><span>repositories seen</span></div>
-      </div>
-      ${me.traces ? '' : '<p class="q-note">every tree you grow from here counts on this card.</p>'}
-      <div class="fs-w"></div>
-      <div class="q-acts"><a class="q-btn ghost" href="https://x.com/intent/tweet?text=${encodeURIComponent(share)}&url=${encodeURIComponent(C.site.url)}" target="_blank" rel="noopener">share ↗</a><button class="q-link" type="button" data-a="out">sign out</button></div></div>`);
+      ${quote ? `<div class="fk-proof"><div class="q-note"><b>3</b> paste the link to your quote · +${fmt(quote.reward)} ${TICK}</div>
+        <form class="q-row"><input class="q-in mono" name="p" placeholder="https://x.com/${ctx.esc(u.username)}/status/…" autocomplete="off" spellcheck="false" inputmode="url" aria-label="Link to your quote"><button class="q-btn" type="submit">check</button></form>
+        <div class="q-state" hidden><span class="q-msg"></span></div></div>` : ''}
+      ${quote ? '' : '<div class="fs-w"></div>'}
+      <div class="fk-foot"><button class="q-link" type="button" data-a="invite">invite friends · +${fmt((me.ref && me.ref.reward) || 2000)} ${TICK} each</button><button class="q-link" type="button" data-a="out">sign out</button></div></div>`);
+    const pic = el.querySelector('.fk-pic');
+    let blob = null;
+    const ready = drawCard().then(r => {
+      blob = r.blob;
+      pic.innerHTML = `<img class="fk-img" src="${r.url}" alt="${ctx.esc(alt)}" width="1200" height="675">`;
+      ctx.scrollDown();
+    }).catch(() => { pic.innerHTML = '<div class="fk-wait">the card could not be drawn here. the quote still works.</div>'; });
+    el.querySelector('[data-a="copy"]').addEventListener('click', async () => {
+      if (!blob) { await ready; if (!blob) return; }
+      const how = await window.ForksCard.copy(blob);
+      ctx.toast(how === 'copied' ? 'Card copied. Paste it into your quote.' : how === 'shared' ? 'Card shared.' : how === 'saved' ? 'Card saved. Attach it to your quote.' : 'Not copied.');
+    });
+    el.querySelector('[data-a="save"]').addEventListener('click', async () => { if (!blob) await ready; if (blob) window.ForksCard.save(blob); });
     el.querySelector('[data-a="out"]').addEventListener('click', () => ctx.send('/logout'));
-    if (!RM()) countTo(el.querySelector('.fs-big b'), 0, me.allocation, 900);
-    wallet(el.querySelector('.fs-w'));
+    el.querySelector('[data-a="invite"]').addEventListener('click', () => ctx.send('/invite'));
+    if (quote) {
+      const form = el.querySelector('.fk-proof form'), st = el.querySelector('.fk-proof .q-state'), msg = st.querySelector('.q-msg');
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const link = form.querySelector('input').value.trim(); if (!link) return;
+        form.querySelector('button').classList.add('busy'); st.hidden = false; st.classList.remove('err'); msg.textContent = 'checking the link';
+        const r = await B.claim(quote.id, link).catch(() => null);
+        form.querySelector('button').classList.remove('busy');
+        if (!r || !r.ok) { st.classList.add('err'); msg.textContent = CLAIM_ERRORS[(r && r.error) || 'server'] || CLAIM_ERRORS.server; return; }
+        const got = typeof r.reward === 'number' ? r.reward : 0;
+        el.querySelector('.fk-proof').innerHTML = `<div class="q-reward ok">✓ ${got ? `quote counted · +${fmt(got)} ${TICK} <span>pending</span>` : '<span>already counted</span>'}</div>`;
+        if (got) { const b = el.getBoundingClientRect(); ctx.burst(b.left + 40, b.bottom - 40); }
+        await refresh();
+        await say(got ? `${TRIAL.quote.done} +${fmt(got)} ${TICK}, pending.` : 'that one was already counted.');
+        next(false);
+      });
+    } else wallet(el.querySelector('.fs-w'));
   }
 
   function wallet(box) {
@@ -398,7 +515,24 @@
       const r = await B.wallet(w).catch(() => null);
       if (!r || !r.ok) { ctx.toast(r && r.error === 'wallet_taken' ? 'That wallet is already on another account.' : 'Could not save the wallet. Try again.'); return; }
       await refresh(); wallet(box);
-      say(`saved. ${pending()} pending → ${short(w)}.\nnot a balance until ${TICK} launches. i'll be here.`);
+      say(`saved. ${pending()} pending → ${short(w)}.`);
+    });
+  }
+
+  /* ---------- invite: your link, who came through it ---------- */
+  async function inviteCard() {
+    const R = me.ref || {}, reward = R.reward || 2000, min = R.minTasks || 3;
+    if (!R.code) return say(`invites open once the ledger is updated. try again soon.`, 'invite');
+    const link = refLink(R.code), shown = `${C.site.host}/r/${R.code}`;
+    const m = await say(`+${fmt(reward)} ${TICK}, pending, for every friend who signs in through your link and finishes ${min} trials.` + (R.by ? `\nyou came through @${R.by}.` : ''), 'invite');
+    const text = `where did it come from? type anything and watch the github repos it forked from grow.\n\nmy invite: ${link}`;
+    const el = card(m, `// invite · @${ctx.esc(me.user.username)}${tag()}`, `<div class="ivc">
+      <div class="ivc-link"><span class="mono">${ctx.esc(shown)}</span><button class="q-btn" type="button" data-a="copy">copy</button></div>
+      <div class="ivc-stats"><div><b>${fmt(R.invited)}</b><span>signed in</span></div><div><b>${fmt(R.counted)}</b><span>counted</span></div><div><b>${fmt(R.earned)}</b><span>${TICK} pending</span></div></div>
+      <div class="q-acts"><a class="q-btn ghost" href="https://x.com/intent/tweet?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">share on x ↗</a></div></div>`);
+    el.querySelector('[data-a="copy"]').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(link); ctx.toast('Invite link copied.'); }
+      catch (_) { ctx.toast(link); }
     });
   }
 
@@ -407,15 +541,17 @@
   function mount(c) {
     ctx = c;
     const p = new URLSearchParams(location.search);
-    const auth = p.get('auth'), reason = p.get('reason'), resume = p.get('resume');
-    if (auth || resume) {
-      ['auth', 'reason', 'resume', 'code', 'state'].forEach(k => p.delete(k));
+    const auth = p.get('auth'), reason = p.get('reason'), resume = p.get('resume'), ref = p.get('ref');
+    if (ref && REF_OK.test(ref)) setRef(ref);
+    if (auth || resume || ref) {
+      ['auth', 'reason', 'resume', 'code', 'state', 'ref'].forEach(k => p.delete(k));
       history.replaceState(null, '', location.pathname + (p.toString() ? `?${p}` : '') + location.hash);
     }
     ready = detect().then(() => {
       emit();
       if (auth === 'error') ctx.toast(AUTH_ERRORS[reason] || AUTH_ERRORS.server);
       if (auth === 'ok' && resume === 'freeforks') ctx.send(C.quest.command);
+      if (auth === 'ok' && resume === 'invite') ctx.send('/invite');
     });
     return api;
   }

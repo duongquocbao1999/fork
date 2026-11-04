@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.4.0 — 2026-11-04
+
+- **New letters.** Headings and numbers in Anybody (heavy, variable width), everything else in JetBrains Mono; both self-hosted from `fonts/` (OFL), so the page and the share card draw the same on every phone. Instrument Serif and Google Fonts are gone.
+- **Six trials, 10,000 together**: follow 2,000 · like 1,000 · retweet 1,500 · comment 1,500 · ask upstream anything 1,000 · quote with your fork card 3,000. "repost" reads "retweet".
+- **Ask upstream anything**: the trial waits for your next tree and counts when it lands (the server compares your tree count with the one it noted when the trial opened).
+- **Your fork card**, drawn like a repository page: `forkwiki / @handle` with a Fork button counting your $FORK, the commits that made it (x scan, trials, trees, invites) down to `HEAD → main`, an allocation bar, squares of 500, and your invite link as `git clone`. 1920×1080 PNG from a canvas: **copy card** (clipboard; share sheet or download where images can't be copied), **quote on x** (text with your numbers and your invite link, quoting the post), **save image**.
+- **The quote, checked by its link**: `x.com/<you>/status/<id>` — the handle must be yours, the post newer than your forks account (time read from the id), and no post counts for two people.
+- **Invites**: `forks.wiki/r/<handle>` → `?ref=` kept 30 days → through the X sign-in → bound once, to a brand-new account, never to yourself. +2,000 to the inviter when the friend finishes three trials (`ref.reward`, `ref.min_tasks`, `ref.min_followers` in `app_config`). An *invite* pill in the header and `/invite`: your link, copy, share, signed in · counted · earned.
+- Removed the "not a balance until $FORK launches. i'll be here." line.
+- `0003_refs.sql`: `tasks.verify`, `task_completions.base/proof`, `profiles.ref_code`, `referrals`, `ensure_ref_code`, `ref_qualify`, `quote_check`, `upsert_x_user(…, p_ref)`, `api_task_claim(…, p_proof)`. Older migrations can be re-run without resetting amounts or the schema version; sign-in falls back through older signatures until 0003 is run; `/api/health` lists what's missing.
+
 ## 3.3.0 — 2026-11-04
 
 - **The x scan.** At the first sign-in the server reads the X account (`users/me` with `public_metrics`, `verified`, `verified_type`) and forks it a one-time pending allocation from five lines — time on X, followers, posts, lists, verified — each saturating on its own; an account that adds up to little gets a floor through a *first fork* line. Once per account for sure: ledger key `scan:<uid>`, and the lines are kept only when that call paid. Knobs in the new `app_config` table (`cfg(key, default)`), defaults in `supabase/migrations/0002_scan.sql`.
