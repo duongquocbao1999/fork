@@ -252,6 +252,35 @@ body.chat .thread { display: flex; }
   .st-n text { font-size: 12.5px; }
 }
 
+/* ---------- the repositories under a tree ---------- */
+.line { margin-top: 18px; display: grid; gap: 2px; padding: 6px 8px 8px; border: 1px solid var(--rule-2); border-radius: 18px; background: color-mix(in srgb, var(--bg-2) 88%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.line-k { padding-left: 12px; }
+.line-k { margin: 10px 0 4px; font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+.rp { display: grid; grid-template-columns: auto 28px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid transparent; text-decoration: none; color: inherit; transition: background .15s, border-color .15s, transform .15s var(--ease); }
+.rp:hover { background: color-mix(in srgb, var(--bg-2) 85%, transparent); border-color: var(--rule); }
+.rp:active { transform: scale(.995); }
+.rp.focus { border-color: color-mix(in srgb, var(--acc) 40%, transparent); background: color-mix(in srgb, var(--acc) 6%, transparent); }
+.rp-i { width: 18px; text-align: right; font: 400 11px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rp.main .rp-i { color: var(--acc); }
+.rp:not(:has(.rp-i)) { grid-template-columns: 28px minmax(0, 1fr) auto; padding-left: 42px; }
+.rp-av { width: 28px; height: 28px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: var(--bg-3); border: 1px solid var(--rule); }
+.rp-av b { font: 500 12px var(--mono); color: var(--ink-2); text-transform: lowercase; }
+.rp-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rp-b { display: grid; gap: 2px; min-width: 0; }
+.rp-name { font: 500 13.5px/1.3 var(--mono); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-o { color: var(--ink-3); font-weight: 400; }
+.rp.main .rp-name { color: var(--ink); }
+.rp-desc { font-size: 12px; line-height: 1.4; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-meta { font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-meta i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.rp-s { font: 400 12px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp.focus .rp-s, .rp.main .rp-s { color: var(--ink); }
+@media (max-width: 640px) {
+  .rp { gap: 10px; padding: 9px 8px; }
+  .rp:not(:has(.rp-i)) { padding-left: 8px; }
+  .rp-desc { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+
 /* ---------- point card ---------- */
 .point { position: absolute; z-index: 45; width: min(330px, calc(100vw - 24px)); max-height: min(70vh, 520px); overflow: auto; padding: 14px 16px 12px; border-radius: 14px; border: 1px solid var(--rule-2); background: var(--bg-2); box-shadow: 0 18px 50px rgba(0, 0, 0, .35); font: 400 12.5px/1.5 var(--mono); animation: rise .25s var(--ease) both; }
 .point.fixed { position: fixed; }
@@ -417,6 +446,7 @@ body.chat .dock { display: flex; }
 
 <script src="src/config.js"></script>
 <script src="src/field.js"></script>
+<script src="src/prompt.js"></script>
 <script src="src/brain.js"></script>
 <script src="src/stage.js"></script>
 <script src="src/quest.js"></script>

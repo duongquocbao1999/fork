@@ -1,13 +1,13 @@
 {
   "name": "forks",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Type anything and watch the line of GitHub repositories it came from grow — every point a real repo, checked against GitHub. Plus $FORK trials with sign-in with X.",
   "license": "MIT",
   "private": false,
   "scripts": {
     "start": "node scripts/serve.cjs",
     "dev": "node scripts/serve.cjs",
-    "build": "node scripts/build-upstream.cjs"
+    "check": "for f in src/*.js netlify/functions/*.mjs netlify/lib/*.mjs scripts/*.cjs; do node --check \"$f\" || exit 1; done"
   },
   "keywords": [
     "github",

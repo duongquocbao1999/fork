@@ -129,7 +129,7 @@
           // a tap target over the point and its label, at least 44px tall
           `<rect class="hit" x="-12" y="${L.wide ? -26 : -18}" width="${Math.round(p.lx + 14 + Math.max(name.length, meta.length * .86) * CH)}" height="44"/>` +
           (isF ? '<circle class="ring" r="12"/>' : '') +
-          `<circle class="dot" r="${isR ? 5.5 : main ? 4.6 : 3.4}"/>` +
+          `<circle class="dot" r="${(n.size != null ? (main || isR ? 3.6 : 2.6) + n.size * 3.4 : isR ? 5.5 : main ? 4.6 : 3.4).toFixed(1)}"/>` +
           `<text class="nm" x="${p.lx}" y="${p.ly}">${esc(name)}</text>` + (meta ? `<text class="mt" x="${p.lx}" y="${p.my}">${esc(meta)}</text>` : '') + '</g>';
       }
       svg.innerHTML = `<g class="st-edges">${edges}</g><g class="st-nodes">${nodes}</g>`;

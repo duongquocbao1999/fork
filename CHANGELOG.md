@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.1.0 — 2026-11-04
+
+- **One cheap call per question.** `GET /api/trace?q=` does it all: GitHub search for candidates → **one** `deepseek-flash` call (thinking off, json out, ~250 tokens, compact `{"t","f","n":[[repo,parent,rel,note]],"l"}`) → one GraphQL check of every repo. No tool loop, no history. A bad answer gets one retry.
+- **Richer trees for free.** The model is asked for 8–14 repos with the interesting branches (famous forks, ports, rewrites, successors); the server adds each repo's most-starred real forks (≥ 100 stars and ≥ 0.5% of the parent) up to 16 points, drops what doesn't exist, merges duplicates, marks GitHub's forks, adds the origin's real parent.
+- **Cached.** The same question (any case, with or without "?") never reaches the model twice: memory per instance + Netlify CDN for a week. New traces are limited per IP (`FORKS_TRACES_PER_MIN`, default 8).
+- **The repositories under the tree.** A panel with the line (numbered) and the branches: owner avatar, `owner/name`, description, language dot, since when, how it came from its parent, stars; every row opens GitHub. Points on the stage are sized by stars.
+- The brief lives in `src/prompt.js`, shared by the function and the Claude artifact. Removed `ask.mjs`, the tool loop and `netlify/lib/upstream.mjs` / `build-upstream.cjs`.
+
 ## 3.0.0 — 2026-11-04
 
 - **Every point is a GitHub repository.** You type anything; upstream finds the real repositories with `search_repos` and proposes the line with `trace_repos` (fork, port, rewrite, built on, inspired by, successor); `/api/repos` checks every one in a single GraphQL call, drops what doesn't exist, takes the canonical name, marks GitHub's own forks and adds the origin's real parent above it. Stars, years and links on the stage are GitHub's.

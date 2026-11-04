@@ -141,11 +141,12 @@
     return m;
   }
   function growRepos(m, c) {
+    m.tree = c;
     m.pick = (id, rect) => pointRepo(c, Number(id), rect);
     m.full = () => showFull(c.title.toLowerCase(), `${c.nodes.length} repositories · origin ${c.nodes[0].repo}${c.nodes[0].data ? ', ' + B.year(c.nodes[0].data.created) : ''} · traced to ${c.nodes[c.focus].repo}`, repoTree(c, 'full'), (id, rect) => pointRepo(c, Number(id), rect), '<span><i class="p"></i>the traced line</span><span>tap any repository for github</span>');
     return m.stage.grow({
       root: '0', focus: String(c.focus),
-      nodes: c.nodes.map((x, i) => ({ id: String(i), name: x.repo, when: x.data ? B.year(x.data.created) : '', meta: nodeMeta(x), parent: x.parent == null ? null : String(x.parent) }))
+      nodes: c.nodes.map((x, i) => ({ id: String(i), name: x.repo, when: x.data ? B.year(x.data.created) : '', meta: nodeMeta(x), parent: x.parent == null ? null : String(x.parent), size: x.data ? Math.min(1, Math.log10(x.data.stars + 1) / 5.2) : null }))
     }).then(r => {
       const root = c.nodes[0], focus = c.nodes[c.focus];
       m.head.hidden = false; m.head.textContent = focus.repo;
@@ -156,6 +157,37 @@
       scrollDown();
       return r;
     });
+  }
+
+  /* ---------- the repositories under the tree: the line, then the branches ---------- */
+  const LANG = { 'C++': '#f34b7d', C: '#555555', Go: '#00ADD8', Rust: '#dea584', Python: '#3572A5', TypeScript: '#3178c6', JavaScript: '#f1e05a', Java: '#b07219', Kotlin: '#A97BFF', Swift: '#F05138', Ruby: '#701516', PHP: '#4F5D95', 'C#': '#178600', Shell: '#89e051', Lua: '#000080', 'Vim Script': '#199f4b', Zig: '#ec915c', Haskell: '#5e5086', Elixir: '#6e4a7e', Dart: '#00B4AB', Solidity: '#AA6746', 'Jupyter Notebook': '#DA5B0B', HTML: '#e34c26', CSS: '#563d7c', Scala: '#c22d40', OCaml: '#ef7a08', Nix: '#7e7eff', 'Objective-C': '#438eff', Clojure: '#db5855', Vue: '#41b883', Svelte: '#ff3e00', Julia: '#a270ba', R: '#198CE7', Perl: '#0298c3', Erlang: '#B83998', Nim: '#ffc200', Crystal: '#000100', Assembly: '#6E4C13', Makefile: '#427819', Dockerfile: '#384d54', 'Emacs Lisp': '#c065db', TeX: '#3D6117', MDX: '#fcb32c', Move: '#4a137a', Cairo: '#ff4a48' };
+  function renderLine(m, c) {
+    if (!c) return;
+    const path = []; for (let i = c.focus; i != null; i = c.nodes[i].parent) path.unshift(i);
+    const onPath = new Set(path);
+    const branches = c.nodes.map((x, i) => i).filter(i => !onPath.has(i));
+    const row = (i, n) => {
+      const x = c.nodes[i], d = x.data, parent = x.parent == null ? null : c.nodes[x.parent];
+      const [owner, name] = x.repo.split('/');
+      const how = i === path[0] ? 'the origin' : [relOf(x, parent), x.note].filter(Boolean).join(' · ');
+      return `<a class="rp${onPath.has(i) ? ' main' : ''}${i === c.focus ? ' focus' : ''}" href="${esc(d ? d.url : 'https://github.com/' + x.repo)}" target="_blank" rel="noopener">` +
+        (n ? `<span class="rp-i">${n}</span>` : '') +
+        `<span class="rp-av" data-owner="${esc(owner)}"><b>${esc(owner[0] || '?')}</b></span>` +
+        `<span class="rp-b"><span class="rp-name"><span class="rp-o">${esc(owner)}/</span>${esc(name)}</span>` +
+        (d && d.desc ? `<span class="rp-desc">${esc(d.desc)}</span>` : '') +
+        `<span class="rp-meta">${d && d.lang ? `<i style="background:${LANG[d.lang] || 'var(--ink-3)'}"></i>${esc(d.lang)} · ` : ''}${d ? 'since ' + B.year(d.created) + ' · ' : ''}${esc(how)}</span></span>` +
+        (d ? `<span class="rp-s">★ ${kfmt(d.stars)}</span>` : '') + '</a>';
+    };
+    const el = document.createElement('div'); el.className = 'line';
+    el.innerHTML = `<div class="line-k">the line · ${path.length} repositor${path.length > 1 ? 'ies' : 'y'}</div>${path.map((i, k) => row(i, k + 1)).join('')}` +
+      (branches.length ? `<div class="line-k">branches · ${branches.length}</div>${branches.map(i => row(i, 0)).join('')}` : '');
+    // owners' avatars from github, initials where they can't load
+    el.querySelectorAll('.rp-av').forEach(a => {
+      const img = new Image(); img.alt = ''; img.width = 28; img.height = 28; img.decoding = 'async';
+      img.onload = () => { a.textContent = ''; a.appendChild(img); a.classList.add('img'); };
+      img.src = `https://github.com/${encodeURIComponent(a.dataset.owner)}.png?size=64`;
+    });
+    m.body.insertBefore(el, m.cards);
   }
 
   /* ---------- send ---------- */
@@ -186,7 +218,7 @@
         ctl = new AbortController();
         const acts = m.stage.el.querySelector('.st-acts');
         acts.innerHTML = '<button type="button">stop</button>'; acts.querySelector('button').onclick = () => ctl && ctl.abort();
-        try { text = await B.modelAnswer(history.slice(-10), ui, ctl.signal); } catch (e) { err = e; }
+        try { text = await B.modelAnswer(r.trace, ui, ctl.signal); } catch (e) { err = e; }
         if (!m.growP && err && (err.code === 'cancelled' || (ctl && ctl.signal.aborted))) { m.stage.remove(); await type(m.txt, 'stopped.'); return; }
       }
       // no model, or it drew nothing: the most-starred match and the forks github records above it
@@ -198,6 +230,7 @@
         const g = await m.growP;
         const t = String(note || text || streamed || '').trim();
         if (t) await type(m.txt, t);
+        renderLine(m, m.tree);
         const root = g.root.name, focus = g.focus.name;
         follow(m, [g.forks ? `where did ${root} come from?` : `what did ${focus} become?`, g.forks ? `what did ${focus} become?` : `where did ${focus} come from?`]);
         history.push({ role: 'assistant', content: t || `${focus}: ${g.forks} forks from ${root}` });
