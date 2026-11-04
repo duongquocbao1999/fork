@@ -16,9 +16,11 @@ export default async req => {
       if (!missing.some(m => m.startsWith('SUPABASE'))) {
         try { db = await rpc('api_health'); } catch (e) { db = { ok: false, error: String(e.message).slice(0, 200) }; }
       }
+      // schema '2' = 0001_init.sql + 0002_scan.sql; anything older still needs a migration run in the SQL editor
+      const migrations = db && db.ok && Number(db.schema) < 2 ? ['supabase/migrations/0002_scan.sql'] : [];
       return json({
-        ok: !missing.length && !config.length && !!(db && db.ok) && !!process.env.GITHUB_TOKEN,
-        missing: missing.concat(process.env.GITHUB_TOKEN ? [] : ['GITHUB_TOKEN']), config, db,
+        ok: !missing.length && !config.length && !!(db && db.ok) && !migrations.length && !!process.env.GITHUB_TOKEN,
+        missing: missing.concat(process.env.GITHUB_TOKEN ? [] : ['GITHUB_TOKEN']), config, db, migrations,
         github: !!process.env.GITHUB_TOKEN,
         model: !!process.env.FORKS_LLM_KEY,
         callback_url: `${siteOrigin(req)}${CALLBACK_PATH}`
@@ -52,6 +54,13 @@ export default async req => {
       if (!C.questOpen()) return json({ ok: false, error: 'closed' }, 409);
       return json(await rpc(path.endsWith('open') ? 'api_task_open' : 'api_task_claim', { p_user: s.uid, p_task: task }));
     }
+    if (path === '/api/scan/seen') return json(await rpc('api_scan_seen', { p_user: s.uid }));
+    // a stat for the summary card, never a reward: one tree at a time, or the trees grown before sign-in (capped in SQL)
+    if (path === '/api/seen') {
+      const traces = Math.max(1, Math.min(25, Number(body.traces) | 0 || 1));
+      const repos = Math.max(0, Math.min(20 * traces, Number(body.repos) | 0));
+      return json(await rpc('api_note_trace', { p_user: s.uid, p_repos: repos, p_traces: traces }));
+    }
     if (path === '/api/wallet') {
       const wallet = String(body.wallet || '').trim();
       if (!SOLANA.test(wallet)) return json({ ok: false, error: 'bad_wallet' }, 400);
@@ -64,4 +73,4 @@ export default async req => {
   }
 };
 
-export const config = { path: ['/api/health', '/api/me', '/api/logout', '/api/task/open', '/api/task/claim', '/api/wallet'] };
+export const config = { path: ['/api/health', '/api/me', '/api/logout', '/api/task/open', '/api/task/claim', '/api/wallet', '/api/scan/seen', '/api/seen'] };

@@ -240,6 +240,7 @@
       }
       if (m.growP) {
         const g = await m.growP;
+        QUEST.noteTrace(m.tree.nodes.length); // for the summary card: trees grown, repositories seen
         const t = String(note || text || streamed || '').trim();
         if (t) await type(m.txt, t);
         renderLine(m, m.tree);
@@ -391,21 +392,33 @@
 
   /* ---------- $FORK: /freeforks ---------- */
   const C = window.FORKS_CONFIG;
-  const QUEST = window.ForksQuest.mount({ addUp, type, send, scrollDown, toast, esc, burst: (x, y) => field.burst(x, y) });
+  const meBtn = $('#meBtn');
+  if (C.links.x) $('#xLink').href = C.links.x; else $('#xLink').remove();
+  const QUEST = window.ForksQuest.mount({
+    addUp, type, send, scrollDown, toast, esc, burst: (x, y) => field.burst(x, y),
+    meEl: () => meBtn,
+    // a scan token landed in the header: the number ticks up and the pill bumps
+    meTick: n => {
+      const a = meBtn.querySelector('.amt'); if (a && a.firstChild) a.firstChild.nodeValue = fmt(n);
+      meBtn.classList.remove('bump'); void meBtn.offsetWidth; meBtn.classList.add('bump');
+    }
+  });
   $('#questBtn').addEventListener('click', () => send(C.quest.command));
-  $('#meBtn').addEventListener('click', () => send(C.quest.command));
-  QUEST.onChange(({ mode, me }) => {
-    const qb = $('#questBtn'), mb = $('#meBtn');
+  meBtn.addEventListener('click', () => send(C.quest.command));
+  QUEST.onChange(({ mode, me, shown }) => {
+    const qb = $('#questBtn'), T = C.token.ticker;
     const done = me ? me.tasks.filter(t => t.completedAt).length : 0, all = me ? me.tasks.length : 4;
-    qb.innerHTML = !me || !done ? `get <b>+${fmt(C.quest.total)}</b> ${C.token.ticker}`
-      : done < all ? `<b>${fmt(me.allocation)}</b> ${C.token.ticker} pending · finish the trials`
-      : `<b>${fmt(me.allocation)}</b> ${C.token.ticker} pending${me.wallet ? '' : ' · add a wallet'}`;
-    qb.classList.toggle('has', !!(me && done));
-    mb.hidden = mode === 'loading' || mode === 'down';
-    mb.innerHTML = me
-      ? (me.user.avatar ? `<img src="${esc(me.user.avatar)}" alt="" width="18" height="18">` : `<span class="ini">${esc((me.user.username || '?')[0])}</span>`) + `<span class="amt">${fmt(me.allocation)}<span class="tk"> ${C.token.ticker}</span></span>${mode === 'demo' ? '<span class="demo">demo</span>' : ''}`
+    qb.innerHTML = !me ? `get <b>+${fmt(C.quest.total)}</b> ${T}`
+      : me.scan && !me.scanSeen ? `reading your x · <b>${T}</b>`
+      : !done ? `<b>${fmt(shown)}</b> ${T} pending · +${fmt(C.quest.total)} in trials`
+      : done < all ? `<b>${fmt(shown)}</b> ${T} pending · finish the trials`
+      : `<b>${fmt(shown)}</b> ${T} pending${me.wallet ? '' : ' · add a wallet'}`;
+    qb.classList.toggle('has', !!(me && (done || me.scanSeen)));
+    meBtn.hidden = mode === 'loading' || mode === 'down';
+    meBtn.innerHTML = me
+      ? (me.user.avatar ? `<img src="${esc(me.user.avatar)}" alt="" width="18" height="18">` : `<span class="ini">${esc((me.user.username || '?')[0])}</span>`) + `<span class="amt">${fmt(shown)}<span class="tk"> ${T}</span></span>${mode === 'demo' ? '<span class="demo">demo</span>' : ''}`
       : `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.37 5.77L17.75 3Zm-1.08 16.17h1.7L7.4 4.73H5.58l11.09 14.44Z"/></svg><span class="lbl">sign in</span>${mode === 'demo' ? '<span class="demo">demo</span>' : ''}`;
-    mb.setAttribute('aria-label', me ? `@${me.user.username}: ${fmt(me.allocation)} ${C.token.ticker} pending` : 'Sign in with X for /freeforks');
+    meBtn.setAttribute('aria-label', me ? `@${me.user.username}: ${fmt(shown)} ${T} pending` : 'Sign in with X for /freeforks');
   });
 
   setTimeout(() => { if (matchMedia('(pointer: fine)').matches) inp.focus({ preventScroll: true }); }, 900);

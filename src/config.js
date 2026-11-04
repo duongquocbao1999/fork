@@ -9,11 +9,13 @@
       ca: '',                     // Solana mint once it exists; empty shows "launching soon"
       chain: 'solana'
     },
-    // The /freeforks trials. handle without @; post = the numeric id from x.com/<handle>/status/<id>.
-    // Both empty = the trials stay closed and /api/health lists them as missing.
-    x: { handle: '', post: '' },
-    quest: { command: '/freeforks', total: 5000 },
-    links: { github: 'https://github.com/forkwiki/fork' }
+    // The /freeforks trials. handle without @ (the account to follow); post = the numeric id from
+    // x.com/<postBy>/status/<post> (the post to like, repost and comment on); postBy = its author.
+    // For now the post is the first post on Twitter, so the trials can be tested; swap in your own.
+    // handle or post empty = the trials stay closed and /api/health lists them as missing.
+    x: { handle: 'forkwikis', post: '20', postBy: 'jack' },
+    quest: { command: '/freeforks', total: 10000 },
+    links: { github: 'https://github.com/forkwiki/fork', x: 'https://x.com/forkwikis' }
   };
 
   // Where each trial sends the user. The comment trial opens the post itself: in the X app
@@ -22,7 +24,7 @@
     follow: `https://x.com/intent/follow?screen_name=${encodeURIComponent(x.handle)}`,
     like: `https://x.com/intent/like?tweet_id=${encodeURIComponent(x.post)}`,
     repost: `https://x.com/intent/retweet?tweet_id=${encodeURIComponent(x.post)}`,
-    comment: `https://x.com/${encodeURIComponent(x.handle)}/status/${encodeURIComponent(x.post)}`
+    comment: `https://x.com/${encodeURIComponent(x.postBy || x.handle)}/status/${encodeURIComponent(x.post)}`
   }[type] || null);
   CONFIG.questOpen = (x = CONFIG.x) => !!(x.handle && x.post);
 

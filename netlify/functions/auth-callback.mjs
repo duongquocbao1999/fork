@@ -25,7 +25,7 @@ export default async req => {
     if (!tokenRes.ok) { console.error('X token exchange failed', tokenRes.status, await tokenRes.text()); return fail('token'); }
     const { access_token } = await tokenRes.json();
 
-    const meRes = await fetch('https://api.x.com/2/users/me?user.fields=profile_image_url,created_at,public_metrics', {
+    const meRes = await fetch('https://api.x.com/2/users/me?user.fields=profile_image_url,created_at,public_metrics,verified,verified_type', {
       headers: { authorization: `Bearer ${access_token}` }, signal: AbortSignal.timeout(8000)
     });
     if (!meRes.ok) { console.error('X profile request failed', meRes.status, await meRes.text()); return fail('profile'); }
@@ -40,17 +40,31 @@ export default async req => {
 
     if (MIN_AGE_DAYS > 0 && x.created_at && Date.now() - Date.parse(x.created_at) < MIN_AGE_DAYS * 864e5) return fail('too_new');
 
+    const base = {
+      p_x_id: x.id,
+      p_username: x.username,
+      p_name: x.name || x.username,
+      p_avatar: x.profile_image_url ? x.profile_image_url.replace('_normal', '_200x200') : null,
+      p_x_created_at: x.created_at || null,
+      p_followers: x.public_metrics ? x.public_metrics.followers_count : null
+    };
     let uid;
     try {
+      // what the X scan reads (supabase/migrations/0002_scan.sql → scan_lines)
       uid = await rpc('upsert_x_user', {
-        p_x_id: x.id,
-        p_username: x.username,
-        p_name: x.name || x.username,
-        p_avatar: x.profile_image_url ? x.profile_image_url.replace('_normal', '_200x200') : null,
-        p_x_created_at: x.created_at || null,
-        p_followers: x.public_metrics ? x.public_metrics.followers_count : null
+        ...base,
+        p_following: x.public_metrics ? x.public_metrics.following_count : null,
+        p_tweets: x.public_metrics ? x.public_metrics.tweet_count : null,
+        p_listed: x.public_metrics ? x.public_metrics.listed_count : null,
+        p_verified: !!x.verified,
+        p_verified_type: x.verified_type || null
       });
-    } catch (e) { console.error(e); return fail('database'); }
+    } catch (e) {
+      // 0002 not run yet: PostgREST can't find the new signature (PGRST202). Sign in on the old one, no scan.
+      if (!/PGRST202/.test(e.message)) { console.error(e); return fail('database'); }
+      console.warn('upsert_x_user: run supabase/migrations/0002_scan.sql for the X scan');
+      try { uid = await rpc('upsert_x_user', base); } catch (e2) { console.error(e2); return fail('database'); }
+    }
     if (!uid) return fail('database');
 
     const ret = saved.ret || '/';

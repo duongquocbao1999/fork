@@ -11,6 +11,7 @@ Every point is a real public repository — a fork, a port, a rewrite, a project
 [![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-151A17?style=flat-square&labelColor=090B0A)](src)
 [![DeepSeek](https://img.shields.io/badge/deepseek--flash-1%20call%20per%20question-151A17?style=flat-square&labelColor=090B0A)](#what-a-question-costs)
 [![$FORK](https://img.shields.io/badge/%24FORK-%2Ffreeforks-E8B45A?style=flat-square&labelColor=090B0A)](#fork)
+[![X](https://img.shields.io/badge/x-%40forkwikis-151A17?style=flat-square&labelColor=090B0A&logo=x)](https://x.com/forkwikis)
 
 <br>
 
@@ -92,7 +93,15 @@ Set the environment variables in Netlify first, then deploy:
 
 ## $FORK
 
-The **get +5,000 $FORK** button, or `/freeforks`: sign in with X, then four trials one at a time — follow, like, repost, comment — each counted by the server five seconds after its link opens. Then a Solana wallet. Allocations are **pending**, never a balance. The X account and post live in `src/config.js`, the amounts in the database.
+The **get +10,000 $FORK** button, or `/freeforks`:
+
+1. **Sign in with X.** upstream reads the account first — how long it has been on X, followers, posts, lists, verified — and forks it a one-time pending allocation. The page plays the reading back line by line, then the tokens fly up into the header.
+2. **Four trials**, one at a time — follow, like, repost, comment, 10,000 together — each counted by the server five seconds after its link opens.
+3. **Your fork**: the allocation and what it is made of, the trees you grew and the repositories you saw, the Solana wallet, a share button.
+
+<img src="docs/media/shot-scan.png" alt="the x scan in the demo: four lines read in — on x for 10 yrs +3,350, followers 21 +2,150, posts 1,465 +2,450, in lists 1 +250 — the total 8,200 $FORK, tokens flying up into the header" width="100%">
+
+Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and its knobs in `app_config` for the scan. Follow along: [@forkwikis](https://x.com/forkwikis).
 
 ## Inside
 

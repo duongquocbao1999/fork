@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.3.0 — 2026-11-04
+
+- **The x scan.** At the first sign-in the server reads the X account (`users/me` with `public_metrics`, `verified`, `verified_type`) and forks it a one-time pending allocation from five lines — time on X, followers, posts, lists, verified — each saturating on its own; an account that adds up to little gets a floor through a *first fork* line. Once per account for sure: ledger key `scan:<uid>`, and the lines are kept only when that call paid. Knobs in the new `app_config` table (`cfg(key, default)`), defaults in `supabase/migrations/0002_scan.sql`.
+- The page plays the scan back: *reading* with a sweep, each number scrambling in, its amount popping, the total counting up, then the tokens fly from the total into the header pill, which ticks up as they land. The header holds the scan back until it has been played. Reduced motion: all at once, no flight. The site never states a range.
+- **Trials worth 10,000**: follow 3,000 · like 2,000 · repost 2,500 · comment 2,500 (new claims; earlier ones keep what they paid). The button reads *get +10,000 $FORK*.
+- **Your fork**, after the last trial: the allocation counting up, *x scan* and *trials · 4/4*, trees grown and repositories seen, the wallet inline, a share button with the number. Trees grown signed out wait in the browser and go up with the sign-in (capped); a stat, never a reward.
+- The X account: [@forkwikis](https://x.com/forkwikis) in the header, `/help` and the persona. The trials point at `x.com/jack/status/20` for now, so the links can be tried end to end; swap `x.post` / `x.postBy` in `src/config.js`.
+- `POST /api/scan/seen`, `POST /api/seen`; `/api/me` adds `scan`, `scanSeen`, `scanTotal`, `tasksTotal`, `traces`, `reposSeen`; `/api/health` lists a missing `0002_scan.sql`. Before 0002 is run, sign-in falls back to the old `upsert_x_user` (no scan) instead of failing.
+
 ## 3.2.0 — 2026-11-04
 
 - The repositories under a tree are folded into one line — the faces of the line, *5 repositories · line of 3 · 2 branches · ★ total* — and open on tap.

@@ -14,6 +14,10 @@ Non-obvious choices, one line of why each.
 - **The server owns the prompt** — `/api/trace` takes only the question and sends its own brief (`src/prompt.js`), so the key can't be used as a free model.
 - **Trials are checked by time, not by X** — `api_task_open` stamps the server clock, `api_task_claim` counts after `min_wait_sec` (5 s). Real checks need the paid X API; the UI calls the wait "verifying" and never claims more.
 - **The comment trial opens the post itself** — `intent/tweet?in_reply_to=` becomes a quote post in the X app (krill).
+- **The x scan is once per account** — `upsert_x_user` scores the account only while `profiles.scan` is empty and keeps the lines only if `credit(…, 'scan:<uid>')` actually paid, so a re-login, a grown account or a wiped row never pays twice.
+- **No range on the site** — the scan shows what it read and what each line added, never a minimum or a maximum; the numbers live in SQL and `app_config`.
+- **The header waits for the scan** — until `/api/scan/seen`, the pill shows the allocation without the scan, so the tokens have somewhere to land.
+- **Trees grown are a stat, not a reward** — counted from the page (one tree per call, at most 20 repos; a signed-out tally goes up once, capped at 25 trees), so they never touch the ledger.
 - **Amounts live in SQL** — `tasks.reward`; the browser sends a task id, the ledger key `task:<uid>:<task>` makes every credit land once, and the claim reports what was actually credited.
 - **No count over profiles on `/api/me`** — glyph lost its database to that under load.
 - **One config for page and server** — `src/config.js` is a classic script in the page and a CommonJS module for the functions, so the X account and post can't drift between them.

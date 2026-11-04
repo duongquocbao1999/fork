@@ -175,12 +175,12 @@ alter default privileges in schema public revoke all on tables from anon, authen
 alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
 
 -- ---------------------------------------------------------------- seed
--- 1,500 + 1,000 + 1,250 + 1,250 = 5,000 $FORK. Re-running updates the rows.
+-- 3,000 + 2,000 + 2,500 + 2,500 = 10,000 $FORK. Re-running updates the rows.
 insert into tasks (id, type, reward, min_wait_sec, sort) values
-  ('follow',  'follow',  1500, 5, 1),
-  ('like',    'like',    1000, 5, 2),
-  ('repost',  'repost',  1250, 5, 3),
-  ('comment', 'comment', 1250, 5, 4)
+  ('follow',  'follow',  3000, 5, 1),
+  ('like',    'like',    2000, 5, 2),
+  ('repost',  'repost',  2500, 5, 3),
+  ('comment', 'comment', 2500, 5, 4)
 on conflict (id) do update set type = excluded.type, reward = excluded.reward,
   min_wait_sec = excluded.min_wait_sec, sort = excluded.sort;
 
