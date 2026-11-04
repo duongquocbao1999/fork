@@ -6,6 +6,7 @@ Non-obvious choices, one line of why each.
 - **Memes are gone** — the 81-object meme archive and its scripts were removed in 3.0; history keeps them.
 - **The answer is a growing tree, not a chat bubble** — every lineage plays on a wide stage: probes while looking, then origin → each point → the asked thing, side forks sprouting as the line passes; the text is the caption under it. Phones get the same tree as rows (git-graph), never a squeezed horizontal one.
 - **One model call per question, not a tool loop** — the 3.0 loop (search → trace → text, 3+ calls, history resent each time) cost ~5× more; now the server does the searching and checking for free and the model answers once in compact json (~250 tokens). Thinking is off: its tokens are billed and the tree doesn't need them.
+- **The list folds** — a 16-repo list under every tree was more than most people want; one line with the faces of the line and the counts, the full list a tap away.
 - **Cache by question** — CDN for a week + memory; the same question costs nothing the second time.
 - **Free richness from GitHub** — notable real forks (≥ 100 stars, ≥ 0.5% of the parent) are added by the server, so trees grow without more model tokens.
 - **One GraphQL call per tree** — up to 12 repos per request instead of 12 REST calls; answers cached on Netlify's CDN for a day, so a popular line costs nothing the second time.

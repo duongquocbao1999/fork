@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.2.0 — 2026-11-04
+
+- The repositories under a tree are folded into one line — the faces of the line, *5 repositories · line of 3 · 2 branches · ★ total* — and open on tap.
+- The GitHub repo, redone: a short README with a demo GIF of a tree growing, a desktop and a phone still, how a question becomes a tree, what it costs, how to run and deploy; `docs/media/social.png` (1280×640) for the repository's social preview; the old v1 logos removed.
+- Deploy notes: use the Netlify CLI or Git — dragging a zip into Netlify uploads the page without its functions.
+
 ## 3.1.0 — 2026-11-04
 
 - **One cheap call per question.** `GET /api/trace?q=` does it all: GitHub search for candidates → **one** `deepseek-flash` call (thinking off, json out, ~250 tokens, compact `{"t","f","n":[[repo,parent,rel,note]],"l"}`) → one GraphQL check of every repo. No tool loop, no history. A bad answer gets one retry.

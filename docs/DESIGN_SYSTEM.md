@@ -28,5 +28,6 @@ Mint never decorates. If it's mint, it's on the line from your object to its ori
 - **Chip** — pill, hairline, veil. Starters, follow-ups, commands.
 - **Card** — 14px radius, `--bg-2` at 97%, header row `// kind · subject` in 11px meta with actions on the right, optional legend footer.
 - **Stage** — 18px radius, about half the screen tall on wide screens. Points are repositories: name above the line, `year · ★ stars · what changed` under it; the line to the asked repo in mint, side branches in ink-3; the asked repo ringed. Phones: one row per repository, elbows like `git log --graph`.
+- **Repository list** — under the result, folded to one 48px line: overlapping avatars of the line, `N repositories · line of n · m branches · ★ total`, *show*. Open: the line numbered in mint from the origin, then the branches; each row = avatar, `owner/` dim + `name`, description, language dot, since, how it came, stars; the asked repo outlined in mint.
 - **Point card** — floating card (bottom sheet on phones): serif name, `★ stars · language · since year`, how it came from its parent in mint, description, links to GitHub / forks / network graph / homepage, then *trace from here*.
 - **Pill** — top bar controls: new, sign in / your pending $FORK, GitHub, theme.

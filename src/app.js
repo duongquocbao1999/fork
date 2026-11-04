@@ -178,9 +178,21 @@
         `<span class="rp-meta">${d && d.lang ? `<i style="background:${LANG[d.lang] || 'var(--ink-3)'}"></i>${esc(d.lang)} · ` : ''}${d ? 'since ' + B.year(d.created) + ' · ' : ''}${esc(how)}</span></span>` +
         (d ? `<span class="rp-s">★ ${kfmt(d.stars)}</span>` : '') + '</a>';
     };
+    // folded by default: one line with the faces of the line; the full list opens on tap
     const el = document.createElement('div'); el.className = 'line';
-    el.innerHTML = `<div class="line-k">the line · ${path.length} repositor${path.length > 1 ? 'ies' : 'y'}</div>${path.map((i, k) => row(i, k + 1)).join('')}` +
-      (branches.length ? `<div class="line-k">branches · ${branches.length}</div>${branches.map(i => row(i, 0)).join('')}` : '');
+    const total = c.nodes.length, stars = c.nodes.reduce((s, x) => s + (x.data ? x.data.stars : 0), 0);
+    el.innerHTML = `<button class="line-t" type="button" aria-expanded="false">` +
+        `<span class="line-avs">${path.slice(0, 5).map(i => { const o = c.nodes[i].repo.split('/')[0]; return `<span class="rp-av sm" data-owner="${esc(o)}"><b>${esc(o[0] || '?')}</b></span>`; }).join('')}</span>` +
+        `<span class="line-s"><b>${total} repositories</b> · line of ${path.length}${branches.length ? ` · ${branches.length} branch${branches.length > 1 ? 'es' : ''}` : ''}${stars ? ` · ★ ${kfmt(stars)}` : ''}</span>` +
+        `<span class="line-x">show</span></button>` +
+      `<div class="line-body" hidden><div class="line-k">the line</div>${path.map((i, k) => row(i, k + 1)).join('')}` +
+      (branches.length ? `<div class="line-k">branches</div>${branches.map(i => row(i, 0)).join('')}` : '') + '</div>';
+    const t = el.querySelector('.line-t'), body = el.querySelector('.line-body');
+    t.addEventListener('click', () => {
+      const open = body.hidden; body.hidden = !open; el.classList.toggle('open', open);
+      t.setAttribute('aria-expanded', String(open)); t.querySelector('.line-x').textContent = open ? 'hide' : 'show';
+      if (open) requestAnimationFrame(() => el.scrollIntoView({ block: 'nearest', behavior: RM.matches ? 'auto' : 'smooth' }));
+    });
     // owners' avatars from github, initials where they can't load
     el.querySelectorAll('.rp-av').forEach(a => {
       const img = new Image(); img.alt = ''; img.width = 28; img.height = 28; img.decoding = 'async';

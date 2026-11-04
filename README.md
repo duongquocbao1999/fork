@@ -2,133 +2,121 @@
 
 <img src="docs/media/banner.svg" alt="forks — where did it come from?" width="100%">
 
-<br>
+### Type anything. Watch the GitHub repositories it came from grow.
 
-**Type anything and watch the line of GitHub repositories it came from grow.**<br>
-Every point is a real public repository — a fork, a port, a rewrite, a project built on or inspired by the one before — with its stars, its year and a link.
+Every point is a real public repository — a fork, a port, a rewrite, a project built on the one before — with its stars, its year and one tap to GitHub.
 
-<br>
-
-[![License: MIT](https://img.shields.io/badge/license-MIT-6EE7B7?style=flat-square&labelColor=090B0A)](LICENSE)
-[![Zero build](https://img.shields.io/badge/build-none-151A17?style=flat-square&labelColor=090B0A)](#run-it)
-[![Vanilla JS](https://img.shields.io/badge/vanilla-JS-151A17?style=flat-square&labelColor=090B0A)](src)
-[![GitHub data](https://img.shields.io/badge/every%20point-a%20real%20repo-2E6B52?style=flat-square&labelColor=090B0A)](#how-it-works)
-[![$FORK](https://img.shields.io/badge/%24FORK-%2Ffreeforks-E8B45A?style=flat-square&labelColor=090B0A)](#fork-freeforks)
-
-[**forks.wiki**](https://forks.wiki) · [**Run it**](#run-it) · [**How it works**](#how-it-works) · [**Setup**](SETUP.ru.md)
+[![forks.wiki](https://img.shields.io/badge/forks.wiki-live-6EE7B7?style=flat-square&labelColor=090B0A)](https://forks.wiki)
+[![License: MIT](https://img.shields.io/badge/license-MIT-151A17?style=flat-square&labelColor=090B0A)](LICENSE)
+[![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-151A17?style=flat-square&labelColor=090B0A)](src)
+[![DeepSeek](https://img.shields.io/badge/deepseek--flash-1%20call%20per%20question-151A17?style=flat-square&labelColor=090B0A)](#what-a-question-costs)
+[![$FORK](https://img.shields.io/badge/%24FORK-%2Ffreeforks-E8B45A?style=flat-square&labelColor=090B0A)](#fork)
 
 <br>
 
-<img src="docs/media/shot-answer.png" alt="dogecoin traced on the stage: bitcoin/bitcoin → litecoin-project/litecoin → dogecoin/dogecoin, the line in mint" width="100%">
+<img src="docs/media/demo.gif" alt="typing 'where did dogecoin come from?': probes search, then the line grows bitcoin/bitcoin → litecoin-project/litecoin → dogecoin/dogecoin, with branches, and the list of repositories opens" width="100%">
 
 </div>
 
 <br>
 
-## Everything forks from something
+`bitcoin/bitcoin` was forked into `litecoin-project/litecoin`, which was forked into `dogecoin/dogecoin`. `neovim/neovim` forked `vim/vim`. `ollama/ollama` is built on `ggml-org/llama.cpp`. Open source is one family tree, and forks shows you a branch of it from a single question — a word, a project, `owner/name`, a GitHub link, even something that isn't software at all.
 
-`bitcoin/bitcoin` was forked into `litecoin-project/litecoin`, which was forked into `dogecoin/dogecoin`. `neovim/neovim` forked `vim/vim`. `ollama/ollama` is built on `ggml-org/llama.cpp`, which grew out of `ggml-org/ggml`. Open source is one big family tree — forks is a way to see a branch of it from a single question:
+<table>
+<tr>
+<td width="68%"><img src="docs/media/shot-answer.png" alt="the result: dogecoin/dogecoin, 2 forks from bitcoin/bitcoin, and the repositories — the line numbered from the origin, then the branches"></td>
+<td width="32%"><img src="docs/media/shot-phone.png" alt="the same tree on a phone, growing top to bottom like git log --graph"></td>
+</tr>
+<tr>
+<td><sub><b>The result.</b> The line from the origin to your answer, the branches around it, every repo with its stars, language, age and how it came from its parent. Folded into one line until you open it.</sub></td>
+<td><sub><b>On a phone</b> the tree grows top to bottom, one row per repository.</sub></td>
+</tr>
+</table>
 
-```
-where did it come from?
-```
-
-Type a word, an idea, a product, `owner/name` or a GitHub link. Even things that aren't software: `doge` gets you the coins people built around it.
-
-## The trace stage
-
-While upstream looks, probes reach out from a seed and fall back. Then the line grows from the origin repository, point by point — each with its year, its stars and what changed — side branches sprout as it passes, the status line walks the points, and it arrives at the repository you asked about, ringed. Under it: the name, how many forks from which origin, the stars, upstream's line or two, and **the repositories** — the line numbered from the origin, then the branches, each with the owner's avatar, description, language, age, how it came from its parent and stars, one tap from GitHub. On a phone the same tree grows top → down, one row per repository, like `git log --graph`.
-
-**Tap any point** for its card: description, language, stars, since when, how it came from its parent (*a fork of …*, *a rewrite of …*, *built on …*), and links — **open on github**, its **forks**, the **network graph**, the homepage — then *trace from here* or *what did it become?*.
-
-<div align="center">
-<img src="docs/media/shot-ai.png" alt="the repositories under the tree: the line from bitcoin/bitcoin to dogecoin/dogecoin, then the branches, each with stars, language and how it came" width="92%">
-</div>
-
-## How it works
+## How a question becomes a tree
 
 ```mermaid
 flowchart LR
-  you["anything you type"] --> t["/api/trace"]
-  t -- "1 · search (free, cached)" --> s["GitHub search<br/>candidates"]
-  t -- "2 · one call, ~250 tokens" --> m["deepseek-flash<br/>thinking off · json"]
-  t -- "3 · one GraphQL call" --> v["check every repo<br/>+ its top real forks"]
-  v --> stage["the stage grows the line<br/>+ the list of repositories"]
-  t -. "same question again" .-> c[("cache<br/>CDN · a week")]
+  q["anything you type"] --> t["/api/trace"]
+  t -- "1 · free" --> s["GitHub search<br/>candidates"]
+  t -- "2 · one call" --> m["deepseek-flash<br/>thinking off · json"]
+  t -- "3 · one call" --> g["GitHub GraphQL<br/>check every repo<br/>+ its top real forks"]
+  g --> stage["the stage"]
+  t -. "asked before" .-> c[("cache · a week")]
 ```
 
-1. **Candidates from GitHub.** The server searches GitHub for what you typed (free, cached).
-2. **One model call.** `deepseek-flash` with thinking off answers in compact json: 8–14 repositories from the origin to your answer, the interesting branches hanging off it (famous forks, ports, rewrites, successors) and a line or two. No tool loop, no history — about 250 output tokens.
-3. **GitHub checks and grows it.** One GraphQL call looks up every repository and its most-starred forks. Repos that don't exist are dropped, duplicates merged, renamed ones get their current name, GitHub's own forks are marked, the origin's real parent is added above it, and notable real forks (≥ 100 stars) are hung on for free, up to 16 points.
-4. **Cached.** The same question is answered from the CDN for a week and never reaches the model again.
+1. **Candidates.** The server searches GitHub for what you typed.
+2. **One model call.** `deepseek-flash`, thinking off, answers in compact json: 8–14 repositories from the origin to your answer, with the interesting branches — famous forks, ports, rewrites, successors.
+3. **GitHub checks it.** One GraphQL call looks up every repository: what doesn't exist is dropped, duplicates merged, renamed repos get their current name, GitHub's own forks are marked, the origin's real parent is added above it, and notable real forks (≥ 100★) are hung on for free — up to 16 points.
+4. **The stage grows it.** Probes while it looks, then the line point by point, side branches as it passes, the answer ringed. Tap any point for its card: GitHub, its forks, the network graph, *trace from here*.
 
-Stars, years, avatars and links are GitHub's, never the model's.
+Stars, years, avatars and links come from GitHub, never from the model.
 
-Without a model, forks falls back to GitHub alone: the most-starred match and the forks GitHub records above it. Details: [docs/UPSTREAM.md](docs/UPSTREAM.md).
+## What a question costs
 
-| Where it runs | Model | GitHub check |
-|---|---|---|
-| [forks.wiki](https://forks.wiki) / your Netlify deploy | DeepSeek `deepseek-flash` via [`trace.mjs`](netlify/functions/trace.mjs) (`FORKS_LLM_KEY`; any OpenAI-compatible API works) | yes, with `GITHUB_TOKEN` |
-| As a Claude artifact | Claude, through the page's `sample` capability | no — names as the model gave them |
-| Local dev | same functions, run by `npm start` | with `GITHUB_TOKEN` |
-
-The model key and the GitHub token never reach the browser. `/api/trace` takes only the question, sends its own brief, caches answers and limits new traces per IP; `/api/repos` validates names, caches for a day and rate-limits per IP.
-
-**What a question costs.** About 700 input tokens (most of them the same brief every time, which DeepSeek bills at the cache-hit rate) and about 250 output tokens: a fraction of a cent per new question at `deepseek-flash` prices, and nothing for a question already asked. DeepSeek is prepaid, so the balance is the hard cap.
-
-## $FORK · /freeforks
-
-The button under the input — **get +5,000 $FORK** — or `/freeforks` starts the trials in the chat: sign in with X, then four small forks of your own, one at a time.
-
-| Trial | Opens | Pending $FORK |
-|---|---|---|
-| follow | `x.com/intent/follow?screen_name=…` | 1,500 |
-| like | `x.com/intent/like?tweet_id=…` | 1,000 |
-| repost | `x.com/intent/retweet?tweet_id=…` | 1,250 |
-| comment | the post itself | 1,250 |
-
-**GO** opens the link and starts the server's clock; five seconds later the claim counts — nothing is checked against X. Then a Solana wallet and the summary. The account and post live in `src/config.js`; amounts live in the database, never in the browser. Allocations are **pending**, never a balance.
+| | |
+|---|---|
+| A new question | one `deepseek-flash` call · ~700 tokens in (mostly the same brief, billed at the cache-hit rate) · ~250 out · **a fraction of a cent** |
+| The same question again | **free** — answered from the CDN for a week |
+| GitHub | free with a token · one search + one GraphQL call per new question |
+| Abuse | new traces limited per IP (`FORKS_TRACES_PER_MIN`, default 8); DeepSeek is prepaid, so the balance is the cap |
 
 ## Run it
 
 ```bash
-git clone https://github.com/forkwiki/fork.git
-cd fork
-npm start                                   # http://127.0.0.1:5173
-GITHUB_TOKEN=… FORKS_LLM_KEY=sk-… npm start  # with GitHub and DeepSeek
+git clone https://github.com/forkwiki/fork.git && cd fork
+GITHUB_TOKEN=… FORKS_LLM_KEY=sk-… npm start   # http://127.0.0.1:5173
 ```
 
-`npm start` runs every function in `netlify/functions` the way Netlify routes them. Without the X / Supabase variables, `/freeforks` runs as a labelled demo.
+No dependencies, no build step. `npm start` serves the page and runs every function in `netlify/functions` the way Netlify routes them.
 
-**Deploy:** import the repo into Netlify; there is no build step, `netlify.toml` ships the functions. Every variable and every step is in **[SETUP.ru.md](SETUP.ru.md)**; `GET /api/health` lists whatever is still missing.
+## Deploy
 
-| File | What it does |
+The page needs its functions, so deploy with the Netlify CLI or from Git — **not** by dragging a zip into Netlify (that uploads the page without the functions).
+
+```bash
+npx netlify-cli login
+npx netlify-cli link          # once: pick the site
+npx netlify-cli deploy --prod
+```
+
+Set the environment variables in Netlify first, then deploy:
+
+| Variable | |
 |---|---|
-| `src/prompt.js` | upstream's brief and the json it answers with — shared by `/api/trace` and the Claude artifact. |
-| `src/brain.js` | Routing, which brain the page has (`/api/trace` or Claude), the GitHub-only fallback. |
-| `src/stage.js` | The trace stage: probes, the growing line, side branches, status, focus ring. |
-| `src/app.js` | The page: input, messages, the result under each stage, repository cards, full view, theme, $FORK button. |
-| `src/quest.js`, `src/config.js` | `/freeforks` and every public setting. |
-| `netlify/functions/repos.mjs` | GitHub: GraphQL lookup of up to 12 repos, search; token server-side. |
-| `netlify/functions/trace.mjs` | The whole answer in one request: candidates, one model call, the GitHub check, the cache. |
-| `netlify/lib/github.mjs`, `lineage.mjs` | GitHub GraphQL / search; turning the model's proposal into a tree of real repos. |
-| `netlify/functions/{auth-start,auth-callback,api}.mjs`, `supabase/` | Sign in with X and the trials. |
+| `FORKS_LLM_KEY` | DeepSeek API key (any OpenAI-compatible API works with `FORKS_LLM_URL` / `FORKS_LLM_MODEL`) |
+| `GITHUB_TOKEN` | fine-grained token, public repositories read-only |
+| `X_CLIENT_ID`, `X_CLIENT_SECRET`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_URL` | only for `/freeforks` |
 
-## Design
+`GET /api/health` lists whatever is still missing. Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
 
-One question in **Instrument Serif**, everything else in **JetBrains Mono**. Near-black with a single mint accent that only ever means *the line*. The logo, the underline under the question, the background canopy and every tree are the same gesture — **a line that forks.** See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) and [docs/MOTION_SYSTEM.md](docs/MOTION_SYSTEM.md).
+## $FORK
 
-## Roadmap
+The **get +5,000 $FORK** button, or `/freeforks`: sign in with X, then four trials one at a time — follow, like, repost, comment — each counted by the server five seconds after its link opens. Then a Solana wallet. Allocations are **pending**, never a balance. The X account and post live in `src/config.js`, the amounts in the database.
 
-- [x] The trace stage
-- [x] Every point a real GitHub repository, checked
-- [x] $FORK trials with sign-in with X
-- [ ] Shareable trace links (`forks.wiki/?q=…`)
-- [x] One cheap model call per question, cached
-- [ ] Streaming for the endpoint backend
+## Inside
+
+```
+index.html               the page: tokens, layout, every style
+src/
+  prompt.js              upstream's brief and its json — shared by the server and the Claude artifact
+  brain.js               routing, which brain the page has, the GitHub-only fallback
+  stage.js               the growing tree
+  app.js                 input, results, the repository list, cards, full view
+  field.js               the living canopy behind everything
+  quest.js · config.js   /freeforks and every public setting
+netlify/
+  functions/trace.mjs    one request → one answer: candidates, one model call, the check, the cache
+  functions/repos.mjs    GitHub for the fallback
+  functions/auth-*.mjs · api.mjs    sign in with X, the trials
+  lib/github.mjs · lineage.mjs      GitHub GraphQL and search; proposal → tree of real repos
+supabase/migrations/     the trials' database, closed to anon
+```
+
+More: [docs/UPSTREAM.md](docs/UPSTREAM.md) · [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) · [docs/DECISIONS.md](docs/DECISIONS.md) · [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 
 [MIT](LICENSE). Repository data comes from GitHub's API; forks links to every repository it shows.
 
-<div align="center"><br><img src="docs/media/logo.svg" width="40" alt=""><br><sub><i>everything forks from something.</i></sub></div>
+<div align="center"><br><img src="docs/media/logo.svg" width="36" alt=""><br><sub><i>everything forks from something.</i></sub></div>

@@ -46,7 +46,14 @@
 
 ## 3. Netlify
 
-1. Сайт подключён к GitHub-репо `forkwiki/fork`, деплой из Git. Drag-and-drop не подходит: функции не задеплоятся.
+1. Как заливать. **Не перетаскивай zip в Netlify**: так загрузится только страница, без функций, и деревья не построятся (`/api/trace` будет 404). Два рабочих способа:
+   - **Netlify CLI с компьютера** (нужен Node 18+). Из распакованной папки проекта:
+     ```bash
+     npx netlify-cli login          # один раз
+     npx netlify-cli link           # один раз: выбрать сайт forks.wiki
+     npx netlify-cli deploy --prod  # каждый раз, когда заливаешь новую версию
+     ```
+   - **Из GitHub**: Netlify → Site configuration → Build & deploy → Link repository → `forkwiki/fork`. Тогда каждый пуш в репозиторий сам обновляет сайт.
 2. Site configuration → Environment variables (Scope: Functions, «Contains secret values»):
 
 | Переменная | Значение | Обязательно |
@@ -61,7 +68,7 @@
 | `FORKS_LLM_URL`, `FORKS_LLM_MODEL` | endpoint и модель | нет (`https://api.deepseek.com/chat/completions`, `deepseek-flash`) |
 | `FORKS_TRACES_PER_MIN` | новых деревьев с одного IP в минуту | нет (8) |
 
-3. **После изменения env — Deploys → Trigger deploy.** Без редеплоя функции не видят новые значения.
+3. **После изменения env заново задеплой** (`npx netlify-cli deploy --prod` или Deploys → Trigger deploy). Без этого функции не видят новые значения.
 4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "1"`, `github: true`, `model: true`. Поле `callback_url` скопировать в X Portal символ в символ.
 5. DeepSeek работает по предоплате: сколько положил на баланс, больше не потратится. Один новый вопрос — около 700 токенов на вход (большая часть — одинаковый промпт, он идёт по цене кэша) и около 250 на выход; повторный вопрос модель не трогает (кэш на неделю). В логах функции `trace` видно токены каждого вызова.
 6. Пройти вход целиком с телефона, в том числе из браузера внутри X: кнопка **get +5,000 $FORK** → sign in with x → X → назад → четыре задания → кошелёк.

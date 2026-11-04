@@ -13,4 +13,4 @@ body:
     id: where
     attributes:
       label: Where
-      placeholder: "Homepage graph, Chrome 141, macOS"
+      placeholder: "The trace stage, Chrome 141, iPhone"
