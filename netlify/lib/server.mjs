@@ -7,6 +7,7 @@ export const OAUTH_COOKIE = 'forks_oauth';
 export const SESSION_TTL = 60 * 60 * 24 * 30; // 30 days
 // Must match the Callback URI registered in the X app, character for character.
 export const CALLBACK_PATH = '/auth/x/callback';
+export const GH_CALLBACK_PATH = '/auth/github/callback'; // connect GitHub (auth-github.mjs), an optional trial
 
 const REQUIRED = ['X_CLIENT_ID', 'X_CLIENT_SECRET', 'SESSION_SECRET', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 export const missingEnv = () =>

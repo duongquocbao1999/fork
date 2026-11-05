@@ -45,9 +45,10 @@
    - `supabase/migrations/0001_init.sql`;
    - `supabase/migrations/0002_scan.sql` — X-скан;
    - `supabase/migrations/0003_refs.sql` — шесть заданий, квоут, рефералка;
-   - `supabase/migrations/0004_launch.sql` — монеты на репозиториях (раздел 5.7).
+   - `supabase/migrations/0004_launch.sql` — монеты на репозиториях (раздел 5.7);
+   - `supabase/migrations/0005_github.sql` — необязательное задание «подключи GitHub» (раздел 5.9).
 
-   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 3.4 — достаточно `0004_launch.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
+   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 4.0 (schema 4) — достаточно `0005_github.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
 3. Advisors → Security: не должно быть «RLS disabled».
 4. Project Settings → API (или API Keys):
    - `SUPABASE_URL` = Project URL;
@@ -136,7 +137,14 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | Терминал: «The network refused it: …» | RPC отклонил транзакцию при симуляции: чаще всего проскальзывание (цена ушла) или мало SOL на комиссию |
 | Терминал: нет графика / «No candles yet» | GeckoTerminal ещё не проиндексировал пул (обычно минуты после первых сделок) или упёрся в свой бесплатный лимит (30 запросов в минуту) |
 | `/coin/<адрес>`: «Couldn’t read this coin», маркет пустой, `/api/tokens` и `/api/market` отдают 502 | Функции `market` и `launch` не стартуют: Solana SDK не загрузился (до 4.0.1 — `uuid` 14 в зависимостях требует Node ≥ 20.19, а функции на Netlify шли на Node 18). Открыть `/api/chain`: `sdk.ok` должен быть `true`, там же версия Node и текст ошибки. Лечится деплоем 4.0.1 **после `npm install`** |
-| `/coin/<адрес>`: «Not a coin on forks» | Терминал открывает только монеты, запущенные через forks, и токены проектов из `config.projects` |
+| `/coin/<адрес>`: «No market for this address» | У токена нет пары на DexScreener с ликвидностью от $1 000 (или это не токен). Терминал открывает монеты forks, токены проектов и любые токены Solana с живым рынком |
+| Маркет → Trending пустой, «GeckoTerminal didn’t answer» | GeckoTerminal не ответил или упёрся в лимит (≈30 запросов в минуту на весь сайт); список кэшируется на 2 минуты, повторить позже |
+| Тост «GitHub sign-in is not set up on this site yet.» | Нет `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`, не запущена `0005_github.sql` или не было редеплоя (смотри `github_connect` в `/api/health`) |
+| GitHub: «The redirect_uri is not associated with this application» | В GitHub OAuth App поле Authorization callback URL не совпадает с `github_connect.callback_url` из `/api/health` символ в символ |
+| Тост «That GitHub account is already connected to another X account.» | Этот GitHub уже привязан к другому X-аккаунту: один GitHub — один X, навсегда |
+| Тост «This X account is already connected to another GitHub account.» | К этому X уже привязан другой GitHub; перепривязать нельзя (иначе бонус можно фармить) |
+| Тост «Your GitHub account is too new for the bonus.» | GitHub-аккаунту меньше 30 дней (`github.min_age_days` в `app_config`) |
+| Тост «Sign in with X first, then connect GitHub.» | Сессии X нет (или она сменилась между началом и возвратом с GitHub) |
 
 
 
@@ -226,12 +234,33 @@ insert into launch_blocklist (pattern, reason) values ('owner/name', 'asked') on
 
 ## 5.8. Маркет и терминал (4.0)
 
-- **Маркет** `/market`: монеты, запущенные через forks, и токены проектов (`config.projects` в `src/config.js`, по владельцу на GitHub: `pump-fun` → PUMP и т.д.). Добавить проект — новая строка `{ owner, symbol, name, mint }`; mint сверить на DexScreener или Solscan.
+- **Маркет** `/market`: монеты, запущенные через forks, токены проектов (`config.projects` в `src/config.js`, по владельцу на GitHub: `pump-fun` → PUMP и т.д.; с 4.1 их 27) и вкладка **Trending** — трендовые токены Solana с GeckoTerminal (ликвидность от $10 000, без SOL/USDC/USDT). Добавить проект — новая строка `{ owner, symbol, name, mint }`, owner строчными; mint сверить на DexScreener или Solscan.
+- **Любой токен**: адрес любого токена Solana с живым рынком (пара на DexScreener с ликвидностью от $1 000) открывает терминал с пометкой «Solana token · not on forks»; торговля через Jupiter.
 - **Терминал** `/coin/<адрес>`: график (GeckoTerminal), сделки, держатели (наш RPC), сплит, покупка и продажа. Монета на кривой pump.fun торгуется прямо на кривой: сервер собирает транзакцию через SDK pump.fun, кошелёк подписывает, сервер сверяет байты и отправляет через `SOLANA_RPC_URL`. Всё остальное — через Jupiter (`/order` → `/execute`, Jupiter сам доводит транзакцию до блока). Комиссии forks со сделок нет (`trade.feeBps: 0`).
 - **Что нужно**: тот же `SOLANA_RPC_URL`, и желательно `JUP_API_KEY` (бесплатно на developers.jup.ag/portal → Scope: Functions, «Contains secret values»). Проверка: `/api/health` → `trade.rpc: true`, `trade.jupiter_key: true`; `/api/chain` → `sdk.ok: true` (функции маркета и запуска загрузили Solana SDK; там же версия Node на Netlify).
 - **Покупка при запуске** на странице `/launch` и в чате: до 20 SOL (`launch.maxDevBuySol`), четвёртой транзакцией в том же бандле, после закрепления сплита.
 
 ⚠️ Не проверено вживую: торговля на кривой через SDK pump.fun 4.3.1 (инструкции `buy`/`sell` — те же, что SDK использует в своих примерах), Jupiter `/order` + `/execute` с настоящим ключом, покупка при запуске, лимиты GeckoTerminal и DexScreener под нагрузкой. На стенде всё прошло с поддельными сервисами и настоящими подписями. Первые сделки — на маленькие суммы.
+
+## 5.9. Задание «подключи GitHub» (4.1, по желанию)
+
+Необязательное задание рядом с шестью: **+3 000 $FORK один раз** за привязку GitHub к X-аккаунту. В «все задания выполнены» и в условие рефералки (3 задания) оно не входит.
+
+1. **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App** (лучше от организации forkwiki: Organization → Settings → Developer settings → OAuth Apps):
+   - Application name: `forks`;
+   - Homepage URL: `https://forks.wiki`;
+   - Authorization callback URL: `https://forks.wiki/auth/github/callback` — символ в символ (точное значение — `github_connect.callback_url` в `/api/health`);
+   - Enable Device Flow — не нужно.
+2. Register application → скопировать **Client ID**, затем **Generate a new client secret** → скопировать секрет (показывается один раз). В чат не вставлять.
+3. Netlify: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (Scope: Functions, секрет — «Contains secret values»), затем редеплой.
+4. Supabase → SQL Editor → `supabase/migrations/0005_github.sql` → Run.
+5. Проверка: `/api/health` → `db.schema: "5"`, `github_connect.ready: true`, `github_connect.missing: []`. На сайте: войти через X → плитка GitHub в блоке $FORK (или `/github`) → GitHub спросит разрешение → назад на forks.wiki, в чате «github connected: @логин · +3,000».
+
+Как устроено: функция `netlify/functions/auth-github.mjs` (без scope: только публичный профиль), токен GitHub отзывается сразу после чтения `/user` и нигде не хранится. Начисление — `api_github_link` в SQL по uid из сессии, ключ ledger `task:<uid>:github`. Один GitHub на один X (уникальный `github_id`), перепривязать нельзя; GitHub младше 30 дней бонуса не получает. Сумма — `update tasks set reward = 5000 where id = 'github';`, возраст — `insert into app_config (key, value) values ('github.min_age_days', 90) on conflict (key) do update set value = excluded.value;`.
+
+Пока GitHub-приложения или `0005` нет, сайт работает как раньше: без плитки GitHub, `/github` отвечает «isn't open yet».
+
+⚠️ Не проверено вживую: настоящий GitHub OAuth (на стенде — поддельный github.com с теми же запросами: обмен кода, `/user`, отзыв токена).
 
 ## 6. Админ-сниппеты (SQL Editor)
 

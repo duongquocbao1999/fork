@@ -6,6 +6,7 @@
 //
 //   GET  /api/market                         coins (forks) + project tokens, with market data and curve progress
 //   GET  /api/prices?mints=a,b               market data for up to 60 mints
+//   GET  /api/trending                       Solana's trending tokens (GeckoTerminal), any token with a market
 //   GET  /api/coin?mint=                     one coin: what it is, its market, its curve, decimals
 //   GET  /api/chart?mint=&tf=15m             candles (1m 5m 15m 1h 4h 1d)
 //   GET  /api/trades?mint=                   the latest trades
@@ -19,7 +20,7 @@
 import C from '../../src/config.js';
 import { json, rpc as db, sameOrigin, seal, unseal } from '../lib/server.mjs';
 import { BASE58, balances, checkSigned, coinState, curveAddress, curveTrade, curvesOf, holders, sdkStatus, sendRaw, sigStatus } from '../lib/chain.mjs';
-import { USDC, WSOL, TIMEFRAMES, candles, jupExecute, jupOrder, markets, poolOf, poolTrades, solUsd } from '../lib/markets.mjs';
+import { USDC, WSOL, TIMEFRAMES, candles, jupExecute, jupOrder, markets, poolOf, poolTrades, solUsd, trending } from '../lib/markets.mjs';
 
 const hits = new Map();
 function limited(key, n) {
@@ -44,12 +45,17 @@ async function forksCoin(mint) {
   if (!hasDb()) return null;
   try { const l = await db('api_launch_get', { p_mint: mint }); return l && l.status === 'live' ? l : null; } catch (e) { if (NO_FN(e)) return null; throw e; }
 }
-// what a mint is to us: a coin launched here, a project token, or neither (still tradable by address? no: only these)
+// what a mint is to us: a coin launched here, a project token — or any other Solana token with a real market
+// (DexScreener has a pair with some liquidity), shown as just that: a token, not ours, not endorsed
+const MIN_LIQ = 1000;
 async function identify(mint) {
   const p = C.projectByMint(mint);
   if (p) return { kind: 'project', mint, symbol: p.symbol, name: p.name, owner: p.owner, repo: null };
   const l = await forksCoin(mint);
   if (l) return { kind: 'forks', mint, symbol: l.symbol, name: l.name, image: l.image, repo: l.repo_name, split: l.split, launcher: l.wallet, live_at: l.live_at };
+  if (mint === USDC) return null;
+  const m = (await markets([mint]))[mint];
+  if (m && (m.liquidity || 0) >= MIN_LIQ && m.symbol) return { kind: 'token', mint, symbol: String(m.symbol).slice(0, 16), name: String(m.name || m.symbol).slice(0, 48), image: m.image || null, repo: null };
   return null;
 }
 const quoteMint = mint => (mint === WSOL ? USDC : WSOL);
@@ -81,6 +87,10 @@ export default async (req, context) => {
         coins: coins.map(withCurve),
         projects: C.projects.map(p => ({ kind: 'project', mint: p.mint, symbol: p.symbol, name: p.name, owner: p.owner, market: mk[p.mint] || null }))
       }, 200, cdn(20));
+    }
+    if (path === '/api/trending') {
+      try { return json({ ok: true, tokens: await trending(), source: 'geckoterminal' }, 200, cdn(90)); }
+      catch (e) { console.error('trending', e.code || '', e.message); return json({ ok: true, tokens: [], busy: true }, 200, cdn(15)); }
     }
     if (path === '/api/prices') {
       const mints = q('mints').split(',').map(s => s.trim()).filter(s => BASE58.test(s)).slice(0, 60);
@@ -221,4 +231,4 @@ export default async (req, context) => {
   }
 };
 
-export const config = { path: ['/api/chain', '/api/market', '/api/prices', '/api/coin', '/api/chart', '/api/trades', '/api/holders', '/api/balance', '/api/tx', '/api/trade/quote', '/api/trade/build', '/api/trade/send'] };
+export const config = { path: ['/api/chain', '/api/market', '/api/trending', '/api/prices', '/api/coin', '/api/chart', '/api/trades', '/api/holders', '/api/balance', '/api/tx', '/api/trade/quote', '/api/trade/build', '/api/trade/send'] };

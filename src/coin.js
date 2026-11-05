@@ -42,14 +42,14 @@
 
   /* ---------- header, stats, about ---------- */
   function head() {
-    const t = tok(), m = info.market || {}, proj = t.kind === 'project';
+    const t = tok(), m = info.market || {}, proj = t.kind === 'project', other = t.kind === 'token';
     document.title = `$${t.symbol} · ${t.name} · forks`;
     const repo = t.repo || (proj ? null : null);
     const curve = info.curve;
     $('#cnH').innerHTML = `
       <span class="cn-img">${t.image || m.image ? `<img src="${esc(t.image || m.image)}" alt="">` : esc(t.symbol[0])}</span>
       <div class="cn-t">
-        <h1>$${esc(t.symbol)} <span class="nm">${esc(t.name)}</span>${proj ? '<span class="label blue">project token</span>' : '<span class="label amber">coin on forks</span>'}${curve ? (curve.complete ? '<span class="label purple">graduated</span>' : curve.onCurve ? `<span class="label green">on the curve · ${Math.round(curve.progress || 0)}%</span>` : '') : ''}</h1>
+        <h1>$${esc(t.symbol)} <span class="nm">${esc(t.name)}</span>${proj ? '<span class="label blue">project token</span>' : other ? '<span class="label">Solana token · not on forks</span>' : '<span class="label amber">coin on forks</span>'}${curve ? (curve.complete ? '<span class="label purple">graduated</span>' : curve.onCurve ? `<span class="label green">on the curve · ${Math.round(curve.progress || 0)}%</span>` : '') : ''}</h1>
         <div class="meta">${repo ? `<a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>` : proj ? `by <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a> on GitHub` : ''}
           <button class="btn sm" type="button" id="caBtn" title="Copy the contract address"><span class="mono">${esc(short(MINT))}</span> copy</button></div>
       </div>
@@ -66,11 +66,11 @@
     ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   }
   function about() {
-    const t = tok(), proj = t.kind === 'project';
+    const t = tok(), proj = t.kind === 'project', other = t.kind === 'token';
     const L = [['pump.fun', `https://pump.fun/coin/${MINT}`], ['DexScreener', `https://dexscreener.com/solana/${MINT}`], ['Solscan', `https://solscan.io/token/${MINT}`], ['Jupiter', `https://jup.ag/tokens/${MINT}`]].filter(([n]) => !(proj && n === 'pump.fun'));
     $('#about').innerHTML = `<div class="box-h"><h3>About</h3></div><div class="box-b">
       ${t.repo ? `<div class="repo" id="aboutRepo"><a class="rn" href="https://github.com/${esc(t.repo)}" target="_blank" rel="noopener">${esc(t.repo)}</a><p class="muted">Reading GitHub…</p></div>` : ''}
-      <p style="margin:0">${proj ? `The ${esc(t.name)} project's own token. It belongs to the project, not to forks; it sits on the graph on every repository of <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a>.` : `A coin launched on forks for this repository. Its creator fees go, for good, to the people in the fee split below; they claim on pump.fun with GitHub. The repository's authors didn't make or endorse it.`}</p>
+      <p style="margin:0">${other ? `A token traded on Solana. It wasn't launched on forks and isn't a project token on the graph; forks only shows its market (DexScreener, GeckoTerminal) and routes trades through Jupiter. Anyone can make a token with any name: check the address before you trade.` : proj ? `The ${esc(t.name)} project's own token. It belongs to the project, not to forks; it sits on the graph on every repository of <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a>.` : `A coin launched on forks for this repository. Its creator fees go, for good, to the people in the fee split below; they claim on pump.fun with GitHub. The repository's authors didn't make or endorse it.`}</p>
       ${t.repo ? `<p class="lin" id="aboutLine" style="margin:0"></p>` : ''}
       <div class="ca-row" id="caRow"><code>${esc(MINT)}</code><button class="btn sm" type="button">Copy</button></div>
       <dl class="kv" style="margin:0">${info.supply ? `<dt>Supply</dt><dd>${big(fromRaw(info.supply, dec()))}</dd>` : ''}<dt>Decimals</dt><dd>${dec()}</dd>${info.program ? `<dt>Program</dt><dd>${info.program === 'token-2022' ? 'Token-2022' : 'SPL Token'}</dd>` : ''}${t.live_at ? `<dt>Launched</dt><dd>${new Date(t.live_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</dd>` : ''}${t.launcher ? `<dt>Launched by</dt><dd><a href="https://solscan.io/account/${esc(t.launcher)}" target="_blank" rel="noopener">${esc(short(t.launcher))}</a></dd>` : ''}</dl>
@@ -328,7 +328,7 @@
     if (!MINT) { $('#cnH').innerHTML = '<div class="blank" style="width:100%"><h3>No coin here</h3><p>Pick one from the market.</p><a class="btn primary" href="/market">Open the market</a></div>'; return; }
     const j = await api('/api/coin?mint=' + encodeURIComponent(MINT));
     if (!j.ok) {
-      $('#cnH').innerHTML = `<div class="blank" style="width:100%"><h3>${j.error === 'unknown' ? 'Not a coin on forks' : 'Couldn’t read this coin'}</h3><p>${j.error === 'unknown' ? 'The terminal opens coins launched on forks and the project tokens on the graph.' : 'Try again in a minute.'}</p><a class="btn primary" href="/market">Open the market</a></div>`;
+      $('#cnH').innerHTML = `<div class="blank" style="width:100%"><h3>${j.error === 'unknown' ? 'No market for this address' : 'Couldn’t read this coin'}</h3><p>${j.error === 'unknown' ? 'The terminal opens coins launched on forks, the project tokens, and any Solana token with a live market. This address has none we can see.' : 'Try again in a minute.'}</p><a class="btn primary" href="/market">Open the market</a></div>`;
       return;
     }
     info = j;

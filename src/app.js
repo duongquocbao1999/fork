@@ -89,9 +89,9 @@
   }
   let quiet = true; // the showcase grows where it is: no scrolling until someone asks something
   function scrollDown() { if (quiet) return; requestAnimationFrame(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: RM.matches ? 'auto' : 'smooth' })); }
-  function type(el, text) {
+  function type(el, text, instant) {
     return new Promise(res => {
-      if (RM.matches) { el.textContent = text; return res(); }
+      if (RM.matches || instant) { el.textContent = text; return res(); }
       el.textContent = ''; const caret = document.createElement('span'); caret.className = 'caret';
       const node = document.createTextNode(''); el.append(node, caret);
       let i = 0; const step = () => {
@@ -169,12 +169,12 @@
       b.insertAdjacentHTML('beforeend', `<small>${usd(mk.price)}${mk.change24 != null ? ' ' + pct(mk.change24) : ''}</small>`);
     });
   }
-  function growRepos(m, c) {
+  function growRepos(m, c, instant) {
     m.tree = c; trees.push(m);
     m.pick = (id, rect) => pointRepo(c, Number(id), rect);
     m.full = () => showFull(c.title.toLowerCase(), `${c.nodes.length} repositories · origin ${c.nodes[0].repo}${c.nodes[0].data ? ', ' + B.year(c.nodes[0].data.created) : ''} · traced to ${c.nodes[c.focus].repo}`, repoTree(c, 'full'), (id, rect) => pointRepo(c, Number(id), rect), '<span><i class="p"></i>the traced line</span><span>tap any repository for github</span>');
     return m.stage.grow({
-      root: '0', focus: String(c.focus),
+      root: '0', focus: String(c.focus), instant: !!instant,
       nodes: c.nodes.map((x, i) => ({ id: String(i), name: x.repo, when: x.data ? B.year(x.data.created) : '', meta: nodeMeta(x), parent: x.parent == null ? null : String(x.parent), size: x.data ? Math.min(1, Math.log10(x.data.stars + 1) / 5.2) : null }))
     }).then(r => {
       const root = c.nodes[0], focus = c.nodes[c.focus];
@@ -448,17 +448,9 @@
       setTimeout(() => send(repo ? `/launch ${repo}` : '/coins'), 300);
     }
   }
-  $('#questBtn').addEventListener('click', () => send(C.quest.command));
   meBtn.addEventListener('click', () => send(C.quest.command));
   QUEST.onChange(({ mode, me, shown }) => {
-    const qb = $('#questBtn'), T = C.token.ticker;
-    const done = me ? me.tasks.filter(t => t.completedAt).length : 0, all = me ? me.tasks.length : 4;
-    qb.innerHTML = !me ? `get <b>+${fmt(C.quest.total)}</b> ${T}`
-      : me.scan && !me.scanSeen ? `reading your x · <b>${T}</b>`
-      : !done ? `<b>${fmt(shown)}</b> ${T} pending · +${fmt(C.quest.total)} in trials`
-      : done < all ? `<b>${fmt(shown)}</b> ${T} pending · finish the trials`
-      : `<b>${fmt(shown)}</b> ${T} pending${me.wallet ? '' : ' · add a wallet'}`;
-    qb.classList.toggle('has', !!(me && (done || me.scanSeen)));
+    const T = C.token.ticker;
     meBtn.hidden = mode === 'loading' || mode === 'down';
     meBtn.innerHTML = me
       ? (me.user.avatar ? `<img src="${esc(me.user.avatar)}" alt="" width="18" height="18">` : `<span class="ini">${esc((me.user.username || '?')[0])}</span>`) + `<span class="amt">${fmt(shown)}<span class="tk"> ${T}</span></span>${mode === 'demo' ? '<span class="demo">demo</span>' : ''}`
@@ -466,9 +458,63 @@
     meBtn.setAttribute('aria-label', me ? `@${me.user.username}: ${fmt(shown)} ${T} pending` : 'Sign in with X for /freeforks');
   });
 
+  /* ---------- $FORK on the home page: what there is to earn, and where you stand ---------- */
+  const XI = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.37 5.77L17.75 3Zm-1.08 16.17h1.7L7.4 4.73H5.58l11.09 14.44Z"/></svg>';
+  const GHI = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>';
+  // (painted through QUEST.onChange, which fires once before this point: the element is looked up each time)
+  const earnEl = () => document.getElementById('earn');
+  if (earnEl()) earnEl().addEventListener('click', e => {
+    const b = e.target.closest('[data-do]'); if (!b) return;
+    const d = b.dataset.do;
+    if (d === 'github') QUEST.github(); else send(d === 'invite' ? '/invite' : C.quest.command);
+  });
+  function paintEarn({ mode, me, shown }) {
+    const earn = earnEl(); if (!earn) return;
+    const T = C.token.ticker, Q = C.quest, demo = mode === 'demo';
+    const open = demo || (C.questOpen() && mode !== 'down');
+    const core = me ? me.tasks.filter(t => !t.optional) : [], gh = me ? me.tasks.find(t => t.type === 'github') : null;
+    const done = core.filter(t => t.completedAt), all = core.length || 6;
+    const ghReward = gh ? gh.reward : Q.github, refReward = (me && me.ref && me.ref.reward) || Q.invite;
+    const tile = (d, b, t, small, ok, opt) => `<button class="earn-s${ok ? ' ok' : ''}" type="button" data-do="${d}">${opt ? '<span class="opt">optional</span>' : ''}<b>${b}</b><span class="t">${t}</span><small>${small}</small></button>`;
+    let top, tiles;
+    if (!me) {
+      top = `<div><p class="earn-k">${MARK} ${T} <span class="label amber">pending allocation</span>${demo ? ' <span class="label">demo</span>' : ''}</p>
+        <div class="earn-big"><span class="pre">up to</span>${fmt(Q.scan[1] + Q.total + ghReward)}<span class="tk">${T}</span></div>
+        <p class="earn-sub">${open ? `Sign in with X: upstream reads your account and forks you an allocation. Then six trials, an optional GitHub bonus, and +${fmt(refReward)} for every friend you bring.` : mode === 'down' ? 'The ledger isn’t answering right now. Try again in a minute.' : 'The trials open soon.'}</p></div>
+        <div class="earn-cta"><button class="btn primary" type="button" data-do="quest">${XI}Sign in with X</button><small>read-only · we never post for you</small></div>`;
+      tiles = tile('quest', `${fmt(Q.scan[0])}–${fmt(Q.scan[1])}`, 'X scan', 'your account, read once at sign-in')
+        + tile('quest', `+${fmt(Q.total)}`, `${all} trials`, 'follow, like, retweet, comment, ask, quote')
+        + tile('invite', `+${fmt(refReward)}`, 'per friend', 'who signs in and finishes 3 trials')
+        + tile('github', `+${fmt(ghReward)}`, 'GitHub', 'connect your account', false, true);
+    } else {
+      const u = me.user, left = core.filter(t => !t.completedAt).reduce((a, t) => a + t.reward, 0);
+      const trialsAmt = done.reduce((a, t) => a + t.reward, 0), R = me.ref || {};
+      const cta = me.scan && !me.scanSeen ? ['quest', 'See your X scan'] : done.length < all ? ['quest', done.length ? 'Continue the trials' : 'Start the trials']
+        : gh && !gh.completedAt ? ['github', `Connect GitHub · +${fmt(ghReward)}`] : ['invite', `Invite friends · +${fmt(refReward)} each`];
+      top = `<div><p class="earn-k"><span class="earn-who">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : `<span class="ini">${esc((u.username || '?')[0])}</span>`}@${esc(u.username)}</span> · your ${T}${demo ? ' <span class="label">demo</span>' : ''}</p>
+        <div class="earn-big">${fmt(shown)}<span class="tk">${T}</span></div>
+        <p class="earn-sub">Pending, not a balance${me.wallet ? '' : ' · add a Solana wallet in your fork so the airdrop knows where to land'}.</p>
+        <div class="earn-prog"><span class="bar"><i style="width:${Math.round(done.length / all * 100)}%"></i></span>${done.length} / ${all} trials</div></div>
+        <div class="earn-cta"><button class="btn primary" type="button" data-do="${cta[0]}">${cta[0] === 'github' ? GHI : ''}${cta[1]} →</button><small>${left ? `+${fmt(left)} ${T} left in the trials` : 'all trials done'}</small></div>`;
+      tiles = tile('quest', me.scanSeen ? fmt(me.scanTotal || 0) : 'ready', 'X scan', me.scanSeen ? 'read once, counted' : 'tap to see what your X forks into', me.scanSeen)
+        + tile('quest', done.length === all ? `+${fmt(trialsAmt)}` : `${done.length} / ${all}`, `${all} trials`, done.length === all ? 'all done' : `+${fmt(left)} left`, done.length === all)
+        + tile('invite', R.earned ? `+${fmt(R.earned)}` : `+${fmt(refReward)}`, R.earned ? `${fmt(R.counted)} ${R.counted === 1 ? 'friend' : 'friends'}` : 'per friend', R.invited ? `${fmt(R.invited)} signed in · ${fmt(R.counted)} counted` : 'your link: copy and share')
+        + (gh ? tile('github', gh.completedAt ? (me.github && me.github.login ? '@' + esc(me.github.login) : `+${fmt(ghReward)}`) : `+${fmt(ghReward)}`, 'GitHub', gh.completedAt ? `+${fmt(ghReward)} counted` : 'connect your account', !!gh.completedAt, !gh.completedAt) : '');
+    }
+    earn.classList.toggle('closed', !open);
+    earn.innerHTML = `<div class="earn-top">${top}</div><div class="earn-steps${me && !gh ? ' three' : ''}">${tiles}</div>
+      <p class="earn-fine"><span class="long">A pending allocation for the people who spread the line — not a balance, not a promise of value. Not financial advice.</span><span class="short">Pending allocation · not a balance · not financial advice</span></p>`;
+  }
+
+  QUEST.onChange(paintEarn);
+
   /* ---------- the showcase: the graph the page opens with ---------- */
+  // the showcase grows once a visit; after a reload (back from x, a trial's link) it's simply there
+  const SEEN = 'forks-showcase';
+  const seenShowcase = () => { try { return sessionStorage.getItem(SEEN) === '1'; } catch (_) { return false; } };
   async function showcase() {
     const S = window.ForksShowcase; if (!S) return;
+    const instant = seenShowcase();
     const m = addTrace(); m.li.classList.add('showcase');
     m.li.querySelector('.who .src').textContent = 'showcase';
     let data = {};
@@ -477,12 +523,13 @@
       if (j && j.repos) data = j.repos;
     } catch (_) { }
     const c = { title: S.title, focus: S.focus, nodes: S.nodes.map(x => ({ ...x, data: data[x.repo] || null })) };
-    m.growP = growRepos(m, c);
+    m.growP = growRepos(m, c, instant);
     const g = await m.growP;
+    try { sessionStorage.setItem(SEEN, '1'); } catch (_) { }
     // the tokens go on the tree as soon as it has grown, while the caption types
     const tokP = LAUNCH.tokens(c.nodes.map(x => x.repo)).catch(() => new Map());
     tokP.then(map => tagCoins(m, map));
-    await type(m.txt, S.lines);
+    await type(m.txt, S.lines, instant);
     renderLine(m, m.tree);
     tokP.then(map => { tagCoins(m, map); priceTree(m).then(sidebar); });
     const pumpTok = C.projectOf(c.nodes[c.focus].repo);
@@ -513,7 +560,7 @@
     if (qq || run) { p.delete('q'); p.delete('run'); window.history.replaceState(null, '', location.pathname + (p.toString() ? `?${p}` : '') + location.hash); }
     const after = showcase();
     if (qq) after.then(() => send(qq));
-    else if (run && /^(freeforks|invite|info|coins|help)$/.test(run)) after.then(() => send('/' + run));
+    else if (run && /^(freeforks|invite|github|info|coins|help)$/.test(run)) after.then(() => send('/' + run));
   }
   $('#invBtn').addEventListener('click', () => send('/invite'));
   window.ForksApp = { send, reset, field, toast };

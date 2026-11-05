@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.1.0 — 2026-11-06
+
+- **$FORK on the home page, big.** A box right under the title: *up to 33,000 $FORK* — the X scan (2,000–20,000), six trials (+10,000), +2,000 per friend, GitHub (+3,000, optional) — with *Sign in with X*. Signed in, it shows your pending allocation, your progress through the trials and the next step (continue, connect GitHub, invite). On phones it stays big where it counts and the graph still starts on the first screen. The sidebar's small $FORK button is gone.
+- **The trial card, fixed.** The terminal's full-width trade button style leaked into the trials and squeezed the text into a narrow column; now: an icon, the trial in one line, the reward, and a sized button that says what it does (*follow on x ↗*), with a hint that it counts about five seconds after opening. Phones: the button goes full width under the text.
+- **No replay after a trial's link.** The graph grows once a visit (sessionStorage); after a reload — the X app or a phone browser often reloads the page when you come back — it's simply there. A trial whose link you opened is noted, and on return the page goes back to the trials and counts it by itself (the server's clock started when you opened it), without opening the link again.
+- **Connect GitHub**, an optional trial: `/github` or the GitHub tile. GitHub's own OAuth with no scopes (public profile only), `netlify/functions/auth-github.mjs`; the token is revoked right away. `0005_github.sql`: `profiles.github_*`, `tasks.optional`, `api_github_link` (one GitHub per X account and back, accounts younger than 30 days don't count, +3,000 once through the ledger), the page can't open or claim it, referrals count the six trials only. New env: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`. `/api/health` → `github_connect`.
+- **More tokens in the market.** 21 more project tokens, each owner checked against a live GitHub repository and each mint against DexScreener (≥ ~$15K liquidity): PYTH, W, MET, KMNO, DRIFT, DBR, MPLX, META, HNT, RENDER, MNDE, CLOUD, NOS, SHDW, ME, ORE, TNSR, MNGO, STEP, LAYER, HONEY — 27 in all. A **Trending** tab: Solana's trending tokens from GeckoTerminal (`/api/trending`, one row per token, ≥ $10K liquidity, cached two minutes). Liquidity sort.
+- **Any Solana token in the terminal**: an address with a DexScreener pair (≥ $1K liquidity) opens `/coin/<address>`, labelled *Solana token · not on forks*, traded through Jupiter.
+
 ## 4.0.1 — 2026-11-06
 
 - **Fix: the market, the terminal and launches were down on Netlify** (`/api/market`, `/api/coin`, `/api/tokens`… answered 502; the terminal said *Couldn’t read this coin*). `@solana/web3.js` pulls `rpc-websockets`, which now requires `uuid` 14 — an ES-module-only package that CommonJS can load only on Node ≥ 20.19/22.12; the functions ran on an older Node and crashed on start. `package.json` pins that `uuid` to 11 (`overrides`), so the SDKs load on Node 18, 20 and 22.

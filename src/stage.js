@@ -99,7 +99,7 @@
       svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
       // timeline: the line first, one point per step; side forks sprout as it passes their parent
-      const fast = RM();
+      const fast = RM() || !!data.instant; // instant: the showcase on a second visit in the same session
       const STEP = fast ? 0 : 620, SIDE = fast ? 0 : 340;
       const T = new Map(); // id -> { s: edge start, d: edge duration, at: node appears }
       path.forEach((id, i) => T.set(id, i === 0 ? { s: 0, d: 0, at: 0 } : { s: (i - 1) * STEP + 160, d: STEP - 160, at: i * STEP }));

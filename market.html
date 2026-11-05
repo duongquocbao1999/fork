@@ -18,7 +18,7 @@
   <div class="page-h">
     <div>
       <h1>Market</h1>
-      <p>Coins launched on repositories through forks, and the project tokens on the graph. Prices are live; every trade is signed by your own wallet.</p>
+      <p>Coins launched on repositories through forks, the tokens of the projects on the graph, and what’s trending on Solana. Prices are live; every trade is signed by your own wallet.</p>
     </div>
     <a class="btn primary" href="/launch"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/></svg>Launch a coin</a>
   </div>
@@ -26,13 +26,16 @@
     <div class="seg" role="tablist" aria-label="Which tokens">
       <button type="button" role="tab" data-k="coins" class="on">Coins <span class="counter" id="nCoins">0</span></button>
       <button type="button" role="tab" data-k="projects">Project tokens <span class="counter" id="nProjects">0</span></button>
+      <button type="button" role="tab" data-k="trending">Trending <span class="counter" id="nTrending">·</span></button>
     </div>
     <div class="grow"><label class="sr" for="mkQ">Filter</label><input class="input" id="mkQ" type="search" placeholder="Filter by ticker, name or repository" autocomplete="off"></div>
     <label class="sr" for="mkSort">Sort</label>
     <select class="select" id="mkSort">
+      <option value="trend">Trending</option>
       <option value="new">Newest</option>
       <option value="mcap">Market cap</option>
       <option value="vol">24h volume</option>
+      <option value="liq">Liquidity</option>
       <option value="change">24h change</option>
       <option value="curve">Curve progress</option>
     </select>
@@ -41,7 +44,7 @@
     <div class="mk-h"><span>Token</span><span>Price</span><span>Market cap</span><span>24h</span><span>Volume 24h</span><span></span></div>
     <div id="mkRows"><div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading the market…</span></div></div>
   </div>
-  <p class="src-note">Prices from DexScreener; curve progress and coins not yet on DexScreener read from the chain. Project tokens belong to their projects, not to forks.</p>
+  <p class="src-note">Prices from DexScreener; trending from GeckoTerminal; curve progress and coins not yet on DexScreener read from the chain. Project tokens belong to their projects, and trending tokens to whoever made them — none of them to forks, and none is endorsed. Check the address before you trade.</p>
 </main>
 <script src="/src/config.js"></script>
 <script src="/src/wallet.js"></script>

@@ -22,12 +22,12 @@ Four pages, one look:
 
 | | |
 |---|---|
-| **[Graph](https://forks.wiki)** | Opens on a prepared graph — where pump.fun's code comes from, on Solana — then traces anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
-| **[Market](https://forks.wiki/market)** | Every coin launched here and the project tokens on the graph, live: price, market cap, 24 h, volume, bonding-curve progress. |
+| **[Graph](https://forks.wiki)** | The $FORK box up top (what there is to earn, and where you stand), then a prepared graph — where pump.fun's code comes from, on Solana — then anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
+| **[Market](https://forks.wiki/market)** | Every coin launched here, 27 project tokens (each matched to its GitHub organization), and Solana's trending tokens (GeckoTerminal), live: price, market cap, 24 h, volume, liquidity, bonding-curve progress. |
 | **[Launch](https://forks.wiki/launch)** | Pick a repository, see who gets its creator fees, name the coin, buy at launch if you want, sign once. One coin per repository. |
 | **[Guide](https://forks.wiki/guide)** | What everything is, the split, claiming, the terminal, $FORK, the commands. `/info` in the box says it in short. |
 
-Every coin has a terminal at `forks.wiki/coin/<address>`: candles, trades, holders, the fee split, and buy/sell from your own wallet.
+Every coin has a terminal at `forks.wiki/coin/<address>`: candles, trades, holders, the fee split, and buy/sell from your own wallet. Any Solana token with a live market opens there too, labelled as not from forks.
 
 <table>
 <tr>
@@ -93,18 +93,23 @@ Set the environment variables in Netlify first, then deploy:
 | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_URL` | only for `/freeforks` |
 | `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | coins on repositories and the terminal |
 | `JUP_API_KEY` | optional: Jupiter without the keyless 0.5 requests/s limit |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | optional: *connect GitHub* (a GitHub OAuth App, callback `/auth/github/callback`) + `0005_github.sql` |
 
 `GET /api/health` lists whatever is still missing; `GET /api/chain` says whether the market and launch functions loaded the Solana SDKs (and on which Node). Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
 
 ## $FORK
 
-The **get +10,000 $FORK** button, or `/freeforks`:
+The $FORK box on the graph page, or `/freeforks`:
 
 1. **Sign in with X.** upstream reads the account first — how long it has been on X, followers, posts, lists, verified — and forks it a one-time pending allocation. The page plays the reading back line by line, then the tokens fly up into the header.
 2. **Six trials**, one at a time, 10,000 together: follow, like, retweet, comment (each counted by the server five seconds after its link opens), **ask upstream anything** (counted when your tree grows), and **quote the post with your fork card** (counted by the link to your quote: your handle, a post newer than your account, never counted twice).
 3. **Your fork**: a card drawn like a repository page — the commits that made your allocation, where it came from, your invite link as a clone URL. Copy it as a picture, quote on X, save it; then the Solana wallet.
 
 **Invite**: `forks.wiki/r/<handle>`. +2,000 $FORK, pending, for every friend who signs in through your link and finishes three trials.
+
+**Connect GitHub** (optional, `/github`): +3,000 $FORK, once. GitHub's own OAuth with no scopes (the public profile only), done in `netlify/functions/auth-github.mjs`; the token is revoked at once. One GitHub per X account, for good; accounts younger than 30 days (`app_config 'github.min_age_days'`) don't count. It sits beside the six trials and never counts toward them or toward a referral.
+
+A trial's link opens in a new tab or the X app. If the page reloads meanwhile, it comes back to the trials and counts the one you opened (the server's clock started when you opened it); the graph grows once a visit, not on every reload.
 
 <table>
 <tr>

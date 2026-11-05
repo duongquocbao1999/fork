@@ -51,3 +51,10 @@ Non-obvious choices, one line of why each.
 - **Market data from public sources** — DexScreener for prices, GeckoTerminal for candles and trades, our RPC for holders, balances and curve progress; cached in memory and on the CDN so a crowd doesn't exhaust the free limits. A coin nobody indexes yet still shows a price and a market cap, computed from its curve.
 - **Buy at launch** — the launcher may buy first, in the same bundle, after the split is locked (so even that first buy's creator fee lands in the split). Capped at 20 SOL.
 - **Multi-page, still no build** — five HTML pages share `css/forks.css` and `src/shell.js`; `/coin/<mint>` is a rewrite to `coin.html`.
+
+## 4.1 — $FORK up front, GitHub, more tokens
+
+- **The reward is the first box on the page** — the sidebar is hidden on phones, where most of the traffic from X is; a $FORK box under the title tells everyone what there is to earn and, once signed in, where they stand. On phones it keeps the number and the button and lets the graph still start on the first screen.
+- **A trial survives a reload** — the X app and phone browsers often reload a page you come back to. The opened trial is noted in sessionStorage; on return the page goes back to the trials and claims it (the server's clock is the check, as before). The showcase grows once a visit, then renders instantly.
+- **GitHub as an optional trial, verified by GitHub itself** — OAuth with no scopes, the token revoked at once, the bonus decided in SQL from the session's uid. One GitHub per X account in both directions and a minimum account age: the cheapest way to farm it would be fresh accounts. It never counts toward the six trials or a referral, so it can't unlock anything else.
+- **More tokens, still curated** — project tokens are added only when their GitHub organization and their mint both check out, with real liquidity. Trending comes from GeckoTerminal's own ranking and is labelled as not ours; any token with a market opens in the terminal, labelled the same way, because people paste addresses from X.

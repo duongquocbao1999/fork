@@ -6,6 +6,7 @@
       server's clock counts it after 5 s), grow a tree in the chat (counted when the tree lands),
       and quote the post with your fork card (counted by the link to your quote).
    3. your fork: the card as a picture (copy, save, quote on x), the wallet, the invite link.
+   4. optional, any time: connect github (/github) — github's own sign-in; the bonus lands once, on the server.
    Referrals: forks.wiki/r/<handle> → ?ref= → kept here → through the X sign-in → bound to new accounts.
    Amounts come from the server only. Two backends with one interface: the live API (Netlify
    functions + Supabase) and a demo on localStorage, used where the functions don't exist
@@ -22,6 +23,9 @@
   const LIVE_HOST = new RegExp(`(^|\\.)${C.site.host.replace(/\./g, '\\.')}$`);
   const XLOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.37 5.77L17.75 3Zm-1.08 16.17h1.7L7.4 4.73H5.58l11.09 14.44Z"/></svg>';
   const COIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20V3.6"/><path d="M9 14.4C9 10 15.4 10.5 15.4 6.8"/></svg>';
+  const GHLOGO = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>';
+  const MARKI = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M9 20V3.6"/><path d="M9 14.4C9 10 15.4 10.5 15.4 6.8"/></svg>';
+  const ICON = { chat: MARKI, github: GHLOGO };
 
   const TRIAL = {
     follow: { verb: 'follow', title: () => (C.x.handle ? `follow @${C.x.handle} on x` : 'follow forks on x'), done: 'followed.' },
@@ -29,7 +33,8 @@
     repost: { verb: 'retweet', title: () => 'retweet the post', done: 'retweeted. the line spreads.' },
     comment: { verb: 'comment', title: () => 'leave a comment under the post', done: 'heard you.' },
     chat: { verb: 'ask upstream', title: () => 'ask upstream anything', done: 'that\'s how it works.' },
-    quote: { verb: 'quote', title: () => 'quote the post with your fork', done: 'quoted. the line spreads.' }
+    quote: { verb: 'quote', title: () => 'quote the post with your fork', done: 'quoted. the line spreads.' },
+    github: { verb: 'connect', title: () => 'connect your github', done: 'github connected.' }
   };
   const ASK = ['where did llama.cpp come from?', 'what did bitcoin/bitcoin become?', 'where did neovim come from?', 'the family tree of doge', 'who came before bun?', 'what is ollama built on?'];
   // what each line of the x scan reads; the amounts next to them come from the server
@@ -54,7 +59,13 @@
   };
   const CLAIM_ERRORS = { too_early: 'give it a few more seconds.', not_opened: 'open the link first.', closed: 'the trials are closed right now.', unknown_task: 'that trial is gone.', server: 'the ledger hiccuped. try again.',
     bad_link: 'That is not a link to a post. Copy it from X: share → copy link.', not_yours: 'That post is from another account. Paste the link to your own quote.',
-    too_old: 'That post is older than your fork. Quote the post now and paste the new link.', link_used: 'That post has already been counted.', no_tree: 'Grow a tree first: ask upstream anything.' };
+    too_old: 'That post is older than your fork. Quote the post now and paste the new link.', link_used: 'That post has already been counted.', no_tree: 'Grow a tree first: ask upstream anything.', use_github: 'connect github with the button.' };
+  const GH_ERRORS = {
+    cancelled: 'You cancelled the GitHub sign-in.', expired: 'GitHub sign-in took too long. Try again.', state: 'GitHub sign-in check failed. Try again.',
+    signin: 'Sign in with X first, then connect GitHub.', token: 'GitHub refused the sign-in. Try again in a minute.', profile: 'Could not read your GitHub profile.',
+    github_taken: 'That GitHub account is already connected to another X account.', linked_other: 'This X account is already connected to another GitHub account.',
+    too_new: 'Your GitHub account is too new for the bonus.', setup: 'GitHub sign-in is not set up on this site yet.', database: 'Could not save the connection. Try again in a minute.', server: 'Something broke on our side. Try again.'
+  };
 
   /* ---------- who invited you: ?ref= (or /r/<code>) kept for 30 days, sent through the X sign-in ---------- */
   const REF = 'forks-ref', REF_OK = /^[a-z0-9_-]{1,40}$/i;
@@ -80,11 +91,12 @@
     async wallet(w) { return (await req('/api/wallet', { wallet: w })).data || { ok: false, error: 'server' }; },
     async scanSeen() { await req('/api/scan/seen', {}); },
     async seen(traces, repos) { return (await req('/api/seen', { traces, repos })).data; },
-    async logout() { await req('/api/logout', {}); }
+    async logout() { await req('/api/logout', {}); },
+    github() { location.href = `/auth/github/start?return=${encodeURIComponent('/?resume=github')}`; return new Promise(() => {}); }
   };
 
   /* ---------- demo backend (no functions: preview, artifact) ---------- */
-  const DEMO_TASKS = [['follow', 2000, 'timer'], ['like', 1000, 'timer'], ['repost', 1500, 'timer'], ['comment', 1500, 'timer'], ['chat', 1000, 'trees'], ['quote', 3000, 'link']];
+  const DEMO_TASKS = [['follow', 2000, 'timer'], ['like', 1000, 'timer'], ['repost', 1500, 'timer'], ['comment', 1500, 'timer'], ['chat', 1000, 'trees'], ['quote', 3000, 'link'], ['github', 3000, 'github']];
   // the same lines as scan_lines() in supabase/migrations/0002_scan.sql, for the demo only
   function scanLines(yrs, followers, posts, listed, verified) {
     const r50 = v => Math.round(v / 50) * 50, lg = n => Math.log10(Math.max(0, n) + 1);
@@ -112,12 +124,13 @@
     kind: 'demo',
     async me() {
       const d = load(); if (!d.user) return null;
-      const tasks = DEMO_TASKS.map(([id, reward, verify]) => ({ id, type: id, reward, verify, waitSec: verify === 'timer' ? 5 : 0, openedAt: (d.opened || {})[id] || null, completedAt: (d.done || {})[id] || null }));
+      const tasks = DEMO_TASKS.map(([id, reward, verify]) => ({ id, type: id, reward, verify, optional: verify === 'github', waitSec: verify === 'timer' ? 5 : 0, openedAt: (d.opened || {})[id] || null, completedAt: (d.done || {})[id] || null }));
       const tasksTotal = tasks.filter(t => t.completedAt).reduce((s, t) => s + t.reward, 0), scan = d.scan || null;
       return {
         user: { username: d.user, name: d.user, avatar: null }, allocation: (scan ? scan.total : 0) + tasksTotal, wallet: d.wallet || null,
         scan, scanSeen: !!d.scanSeen, scanTotal: scan ? scan.total : 0, tasksTotal, traces: d.traces || 0, reposSeen: d.repos || 0,
         ref: { code: d.user, reward: 2000, minTasks: 3, invited: 0, counted: 0, earned: 0, by: d.by || null },
+        github: d.github || null,
         tasks, now: new Date().toISOString()
       };
     },
@@ -129,6 +142,7 @@
     },
     async claim(id, proof) {
       const d = load(), t = DEMO_TASKS.find(x => x[0] === id); if (!t) return { ok: false, error: 'unknown_task' };
+      if (t[2] === 'github') return { ok: false, error: 'use_github' };
       if (t[2] === 'link') {
         const m = String(proof || '').trim().match(/^(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x|twitter)\.com\/(\w{1,15})\/status(?:es)?\/(\d{6,25})(?:[/?#].*)?$/i);
         if (!m) return { ok: false, error: 'bad_link' };
@@ -144,7 +158,13 @@
     async wallet(w) { if (!SOLANA.test(w)) return { ok: false, error: 'bad_wallet' }; const d = load(); d.wallet = w; save(d); return { ok: true, wallet: w }; },
     async scanSeen() { const d = load(); d.scanSeen = true; save(d); },
     async seen(traces, repos) { const d = load(); d.traces = (d.traces || 0) + traces; d.repos = (d.repos || 0) + repos; save(d); return { ok: true, traces: d.traces, reposSeen: d.repos }; },
-    async logout() { const d = load(); save({ traces: d.traces, repos: d.repos }); } // the stats stay with the browser
+    async logout() { const d = load(); save({ traces: d.traces, repos: d.repos }); }, // the stats stay with the browser
+    // the demo has no github to sign in to: the connection is simulated, like the scan
+    async github() {
+      const d = load(); if (!d.user) return { ok: false, error: 'signin' };
+      d.github = { login: d.user }; d.done = d.done || {}; const already = !!d.done.github; d.done.github = d.done.github || new Date().toISOString(); save(d);
+      return { ok: true, reward: already ? 0 : DEMO_TASKS.find(x => x[0] === 'github')[1] };
+    }
   };
 
   /* ---------- state ---------- */
@@ -193,7 +213,10 @@
 
   /* ---------- chat flow ---------- */
   const pending = () => `${fmt(me ? me.allocation : 0)} ${TICK}`;
-  const todo = () => (me ? me.tasks.filter(t => !t.completedAt) : []);
+  // the trials proper; optional ones (connect github) sit beside them and never block the line
+  const core = () => (me ? me.tasks.filter(t => !t.optional) : []);
+  const todo = () => core().filter(t => !t.completedAt);
+  const ghTask = () => (me ? me.tasks.find(t => t.type === 'github') || null : null);
   const tag = () => (mode === 'demo' ? ' · <b class="demo">demo</b>' : '');
 
   async function say(text, src) {
@@ -209,7 +232,7 @@
     if (mode === 'loading') await ready;
     if (kind === 'logout') {
       if (!me) return say('you were never signed in.');
-      await B.logout(); me = null; emit();
+      await B.logout(); me = null; emit(); goneTo(null);
       return say(`signed out. your ${TICK} stays pending on your x account.`);
     }
     if (!C.questOpen() && mode !== 'demo') return say(`the trials open soon. ${TICK} is still being forked.`);
@@ -219,8 +242,12 @@
       if (!me) { const m = await say(`your invite link is your x handle. sign in first.`, 'invite'); return signInCard(m, 'invite'); }
       return inviteCard();
     }
+    if (kind === 'github') {
+      if (!me) { const m = await say(`connecting github is a bonus on top of your fork: +${fmt(C.quest.github)} ${TICK}, pending. sign in with x first.`, 'github'); return signInCard(m, 'github'); }
+      return githubTrial(true);
+    }
     if (!me) {
-      const m = await say(`${TICK} isn't handed out by the click. it's forked from your x.\nsign in and i'll read your account, then six trials for +${fmt(C.quest.total)} more.`);
+      const m = await say(`${TICK} isn't handed out by the click. it's forked from your x.\nsign in and i'll read your account, then six trials for +${fmt(C.quest.total)} more, and an optional github bonus.`);
       return signInCard(m);
     }
     return next(true);
@@ -229,7 +256,7 @@
   // Show what's left: the x scan, the next trial, or the summary.
   async function next(fresh) {
     if (me.scan && !me.scanSeen) return scan();
-    const left = todo(), total = me.tasks.length;
+    const left = todo(), total = core().length;
     if (left.length) {
       const t = left[0], n = total - left.length + 1;
       const lead = fresh
@@ -248,7 +275,9 @@
     }
     const m = await say((fresh ? 'your fork, as it stands.' : `all ${total} trials done. here's your fork.`) +
       (me.wallet ? '' : '\ndrop a solana wallet so the airdrop knows where to land.'));
-    return forkCard(m, null);
+    await forkCard(m, null);
+    const g = ghTask();
+    if (g && !g.completedAt) return githubTrial(false);
   }
 
   function card(m, head, body) {
@@ -267,7 +296,7 @@
         e.preventDefault(); const h = el.querySelector('input').value.trim().replace(/^@/, '');
         if (!/^\w{1,15}$/.test(h)) { ctx.toast('That is not an X handle.'); return; }
         demo.signIn(h.toLowerCase()); el.querySelector('form').innerHTML = `<span class="q-done">✓ @${ctx.esc(h.toLowerCase())}</span>`;
-        await refresh(); if (resume === 'invite') inviteCard(); else next(true);
+        await refresh(); if (resume === 'invite') inviteCard(); else if (resume === 'github') githubTrial(true); else next(true);
       });
       return;
     }
@@ -331,9 +360,9 @@
     await B.scanSeen().catch(() => {});
     const left = todo();
     const m2 = await say(`${fmt(s.total)} ${TICK}, pending. that's what your x forks into.` +
-      (left.length ? `\nnow ${me.tasks.length} trials: +${fmt(C.quest.total)} more, one at a time.` : ''));
+      (left.length ? `\nnow ${core().length} trials: +${fmt(C.quest.total)} more, one at a time.` : ''));
     if (!left.length || left[0].type !== 'follow') return next(false);
-    return taskCard(m2, left[0], me.tasks.length - left.length + 1, me.tasks.length);
+    return taskCard(m2, left[0], core().length - left.length + 1, core().length);
   }
 
   // the scan's tokens leave the total and land in the header, ticking it up as they arrive
@@ -368,36 +397,55 @@
   }
 
   /* ---------- the trials ---------- */
+  // the row every trial shares: icon · what to do + what it pays · the button (if any)
+  const head = (t, T, reward, btn) => `<span class="q-ico${t.type === 'github' ? ' gh' : ''}">${ICON[t.type] || XLOGO}</span><div><div class="q-title">${ctx.esc(T.title())}${t.optional ? '<span class="q-opt">optional</span>' : ''}</div><div class="q-reward${reward.ok ? ' ok' : ''}">${reward.html}</div></div>${btn || ''}`;
+  const owed = t => ({ html: `+${fmt(t.reward)} ${TICK} <span>pending</span>` });
+  const paid = got => ({ ok: true, html: `✓ ${got ? `+${fmt(got)} ${TICK} <span>pending</span>` : '<span>already counted</span>'}` });
+
+  // the link opened in another tab (or the X app) and this page was reloaded meanwhile: noted here, so the
+  // page can come back to the trials instead of starting over (see mount)
+  const GONE = 'forks-quest-gone';
+  function goneTo(id) { try { if (id) sessionStorage.setItem(GONE, JSON.stringify({ id, at: Date.now() })); else sessionStorage.removeItem(GONE); } catch (_) { } }
+  function wentTo() { try { const g = JSON.parse(sessionStorage.getItem(GONE) || 'null'); return g && Date.now() - g.at < 20 * 60e3 ? g : null; } catch (_) { return null; } }
+
   function taskCard(m, t, n, total) {
     const T = TRIAL[t.type] || { verb: t.type, title: () => t.type, done: 'done.' };
     const url = C.questOpen() ? C.taskUrl(t.type) : null; // demo without an account set: no link, the timer still runs
+    const label = `${T.verb} on x`;
     const el = card(m, `// trial ${n} of ${total} · ${T.verb}${tag()}`,
-      `<div class="q-task"><div><div class="q-title">${ctx.esc(T.title())}</div><div class="q-reward">+${fmt(t.reward)} ${TICK} <span>pending</span></div></div>
-       ${url ? `<a class="q-btn go" href="${ctx.esc(url)}" target="_blank" rel="noopener">go ↗</a>` : '<button class="q-btn go" type="button">go</button>'}</div>
+      `<div class="q-task">${head(t, T, owed(t), url ? `<a class="q-btn go" href="${ctx.esc(url)}" target="_blank" rel="noopener">${XLOGO}${ctx.esc(label)} ↗</a>` : `<button class="q-btn go" type="button">${ctx.esc(label)}</button>`)}</div>
+       <p class="q-hint">opens x in a new tab · counted about ${Math.max(1, t.waitSec || 5)} seconds after you open it</p>
        <div class="q-state" hidden><div class="q-bar"><i></i></div><span class="q-msg">verifying</span></div>`);
-    const go = el.querySelector('.go'), st = el.querySelector('.q-state'), bar = el.querySelector('.q-bar i'), msg = el.querySelector('.q-msg');
+    const go = el.querySelector('.go'), st = el.querySelector('.q-state'), bar = el.querySelector('.q-bar i'), msg = el.querySelector('.q-msg'), hint = el.querySelector('.q-hint');
     let running = false;
     go.addEventListener('click', async () => {
       // the link opens natively (an <a> in the click), so popup blockers and X's in-app browser let it through
-      if (running) return; running = true;
-      go.classList.add('busy'); st.hidden = false; msg.textContent = 'opened · verifying';
+      if (running) return; running = true; goneTo(t.id);
+      go.classList.add('busy'); st.hidden = false; hint.hidden = true; msg.textContent = 'opened · verifying';
       const o = await B.open(t.id).catch(() => null);
       if (!o || !o.ok) { fail(o && o.error); return; }
       const wait = Math.max(1, t.waitSec || 5) * 1000 + 400;
       bar.style.transitionDuration = wait + 'ms'; requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = '100%'; }));
       await sleep(wait);
+      check();
+    });
+    // opened before (another tab, a reload, the X app): count it now, without opening the link again
+    if (t.openedAt && !t.completedAt) { running = true; go.classList.add('busy'); st.hidden = false; hint.hidden = true; msg.textContent = 'welcome back · checking'; bar.style.width = '100%'; check(true); }
+    async function check(back) {
       let r = await B.claim(t.id).catch(() => null);
       if (r && r.error === 'too_early' && r.wait) { msg.textContent = 'almost'; await sleep(r.wait * 1000 + 400); r = await B.claim(t.id).catch(() => null); }
-      if (!r || !r.ok) { fail(r && r.error); return; }
+      if (!r || !r.ok) { if (back && r && r.error === 'not_opened') { reset(); return; } fail(r && r.error); return; }
+      goneTo(null);
       const got = typeof r.reward === 'number' ? r.reward : 0;
       el.classList.add('done');
-      el.querySelector('.q-task').innerHTML = `<div><div class="q-title">${ctx.esc(T.title())}</div><div class="q-reward ok">✓ ${got ? `+${fmt(got)} ${TICK} <span>pending</span>` : '<span>already counted</span>'}</div></div>`;
-      st.hidden = true;
+      el.querySelector('.q-task').innerHTML = head(t, T, paid(got));
+      st.hidden = true; hint.hidden = true;
       if (got) { const box = el.getBoundingClientRect(); ctx.burst(box.left + 30, box.top + 30); }
       await refresh();
       await say(got ? `${T.done} +${fmt(got)} ${TICK}, pending.` : 'that one was already counted.');
       next(false);
-    });
+    }
+    function reset() { running = false; go.classList.remove('busy'); bar.style.transitionDuration = '0ms'; bar.style.width = '0'; st.hidden = true; hint.hidden = false; }
     function fail(code) {
       running = false; go.classList.remove('busy'); bar.style.transitionDuration = '0ms'; bar.style.width = '0';
       msg.textContent = CLAIM_ERRORS[code] || CLAIM_ERRORS.server; st.classList.add('err');
@@ -405,11 +453,36 @@
     }
   }
 
+  /* ---------- optional: connect github (github's own sign-in; the bonus is decided on the server) ---------- */
+  async function githubTrial(asked) {
+    const t = ghTask(), T = TRIAL.github;
+    if (!t) return asked ? say('the github bonus isn\'t open yet.', 'github') : null;
+    if (t.completedAt) return asked ? say(`github connected${me.github && me.github.login ? `: @${ctx.esc(me.github.login)}` : ''}. +${fmt(t.reward)} ${TICK} counted, once.`, 'github') : null;
+    const m = await say(asked ? `connect your github: +${fmt(t.reward)} ${TICK}, pending, once. we only read your public profile.`
+      : `one more, if you like: connect your github. +${fmt(t.reward)} ${TICK}, pending.`, 'github');
+    const el = card(m, `// bonus · ${T.verb} github${tag()}`,
+      `<div class="q-task">${head(t, T, owed(t), `<button class="q-btn go ghost" type="button">${GHLOGO}connect github</button>`)}</div>
+       <p class="q-hint">read-only: your public profile. one github per x account; it can't be moved later.</p>
+       <div class="q-state" hidden><span class="q-msg"></span></div>`);
+    const go = el.querySelector('.go'), st = el.querySelector('.q-state'), msg = el.querySelector('.q-msg');
+    go.addEventListener('click', async () => {
+      go.classList.add('busy');
+      const r = await B.github().catch(() => null); // live: leaves for github and comes back (see mount)
+      go.classList.remove('busy');
+      if (!r || !r.ok) { st.hidden = false; st.classList.add('err'); msg.textContent = GH_ERRORS[(r && r.error) || 'server'] || GH_ERRORS.server; return; }
+      await refresh(); githubDone(el, t, r.reward || 0);
+    });
+  }
+  async function githubDone(el, t, got) {
+    if (el) { el.classList.add('done'); el.querySelector('.q-task').innerHTML = head(t, TRIAL.github, paid(got)); el.querySelector('.q-hint').hidden = true; const b = el.getBoundingClientRect(); if (got) ctx.burst(b.left + 30, b.top + 30); }
+    await say(got ? `${TRIAL.github.done} +${fmt(got)} ${TICK}, pending.` : 'that github was already counted.', 'github');
+  }
+
   /* ---------- trial: ask upstream anything (counted when a tree lands) ---------- */
   function chatCard(m, t, n, total) {
     const T = TRIAL.chat, picks = ASK.map(q => [Math.random(), q]).sort((a, b) => a[0] - b[0]).slice(0, 3).map(x => x[1]);
     const el = card(m, `// trial ${n} of ${total} · ${T.verb}${tag()}`,
-      `<div class="q-task"><div><div class="q-title">${ctx.esc(T.title())}</div><div class="q-reward">+${fmt(t.reward)} ${TICK} <span>pending · counts when your tree grows</span></div></div></div>
+      `<div class="q-task">${head(t, T, { html: `+${fmt(t.reward)} ${TICK} <span>pending · counts when your tree grows</span>` })}</div>
        <div class="q-chips">${picks.map(q => `<button class="chip" type="button">${ctx.esc(q)}</button>`).join('')}</div>
        <div class="q-state"><span class="q-msg">waiting for your first tree · or type your own below</span></div>`);
     const msg = el.querySelector('.q-msg');
@@ -424,7 +497,7 @@
       chatWait = null;
       const got = typeof r.reward === 'number' ? r.reward : 0;
       el.classList.add('done'); el.querySelector('.q-chips').remove();
-      el.querySelector('.q-task').innerHTML = `<div><div class="q-title">${ctx.esc(T.title())}</div><div class="q-reward ok">✓ ${got ? `+${fmt(got)} ${TICK} <span>pending</span>` : '<span>already counted</span>'}</div></div>`;
+      el.querySelector('.q-task').innerHTML = head(t, T, paid(got));
       el.querySelector('.q-state').hidden = true;
       await refresh();
       await say(got ? `that's how i work: every point is a real repository — tap one for github. +${fmt(got)} ${TICK}, pending.` : 'that one was already counted.');
@@ -434,8 +507,8 @@
 
   /* ---------- your fork: the card to quote, the wallet, the invite ---------- */
   const trialsOf = () => {
-    const done = me.tasks.filter(t => t.completedAt);
-    return { done: done.length, all: me.tasks.length, amount: me.tasksTotal != null ? me.tasksTotal : done.reduce((s, t) => s + t.reward, 0) };
+    const done = core().filter(t => t.completedAt);
+    return { done: done.length, all: core().length, amount: done.reduce((s, t) => s + t.reward, 0) };
   };
   const quoteOf = () => `https://x.com/${encodeURIComponent(C.x.postBy || C.x.handle)}/status/${encodeURIComponent(C.x.post)}`;
   function quoteText() {
@@ -445,6 +518,7 @@
       tr.amount ? `* trials +${fmt(tr.amount)}` : null,
       me.traces ? `* ${fmt(me.traces)} ${me.traces === 1 ? 'tree' : 'trees'} grown` : null,
       me.ref && me.ref.earned ? `* invites +${fmt(me.ref.earned)}` : null,
+      ghTask() && ghTask().completedAt ? `* github +${fmt(ghTask().reward)}` : null,
       '', 'where did yours come from?', code ? refLink(code) : C.site.url].filter(x => x != null).join('\n');
   }
   async function drawCard() {
@@ -541,20 +615,29 @@
   function mount(c) {
     ctx = c;
     const p = new URLSearchParams(location.search);
-    const auth = p.get('auth'), reason = p.get('reason'), resume = p.get('resume'), ref = p.get('ref');
+    const auth = p.get('auth'), reason = p.get('reason'), resume = p.get('resume'), ref = p.get('ref'), gh = p.get('gh');
     if (ref && REF_OK.test(ref)) setRef(ref);
-    if (auth || resume || ref) {
-      ['auth', 'reason', 'resume', 'code', 'state', 'ref'].forEach(k => p.delete(k));
+    if (auth || resume || ref || gh) {
+      ['auth', 'reason', 'resume', 'code', 'state', 'ref', 'gh'].forEach(k => p.delete(k));
       history.replaceState(null, '', location.pathname + (p.toString() ? `?${p}` : '') + location.hash);
     }
+    const gone = !auth && !gh ? wentTo() : null; // back from a trial's link after the page was reloaded
     ready = detect().then(() => {
       emit();
       if (auth === 'error') ctx.toast(AUTH_ERRORS[reason] || AUTH_ERRORS.server);
       if (auth === 'ok' && resume === 'freeforks') ctx.send(C.quest.command);
       if (auth === 'ok' && resume === 'invite') ctx.send('/invite');
+      if (auth === 'ok' && resume === 'github') ctx.send('/github');
+      // back from github: the bonus was decided in the callback; say what happened
+      if (gh === 'ok') ctx.send('/github');
+      if (gh === 'error') ctx.toast(GH_ERRORS[reason] || GH_ERRORS.server);
+      if (gone && me && todo().some(t => t.id === gone.id)) ctx.send(C.quest.command);
+      else if (gone) goneTo(null);
     });
     return api;
   }
-  const api = { mount, run, noteTrace, onChange: f => { listeners.push(f); f({ mode, me, shown: shown() }); }, get state() { return { mode, me, shown: shown() }; } };
+  // connect github from anywhere on the page (the home page's $FORK box): signed out, it asks for x first
+  async function github() { if (mode === 'loading') await ready; if (!me) return ctx.send('/github'); const t = ghTask(); if (t && !t.completedAt && B === live) return live.github(); return ctx.send('/github'); }
+  const api = { mount, run, noteTrace, github, onChange: f => { listeners.push(f); f({ mode, me, shown: shown() }); }, get state() { return { mode, me, shown: shown() }; } };
   window.ForksQuest = api;
 })();

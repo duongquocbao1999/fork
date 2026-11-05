@@ -44,6 +44,7 @@ const shape = p => p && {
   change1: p.priceChange && p.priceChange.h1 != null ? p.priceChange.h1 : null,
   txns24: p.txns && p.txns.h24 ? (p.txns.h24.buys || 0) + (p.txns.h24.sells || 0) : 0,
   pair: p.pairAddress, dex: p.dexId, url: p.url,
+  symbol: p.baseToken && p.baseToken.symbol || null, name: p.baseToken && p.baseToken.name || null,
   image: p.info && p.info.imageUrl || null,
   created: p.pairCreatedAt || null
 };
@@ -63,8 +64,38 @@ export async function solUsd() {
   return m[WSOL] && m[WSOL].price ? m[WSOL].price : null;
 }
 
-/* ---------- GeckoTerminal: candles and trades of a pool ---------- */
+/* ---------- GeckoTerminal: candles and trades of a pool, and what's trending ---------- */
 const GT = 'https://api.geckoterminal.com/api/v2/networks/solana';
+const NOT_A_TOKEN = new Set([WSOL, USDC, 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' /* USDT */]);
+/** Solana's trending pools on GeckoTerminal (their ranking: visits, trades, liquidity checks), one row per
+ *  token, with at least `minLiq` of liquidity. Cached two minutes: GeckoTerminal allows ~30 calls a minute. */
+export async function trending(minLiq = 10000) {
+  return cached('trending', 120e3, async () => {
+    const pages = await Promise.all([1, 2].map(n => get(`${GT}/trending_pools?include=base_token&page=${n}`, 7000).catch(e => (n === 1 ? Promise.reject(e) : null))));
+    const toks = new Map(), out = [], seen = new Set();
+    for (const j of pages) for (const t of (j && j.included) || []) if (t.type === 'token' && t.attributes) toks.set(t.id, t.attributes);
+    for (const j of pages) for (const d of (j && j.data) || []) {
+      const a = d.attributes || {}, rel = d.relationships || {}, bid = rel.base_token && rel.base_token.data && rel.base_token.data.id;
+      const tk = toks.get(bid) || {}, mint = tk.address || (bid ? String(bid).replace(/^solana_/, '') : null);
+      const liq = Number(a.reserve_in_usd) || 0;
+      if (!mint || seen.has(mint) || NOT_A_TOKEN.has(mint) || liq < minLiq) continue;
+      seen.add(mint);
+      const ch = a.price_change_percentage || {}, tx = (a.transactions && a.transactions.h24) || {};
+      out.push({
+        kind: 'token', mint, symbol: tk.symbol || String(a.name || '?').split(' / ')[0], name: tk.name || tk.symbol || '', image: tk.image_url && !/missing/.test(tk.image_url) ? tk.image_url : null,
+        pool: a.address || null, dex: rel.dex && rel.dex.data ? rel.dex.data.id : null, created: a.pool_created_at || null,
+        market: {
+          price: a.base_token_price_usd != null ? Number(a.base_token_price_usd) : null,
+          mcap: Number(a.market_cap_usd) || Number(a.fdv_usd) || null, liquidity: liq,
+          volume24: Number(a.volume_usd && a.volume_usd.h24) || 0,
+          change24: ch.h24 != null ? Number(ch.h24) : null, change1: ch.h1 != null ? Number(ch.h1) : null,
+          txns24: (Number(tx.buys) || 0) + (Number(tx.sells) || 0)
+        }
+      });
+    }
+    return out.slice(0, 40);
+  });
+}
 const TF = { '1m': ['minute', 1, 20e3], '5m': ['minute', 5, 30e3], '15m': ['minute', 15, 45e3], '1h': ['hour', 1, 60e3], '4h': ['hour', 4, 120e3], '1d': ['day', 1, 300e3] };
 export const TIMEFRAMES = Object.keys(TF);
 /** The pool to chart: DexScreener's best pair, else GeckoTerminal's top pool, else the pump.fun curve. */
