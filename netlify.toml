@@ -11,6 +11,10 @@
 [functions]
   node_bundler = "esbuild"
 
+# the launch function ships pump.fun's SDK and Solana's libraries as plain node_modules (run npm install before deploying)
+[functions.launch]
+  external_node_modules = ["@pump-fun/pump-sdk", "@solana/web3.js", "@solana/spl-token", "@coral-xyz/anchor", "bn.js"]
+
 [[headers]]
   for = "/*"
   [headers.values]

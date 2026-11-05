@@ -124,7 +124,7 @@
         const p = P.get(n.id); if (!p) continue;
         const isF = n.id === data.focus, isR = n.id === data.root, main = onPath.has(n.id);
         const name = cut(n.name, Math.max(6, p.chars + (isF ? -2 : 0))), meta = n.meta ? cut(n.meta, Math.max(6, Math.floor(p.chars * 1.18))) : '';
-        nodes += `<g class="st-n${main ? ' path' : ''}${isF ? ' focus' : ''}${isR ? ' root' : ''}" data-id="${esc(n.id)}" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})" tabindex="0" role="button" aria-label="${esc(n.name)}">` +
+        nodes += `<g class="st-n${main ? ' path' : ''}${isF ? ' focus' : ''}${isR ? ' root' : ''}" data-id="${esc(n.id)}" data-ch="${p.chars}" data-meta="${esc(n.meta || '')}" transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})" tabindex="0" role="button" aria-label="${esc(n.name)}">` +
           `<title>${esc(n.name)}${n.meta ? ' · ' + esc(n.meta) : ''}</title>` +
           // a tap target over the point and its label, at least 44px tall
           `<rect class="hit" x="-12" y="${L.wide ? -26 : -18}" width="${Math.round(p.lx + 14 + Math.max(name.length, meta.length * .86) * CH)}" height="44"/>` +
@@ -170,8 +170,26 @@
     }
 
     function remove() { stopLooking(); grown = true; el.remove(); }
+    // a coin on a point: its $TICKER in amber, after the name when it fits, else at the head of the meta line
+    function tag(id, text) {
+      const g = svg.querySelector(`.st-n[data-id="${CSS.escape(String(id))}"]`); if (!g || g.querySelector('text.tk')) return;
+      const nm = g.querySelector('text.nm'), mt = g.querySelector('text.mt');
+      const avail = Number(g.dataset.ch || 16) * CH * (g.classList.contains('focus') ? 1.12 : 1);
+      const tw = text.length * 6.8, lx = Number(nm.getAttribute('x'));
+      let w; try { w = nm.getBBox().width; } catch (_) { w = nm.textContent.length * CH; }
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text'); t.setAttribute('class', 'tk'); t.textContent = text;
+      if (w + 9 + tw <= avail + 4) { t.setAttribute('x', (lx + w + 9).toFixed(1)); t.setAttribute('y', nm.getAttribute('y')); }
+      else if (mt) {
+        t.setAttribute('x', lx); t.setAttribute('y', mt.getAttribute('y'));
+        const room = Math.floor((avail * 1.18 - tw - 8) / (CH * .84)), meta = g.dataset.meta || mt.textContent;
+        mt.setAttribute('x', (lx + tw + 8).toFixed(1));
+        mt.textContent = room < 4 ? '' : meta.length > room ? meta.slice(0, room - 1) + '…' : meta;
+      } else { t.setAttribute('x', lx); t.setAttribute('y', (Number(nm.getAttribute('y')) + 15).toFixed(1)); }
+      g.appendChild(t);
+      if (!RM()) t.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both' });
+    }
     look();
-    return { el, grow, remove, setStatus };
+    return { el, grow, remove, setStatus, tag };
   }
 
   window.ForksStage = { create };

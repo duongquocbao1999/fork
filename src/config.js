@@ -15,7 +15,22 @@
     // handle or post empty = the trials stay closed and /api/health lists them as missing.
     x: { handle: 'forkwikis', post: '20', postBy: 'jack' },
     quest: { command: '/freeforks', total: 10000 },
-    links: { github: 'https://github.com/forkwiki/fork', x: 'https://x.com/forkwikis' }
+    links: { github: 'https://github.com/forkwiki/fork', x: 'https://x.com/forkwikis' },
+    // Coins on repositories (pump.fun, Solana mainnet). Creator fees are split once, for good, between
+    // the people behind the code (paid to their GitHub accounts, claimed on pump.fun) and forks.
+    launch: {
+      treasury: '',               // forks' Solana wallet for its share; empty = launches closed
+      split: {                    // basis points, 10,000 = 100%
+        owner: 7000,              // the repo's owner (a person) — or, for an organization, its top contributors
+        contributors: 500,        // the top contributors besides the owner
+        ancestors: [1000, 300, 200], // up the line: parent, grandparent, great-grandparent
+        forks: 1000               // the treasury above
+      },
+      orgContributors: 5,         // how many people share an organization's part
+      contributors: 2,            // how many share the contributors' part
+      perDay: 3,                  // repositories a wallet may launch on per day, as shown on the page (enforced by app_config 'launch.per_day')
+      tipSol: 0.0005              // Jito tip for the all-or-nothing bundle
+    }
   };
 
   // Where each trial sends the user. The comment trial opens the post itself: in the X app

@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.5.0 — 2026-11-05
+
+- **Coins on repositories.** Anyone with a Solana wallet launches a repository's coin on pump.fun from forks.wiki — `/launch owner/name`, *launch a coin* in a point's card, or the chip under a tree; `/coins` for the newest; `?launch=owner/name` links. One coin per repository.
+- **Creator fees split once, for good**: owner 70% (an organization's part to its top 5 people), top contributors 5%, up the line 10 / 3 / 2% (GitHub's fork record first, then upstream's traced line), forks 10%. Bots and organizations are never paid; empty parts go to the owner; at most 10 recipients. People claim on pump.fun with GitHub. Decided on the server (`netlify/lib/split.mjs`); the page only shows it.
+- **One bundle, all or nothing** (`netlify/lib/chain.mjs`): missing GitHub fee accounts → `create_v2` + `create_fee_sharing_config` → `update_fee_shares_v2` (admin revoked) + Jito tip. The server holds no wallet: the mint key rides encrypted in a 150-second ticket and co-signs after the wallet; the server refuses anything not byte-for-byte what it built. Listed only after the split is read back from the chain (curve creator = the config, shares equal, admin revoked).
+- **The launch card**: the split with faces and parts, the line above, a logo drawn in the family style (the line it came from, the repo's amber point, the ticker) or your own upload, ticker and name, a box to tick, connect → sign once → bundle → chain, each step shown; *try again* after a rejected or dropped bundle (same repo, same day, no extra limit used).
+- **Wallets through the Wallet Standard** (`src/wallet.js`, no libraries): Phantom, Solflare, Backpack and the rest; inside the X app, *open in Phantom / Solflare* lands back on the same launch.
+- **The coin card**: logo, $TICKER, the address with one-tap copy, market cap and 24 h change from DexScreener when it has them, pump.fun · dexscreener · solscan, the split, share on X. **$TICKER on the trees** and in the repository list.
+- `0004_launch.sql`: `launches`, `launch_attempts`, `launch_blocklist`; `api_launch_state` / `reserve` / `get` / `settle`, `api_tokens`, `api_tokens_recent`; `launch.per_day` in `app_config`. Before it's run, `/launch` shows a preview and trees show no coins.
+- `/api/health`: `launch.ready` and `launch.missing`. New env: `SOLANA_RPC_URL`; optional `JITO_URL`, `PUMP_IPFS_URL`, `LAUNCH_BUILDS_PER_MIN`. `npm install` before a CLI deploy.
+- Fixed: the invite pill wasn't icon-only on narrow phones.
+
 ## 3.4.0 — 2026-11-04
 
 - **New letters.** Headings and numbers in Anybody (heavy, variable width), everything else in JetBrains Mono; both self-hosted from `fonts/` (OFL), so the page and the share card draw the same on every phone. Instrument Serif and Google Fonts are gone.

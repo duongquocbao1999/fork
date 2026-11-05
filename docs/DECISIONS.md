@@ -26,6 +26,17 @@ Non-obvious choices, one line of why each.
 - **Amounts live in SQL** — `tasks.reward`; the browser sends a task id, the ledger key `task:<uid>:<task>` makes every credit land once, and the claim reports what was actually credited.
 - **No count over profiles on `/api/me`** — glyph lost its database to that under load.
 - **One config for page and server** — `src/config.js` is a classic script in the page and a CommonJS module for the functions, so the X account and post can't drift between them.
-- **No dependencies** — Supabase over PostgREST with `fetch`, crypto from `node:crypto`; `npm start` runs every function by its `config.path`.
+- **Dependencies only where the chain is** — Supabase over PostgREST with `fetch`, crypto from `node:crypto`; `npm start` runs every function by its `config.path`. The launch function alone uses pump.fun's SDK and `@solana/web3.js` (pinned SDK, loaded through `createRequire`), because hand-encoding pump.fun's instructions is where money gets lost.
 - **Demo only off the live host** — where `/api/me` isn't there (preview, artifact, `npm start` without env) the trials run on localStorage, labelled demo; on forks.wiki a broken API shows "the ledger isn't answering" instead.
 - **Session = signed cookie** — `forks_session` HMAC-SHA256, HttpOnly, SameSite=Lax, 30 days; the X token is revoked right after the profile read.
+
+## Coins on repositories (3.5)
+
+- **The split is the server's** — from GitHub (owner, contributors, the fork parent) and upstream's own cached trace; the page never sends a holder, a share or an ancestor. It goes into the transactions, the database and the coin's description from the same plan.
+- **Locked, not promised** — `update_fee_shares_v2` revokes the admin in the same bundle as the create, so neither the launcher nor forks can change the split. A Jito bundle makes the three transactions land together or not at all.
+- **No wallet on the server** — the launcher pays and signs; the only key the server touches is the fresh mint keypair, encrypted (AES-256-GCM, key from `SESSION_SECRET`) inside a 150-second ticket, used once after the wallet has signed. Wallets sign first because they may rewrite a transaction; if they do, the hash check refuses it.
+- **Listed from the chain, not from the request** — `/api/launch/status` reads the bonding curve and the sharing config; only creator = config, equal shares and a revoked admin make a coin `live`.
+- **People, not accounts** — pump.fun can't pay a GitHub organization, so an organization's part goes to its top people; bots are skipped; empty parts go to the owner rather than to forks.
+- **One coin per repository, a few repositories per wallet** — the repository is held for 10 minutes for the wallet that built it; retries on it don't use up the day.
+- **No third-party marks** — the default logo is drawn from the coin's own line and ticker; avatars come from GitHub for the split only.
+- **Wallet Standard, no adapter libraries** — the page hands the wallet bytes and reads back signatures; inside the X app it offers to reopen the page in a wallet's browser.

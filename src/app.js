@@ -140,8 +140,19 @@
     scrollDown();
     return m;
   }
+  const trees = []; // every tree on the page, so a coin that lands can show up on it
+  function tagCoins(m, map) {
+    m.tree.nodes.forEach((x, i) => { const t = map.get(String(x.repo).toLowerCase()); if (t) m.stage.tag(String(i), '$' + t.symbol); });
+    m.body.querySelectorAll('.rp[data-repo]').forEach(a => {
+      const t = map.get(a.dataset.repo.toLowerCase()); if (!t || a.querySelector('.rp-coin')) return;
+      const b = document.createElement('span'); b.className = 'rp-coin'; b.textContent = '$' + t.symbol; b.setAttribute('role', 'button'); b.tabIndex = 0;
+      const open = e => { e.preventDefault(); e.stopPropagation(); send(`/launch ${a.dataset.repo}`); };
+      b.addEventListener('click', open); b.addEventListener('keydown', e => { if (e.key === 'Enter') open(e); });
+      a.querySelector('.rp-name').appendChild(b);
+    });
+  }
   function growRepos(m, c) {
-    m.tree = c;
+    m.tree = c; trees.push(m);
     m.pick = (id, rect) => pointRepo(c, Number(id), rect);
     m.full = () => showFull(c.title.toLowerCase(), `${c.nodes.length} repositories · origin ${c.nodes[0].repo}${c.nodes[0].data ? ', ' + B.year(c.nodes[0].data.created) : ''} · traced to ${c.nodes[c.focus].repo}`, repoTree(c, 'full'), (id, rect) => pointRepo(c, Number(id), rect), '<span><i class="p"></i>the traced line</span><span>tap any repository for github</span>');
     return m.stage.grow({
@@ -170,7 +181,7 @@
       const x = c.nodes[i], d = x.data, parent = x.parent == null ? null : c.nodes[x.parent];
       const [owner, name] = x.repo.split('/');
       const how = i === path[0] ? 'the origin' : [relOf(x, parent), x.note].filter(Boolean).join(' · ');
-      return `<a class="rp${onPath.has(i) ? ' main' : ''}${i === c.focus ? ' focus' : ''}" href="${esc(d ? d.url : 'https://github.com/' + x.repo)}" target="_blank" rel="noopener">` +
+      return `<a class="rp${onPath.has(i) ? ' main' : ''}${i === c.focus ? ' focus' : ''}" data-repo="${esc(x.repo)}" href="${esc(d ? d.url : 'https://github.com/' + x.repo)}" target="_blank" rel="noopener">` +
         (n ? `<span class="rp-i">${n}</span>` : '') +
         `<span class="rp-av" data-owner="${esc(owner)}"><b>${esc(owner[0] || '?')}</b></span>` +
         `<span class="rp-b"><span class="rp-name"><span class="rp-o">${esc(owner)}/</span>${esc(name)}</span>` +
@@ -212,6 +223,7 @@
     busy = true; field.setFocus(formRect()); field.setMode('thinking');
     try {
       if (r.quest) { await QUEST.run(r.quest); return; } // /freeforks and /logout run in the page, never through the model
+      if (r.launch != null) { await LAUNCH.run(r.launch); return; } // coins on repositories: /launch owner/name, /coins
       if (r.text) { const m = addUp(); await wait(420); await type(m.txt, r.text.text); follow(m, r.text.follow); return; }
 
       history.push({ role: 'user', content: r.trace });
@@ -244,7 +256,8 @@
         if (t) await type(m.txt, t);
         renderLine(m, m.tree);
         const root = g.root.name, focus = g.focus.name;
-        follow(m, [g.forks ? `where did ${root} come from?` : `what did ${focus} become?`, g.forks ? `what did ${focus} become?` : `where did ${focus} come from?`]);
+        LAUNCH.tokens(m.tree.nodes.map(x => x.repo)).then(map => tagCoins(m, map)).catch(() => {});
+        follow(m, [g.forks ? `where did ${root} come from?` : `what did ${focus} become?`, g.forks ? `what did ${focus} become?` : `where did ${focus} come from?`].concat(C.launch.treasury && LAUNCH.repoOf(focus) ? [`/launch ${focus}`] : []));
         QUEST.noteTrace(m.tree.nodes.length); // your fork card: trees grown, repositories seen; and the chat trial
         history.push({ role: 'assistant', content: t || `${focus}: ${g.forks} forks from ${root}` });
         return;
@@ -337,6 +350,7 @@
     point.innerHTML = `<div class="pt-h"><div class="pt-name">${esc(o.name)}</div>${o.meta ? `<div class="pt-meta">${esc(o.meta)}</div>` : ''}</div>` +
       (o.how ? `<div class="pt-how">${esc(o.how)}</div>` : '') +
       (o.desc ? `<p class="pt-desc">${esc(o.desc)}</p>` : '') +
+      (o.coin || '') +
       `<div class="pt-k">on github</div><ul class="pt-links">${o.links.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul>` +
       `<div class="pt-acts">${o.acts.map(([t], i) => `<button type="button" data-i="${i}">${esc(t)}</button>`).join('')}</div>` +
       '<button class="pt-x" type="button" aria-label="Close">×</button>';
@@ -365,11 +379,13 @@
     const links = [['open on github', url], [`forks${d ? ' · ' + fmt(d.forks) : ''}`, url + '/forks'], ['network graph', url + '/network']];
     if (d && d.home && /^https?:\/\//.test(d.home)) links.push(['homepage', d.home]);
     if (!d) links.push(['search on github', `https://github.com/search?q=${enc(x.repo.split('/')[1] || x.repo)}&type=repositories`]);
+    const coin = LAUNCH.known(x.repo), canCoin = !!LAUNCH.repoOf(x.repo) && (x.data || coin);
     openPoint({
-      name: x.repo,
+      name: x.repo, coin: LAUNCH.pointBlock(x.repo),
       meta: d ? [`★ ${fmt(d.stars)}`, d.lang, `since ${B.year(d.created)}`, d.archived ? 'archived' : '', d.fork && d.fork !== '?' ? `github fork of ${d.fork}` : ''].filter(Boolean).join(' · ') : '',
       how, desc: d ? d.desc : '', links,
       acts: [['trace from here', () => send(`where did ${x.repo} come from?`)], ['what did it become?', () => send(`what did ${x.repo} become?`)]]
+        .concat(canCoin ? [[coin ? `$${coin.symbol} · the coin` : 'launch a coin', () => send(`/launch ${x.repo}`)]] : [])
     }, rect);
   }
 
@@ -403,6 +419,18 @@
       meBtn.classList.remove('bump'); void meBtn.offsetWidth; meBtn.classList.add('bump');
     }
   });
+  const LAUNCH = window.ForksLaunch.mount({ addUp, type, send, scrollDown, toast, esc, burst: (x, y) => field.burst(x, y) });
+  // a coin that just landed shows up on every tree that has its repository
+  LAUNCH.onCoin(coin => trees.forEach(m => { if (m.tree.nodes.some(x => String(x.repo).toLowerCase() === coin.repo.toLowerCase())) tagCoins(m, new Map([[coin.repo.toLowerCase(), coin]])); }));
+  {
+    const p = new URLSearchParams(location.search), l = p.get('launch') || p.get('coin');
+    if (l !== null) {
+      p.delete('launch'); p.delete('coin');
+      window.history.replaceState(null, '', location.pathname + (p.toString() ? `?${p}` : '') + location.hash); // (history here is the chat's)
+      const repo = LAUNCH.repoOf(l);
+      setTimeout(() => send(repo ? `/launch ${repo}` : '/coins'), 300);
+    }
+  }
   $('#questBtn').addEventListener('click', () => send(C.quest.command));
   $('#invBtn').addEventListener('click', () => send('/invite'));
   meBtn.addEventListener('click', () => send(C.quest.command));

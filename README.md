@@ -69,13 +69,14 @@ git clone https://github.com/forkwiki/fork.git && cd fork
 GITHUB_TOKEN=… FORKS_LLM_KEY=sk-… npm start   # http://127.0.0.1:5173
 ```
 
-No dependencies, no build step. `npm start` serves the page and runs every function in `netlify/functions` the way Netlify routes them.
+No build step. `npm start` serves the page and runs every function in `netlify/functions` the way Netlify routes them. Only the coin launcher has dependencies (pump.fun's SDK and Solana's libraries): `npm install` once for it; without it everything else still runs.
 
 ## Deploy
 
 The page needs its functions, so deploy with the Netlify CLI or from Git — **not** by dragging a zip into Netlify (that uploads the page without the functions).
 
 ```bash
+npm install                   # the launch function's libraries, bundled from node_modules
 npx netlify-cli login
 npx netlify-cli link          # once: pick the site
 npx netlify-cli deploy --prod
@@ -88,6 +89,7 @@ Set the environment variables in Netlify first, then deploy:
 | `FORKS_LLM_KEY` | DeepSeek API key (any OpenAI-compatible API works with `FORKS_LLM_URL` / `FORKS_LLM_MODEL`) |
 | `GITHUB_TOKEN` | fine-grained token, public repositories read-only |
 | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_URL` | only for `/freeforks` |
+| `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | only for coins on repositories |
 
 `GET /api/health` lists whatever is still missing. Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
 
@@ -110,6 +112,23 @@ The **get +10,000 $FORK** button, or `/freeforks`:
 
 Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and the `scan.*` / `ref.*` knobs in `app_config`. Follow along: [@forkwikis](https://x.com/forkwikis).
 
+## Coins on repositories
+
+Every repository can have one coin, launched on [pump.fun](https://pump.fun) from forks.wiki by anyone with a Solana wallet: `/launch owner/name`, **launch a coin** on any point of a tree, or the chip under a tree. Coins show up on the trees as **$TICKER** next to their repositories; `/coins` lists the newest.
+
+The coin's **creator fees are split once, for good**, between the people behind the code and forks:
+
+| | | |
+|---|---|---|
+| the owner | 70% | a person's GitHub account; an organization's part goes to its top 5 people |
+| top contributors | 5% | the next two people by commits |
+| up the line | 10% · 3% · 2% | the owners of the repo it forked from, and the two above — GitHub's fork record first, upstream's traced line after |
+| forks | 10% | forks' wallet |
+
+People claim on pump.fun by signing in with GitHub; nobody has to sign up first. Bots and organizations get nothing (pump.fun can't pay an organization). The server decides the split from GitHub and the line; the page never sends it.
+
+The launch is one Jito bundle of up to three transactions — GitHub fee accounts, `create_v2` + the fee-sharing config, then `update_fee_shares_v2`, which revokes the admin — so a coin never exists without its locked split. The server holds no wallet: the launcher's wallet signs and pays, the fresh mint key co-signs after it, and every byte is checked against what the server built. A coin is listed only after the server reads that split back from the chain. Not made or endorsed by the repositories' authors; not financial advice. Owners can ask to be left out (`launch_blocklist`).
+
 ## Inside
 
 ```
@@ -122,12 +141,15 @@ src/
   field.js               the living canopy behind everything
   quest.js · config.js   /freeforks, /invite and every public setting
   card.js                your fork as a picture: drawn on a canvas, copied, quoted
+  launch.js · wallet.js  coins on repositories: the split, the logo, the launch; Solana wallets (Wallet Standard)
 netlify/
   functions/trace.mjs    one request → one answer: candidates, one model call, the check, the cache
   functions/repos.mjs    GitHub for the fallback
   functions/auth-*.mjs · api.mjs    sign in with X (and who invited you), the trials
   lib/github.mjs · lineage.mjs      GitHub GraphQL and search; proposal → tree of real repos
-supabase/migrations/     the trials' database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials)
+  functions/launch.mjs   the plan, the bundle, the status, the coins on a tree
+  lib/split.mjs · chain.mjs         who gets the fees; pump.fun transactions, Jito, reading them back
+supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins)
 fonts/                   Anybody and JetBrains Mono, self-hosted (OFL)
 ```
 

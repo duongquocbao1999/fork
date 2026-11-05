@@ -17,13 +17,16 @@ export default async req => {
         try { db = await rpc('api_health'); } catch (e) { db = { ok: false, error: String(e.message).slice(0, 200) }; }
       }
       // schema '3' = 0001 + 0002 + 0003; anything older still needs migrations run in the SQL editor
-      const MIGRATIONS = ['supabase/migrations/0002_scan.sql', 'supabase/migrations/0003_refs.sql'];
+      const MIGRATIONS = ['supabase/migrations/0002_scan.sql', 'supabase/migrations/0003_refs.sql', 'supabase/migrations/0004_launch.sql'];
       const migrations = db && db.ok ? MIGRATIONS.slice(Math.max(0, Number(db.schema) - 1)) : [];
       return json({
         ok: !missing.length && !config.length && !!(db && db.ok) && !migrations.length && !!process.env.GITHUB_TOKEN,
         missing: missing.concat(process.env.GITHUB_TOKEN ? [] : ['GITHUB_TOKEN']), config, db, migrations,
         github: !!process.env.GITHUB_TOKEN,
         model: !!process.env.FORKS_LLM_KEY,
+        // coins on repositories: an RPC (secret) and forks' treasury wallet in src/config.js
+        // coins on repositories: open when the treasury is set in src/config.js and these env are there
+        launch: { rpc: !!process.env.SOLANA_RPC_URL, treasury: C.launch.treasury || null, ready: !!(process.env.SOLANA_RPC_URL && C.launch.treasury && process.env.SUPABASE_URL && process.env.GITHUB_TOKEN && process.env.SESSION_SECRET), missing: [!C.launch.treasury && 'src/config.js launch.treasury', !process.env.SOLANA_RPC_URL && 'SOLANA_RPC_URL'].filter(Boolean) },
         callback_url: `${siteOrigin(req)}${CALLBACK_PATH}`
       });
     }

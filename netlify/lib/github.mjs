@@ -15,6 +15,7 @@ async function github(url, init = {}, ms = 8000) {
     signal: AbortSignal.timeout(ms)
   });
   if (!r.ok) throw Object.assign(new Error(`github ${r.status}`), { status: r.status });
+  if (r.status === 204) return null; // e.g. contributors of an empty repository
   return r.json();
 }
 
@@ -29,6 +30,14 @@ const fromSearch = x => ({
   name: x.full_name, url: x.html_url, desc: x.description || '', stars: x.stargazers_count, forks: x.forks_count,
   created: x.created_at, lang: x.language || null, fork: x.fork ? '?' : null, archived: !!x.archived, home: x.homepage || null
 });
+
+/** A cached REST GET: '/repos/o/r', '/repos/o/r/contributors?per_page=12', '/users/login'. null on 404. */
+export async function rest(path, ms = 6000) {
+  const k = 'g:' + path.toLowerCase(), hit = recall(k);
+  if (hit !== undefined) return hit;
+  try { return remember(k, await github('https://api.github.com' + path, {}, ms)); }
+  catch (e) { if (e.status === 404 || e.status === 204) return remember(k, null); throw e; }
+}
 
 /** { "<asked name>": repo | null } — one GraphQL call for whatever isn't cached */
 export async function lookup(names) {

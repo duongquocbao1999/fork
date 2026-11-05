@@ -1,4 +1,4 @@
-# forks — настройка X, Supabase и Netlify
+# forks — настройка X, Supabase, Netlify и монет
 
 Без этой настройки сайт уже работает: архив, модель (если есть `FORKS_LLM_KEY`) и `/freeforks` в демо-режиме вне forks.wiki. Ниже — как включить настоящий вход через X и задания с записью в базу.
 
@@ -44,9 +44,10 @@
 2. SQL Editor → по очереди, каждый файл в новом запросе → Run:
    - `supabase/migrations/0001_init.sql`;
    - `supabase/migrations/0002_scan.sql` — X-скан;
-   - `supabase/migrations/0003_refs.sql` — шесть заданий, квоут, рефералка.
+   - `supabase/migrations/0003_refs.sql` — шесть заданий, квоут, рефералка;
+   - `supabase/migrations/0004_launch.sql` — монеты на репозиториях (раздел 5.7).
 
-   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 3.3 — достаточно `0003_refs.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
+   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 3.4 — достаточно `0004_launch.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
 3. Advisors → Security: не должно быть «RLS disabled».
 4. Project Settings → API (или API Keys):
    - `SUPABASE_URL` = Project URL;
@@ -56,13 +57,15 @@
 ## 3. Netlify
 
 1. Как заливать. **Не перетаскивай zip в Netlify**: так загрузится только страница, без функций, и деревья не построятся (`/api/trace` будет 404). Два рабочих способа:
-   - **Netlify CLI с компьютера** (нужен Node 18+). Из распакованной папки проекта:
+   - **Netlify CLI с компьютера** (нужен Node 20+). Из распакованной папки проекта:
      ```bash
+     npm install                    # с 3.5: библиотеки pump.fun и Solana для функции launch
      npx netlify-cli login          # один раз
      npx netlify-cli link           # один раз: выбрать сайт forks.wiki
      npx netlify-cli deploy --prod  # каждый раз, когда заливаешь новую версию
      ```
-   - **Из GitHub**: Netlify → Site configuration → Build & deploy → Link repository → `forkwiki/fork`. Тогда каждый пуш в репозиторий сам обновляет сайт.
+     Без `npm install` функция `launch` не соберётся (CLI берёт библиотеки из локальной `node_modules`).
+   - **Из GitHub**: Netlify → Site configuration → Build & deploy → Link repository → `forkwiki/fork`. Тогда каждый пуш в репозиторий сам обновляет сайт, а `npm install` Netlify делает сам.
 2. Site configuration → Environment variables (Scope: Functions, «Contains secret values»):
 
 | Переменная | Значение | Обязательно |
@@ -76,9 +79,13 @@
 | `FORKS_LLM_KEY` | ключ DeepSeek (platform.deepseek.com → API keys) | да, для деревьев |
 | `FORKS_LLM_URL`, `FORKS_LLM_MODEL` | endpoint и модель | нет (`https://api.deepseek.com/chat/completions`, `deepseek-flash`) |
 | `FORKS_TRACES_PER_MIN` | новых деревьев с одного IP в минуту | нет (8) |
+| `SOLANA_RPC_URL` | mainnet RPC с ключом, например `https://mainnet.helius-rpc.com/?api-key=…` | да, для монет (5.7) |
+| `JITO_URL` | block engine Jito, например `https://ny.mainnet.block-engine.jito.wtf` | нет (`https://mainnet.block-engine.jito.wtf`) |
+| `PUMP_IPFS_URL` | куда грузить лого и метаданные | нет (`https://pump.fun/api/ipfs`) |
+| `LAUNCH_BUILDS_PER_MIN` | сборок запуска с одного IP в минуту | нет (6) |
 
 3. **После изменения env заново задеплой** (`npx netlify-cli deploy --prod` или Deploys → Trigger deploy). Без этого функции не видят новые значения.
-4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "1"`, `github: true`, `model: true`. Поле `callback_url` скопировать в X Portal символ в символ.
+4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "4"`, `github: true`, `model: true`; для монет — `launch.ready: true`. Поле `callback_url` скопировать в X Portal символ в символ.
 5. DeepSeek работает по предоплате: сколько положил на баланс, больше не потратится. Один новый вопрос — около 700 токенов на вход (большая часть — одинаковый промпт, он идёт по цене кэша) и около 250 на выход; повторный вопрос модель не трогает (кэш на неделю). В логах функции `trace` видно токены каждого вызова.
 6. Пройти вход целиком с телефона, в том числе из браузера внутри X: кнопка **get +10,000 $FORK** → sign in with x → X → назад → анимация X-скана → follow, like, retweet, comment → вопрос в чат → карточка: copy card → quote on x → вставить ссылку на свой квоут → кошелёк. Потом открыть `forks.wiki/r/<твой хендл>` в другом браузере и войти другим аккаунтом.
 
@@ -113,6 +120,15 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | upstream: «couldn’t reach a model or github» | Нет `FORKS_LLM_KEY` и `GITHUB_TOKEN`, или не было редеплоя |
 | upstream: «this is github alone» | Нет `FORKS_LLM_KEY` (или модель недоступна): дерево только из данных GitHub |
 | Задание «give it a few more seconds» | Нажали раньше 5 с — сервер считает по своим часам, повтор засчитает |
+| `/launch`: карточка с бейджем PREVIEW, кнопка «launches open soon» | Пустой `launch.treasury` в `src/config.js`, нет `SOLANA_RPC_URL`, не запущена `0004_launch.sql` (смотри `launch.missing` и `migrations` в `/api/health`) или не было редеплоя |
+| `/launch`: «couldn't build it just now» | Функция `launch` не собралась (деплой без `npm install`) или RPC не отвечает; смотри логи функции `launch` |
+| «pump.fun’s ipfs didn’t answer» | pump.fun не принял загрузку лого с сервера Netlify. Повторить; если стабильно — `PUMP_IPFS_URL` на другой IPFS-аплоадер с тем же ответом `{ metadataUri }` |
+| «the bundle relay is busy» | Jito ответил 429 три раза подряд (без ключа лимит ~1 запрос в секунду). Повторить или поставить `JITO_URL` региона ближе |
+| «it didn’t land: the network was busy» | Бандл не попал в блок за ~1 минуту (мало чаевых, перегрузка). Бандл — всё или ничего, денег не списано; повторить. Можно поднять `launch.tipSol` в `src/config.js` |
+| «your wallet changed the transactions» | Кошелёк дописал свои инструкции в транзакции; такой бандл не несёт закреплённый сплит, сервер его не отправляет. Другой кошелёк |
+| «this wallet started coins on 3 repositories today» | Лимит на кошелёк в сутки (`launch.per_day` в `app_config`) |
+| «a coin landed, but not with this split» | На цепи монета с другим сплитом (не через forks); в список не попадёт |
+
 
 ## 5.5. X-скан
 
@@ -163,6 +179,41 @@ insert into app_config (key, value) values ('ref.min_followers', 5)
 on conflict (key) do update set value = excluded.value;
 ```
 
+## 5.7. Монеты на репозиториях (pump.fun, mainnet)
+
+Любой с Solana-кошельком запускает монету на репозиторий: `/launch owner/name`, кнопка **launch a coin** в карточке точки на дереве или чип под деревом. Одна монета на репозиторий. Монета создаётся на pump.fun из кошелька запускающего (он и платит), а **creator fees делятся один раз и навсегда**:
+
+| Кому | Доля | Как |
+|---|---|---|
+| владелец репо (человек) | 70% | на его GitHub-аккаунт на pump.fun; у организации — поровну её топ-5 людям-контрибьюторам |
+| топ-2 контрибьютора | 5% | GitHub |
+| вверх по линии: parent / grandparent / ещё один | 10% / 3% / 2% | владелец каждого (у организации — её главный контрибьютор); сначала родитель по форку GitHub, иначе линия из дерева upstream |
+| forks | 10% | на кошелёк `launch.treasury` |
+
+Пустые доли (нет предка, нет контрибьюторов) уходят владельцу. Боты и организации не получают ничего (pump.fun не поддерживает выплаты организациям). Люди забирают свои fees на pump.fun, входя через GitHub; им ничего не нужно делать заранее. Сплит считает сервер — из GitHub и своего дерева, — клиент его не присылает.
+
+Как это устроено на цепи: три транзакции одним Jito-бандлом (всё или ничего): (A) GitHub-аккаунты для fees, которых ещё нет; (B) `create_v2` + `create_fee_sharing_config`; (C) `update_fee_shares_v2` — финальный сплит, после неё админ отозван и сплит не меняется никогда, + чаевые Jito. Сервер не хранит кошелька: подписывает только свежий ключ mint (он едет зашифрованным в 150-секундном тикете и подписывает create уже после кошелька). Перед отправкой сервер проверяет, что каждая транзакция байт-в-байт та, что он собрал, и подпись кошелька верна. В список сайта монета попадает только после того, как сервер прочитал с цепи: кривая создана, creator = конфиг сплита, доли совпадают, админ отозван.
+
+### Включить
+
+1. **Кошелёк forks** (для 10%): создай отдельный Solana-кошелёк в Phantom, публичный адрес → `src/config.js` → `launch.treasury`. Приватный ключ никуда не нужен и на сервер не идёт.
+2. **RPC**: helius.dev → бесплатный аккаунт → Mainnet RPC URL с `api-key` → `SOLANA_RPC_URL` в Netlify (секрет, только сервер).
+3. **База**: SQL Editor → `supabase/migrations/0004_launch.sql` → Run.
+4. **`GITHUB_TOKEN`** уже есть (раздел 0.5) — он же читает владельцев и контрибьюторов.
+5. **Деплой** с `npm install` (раздел 3), затем `/api/health`: `launch.ready: true`, `launch.missing` пустой, `db.schema: "4"`.
+6. **Первый запуск — тестовый и дешёвый**: на своём маленьком репозитории со своего кошелька (≈0,02–0,05 SOL на аренду аккаунтов и чаевые; точную сумму кошелёк покажет до подписи). Проверить: монета на pump.fun, в её странице видны получатели fees, `forks.wiki/?launch=<owner/name>` показывает карточку монеты. **Сплит потом не меняется — даже нами.**
+
+⚠️ Проверено только на тестовом стенде (поддельные RPC, Jito и IPFS, настоящий pump.fun SDK 4.3.1 и настоящие подписи ed25519). Живьём не проверялось: приём загрузки на pump.fun IPFS с серверов Netlify, лимиты Jito, как Phantom/Solflare подписывают три транзакции разом (симуляция в кошельке может предупредить, что B и C «упадут» — это потому, что они зависят от предыдущих в бандле). Поэтому шаг 6 обязателен.
+
+Ручки: `launch.split` / `orgContributors` / `contributors` / `tipSol` в `src/config.js` (только для новых монет); `launch.per_day` в `app_config` (репозиториев на кошелёк в сутки, по умолчанию 3; повтор на том же репо лимит не тратит).
+
+Владелец просит убрать свой код — в блоклист: новые монеты на его репо запустить нельзя, уже созданные пропадают из списков forks (с цепи их убрать невозможно):
+
+```sql
+insert into launch_blocklist (pattern, reason) values ('owner', 'asked by email') on conflict do nothing;      -- весь аккаунт
+insert into launch_blocklist (pattern, reason) values ('owner/name', 'asked') on conflict do nothing;         -- один репо
+```
+
 ## 6. Админ-сниппеты (SQL Editor)
 
 ```sql
@@ -196,6 +247,16 @@ from task_completions c join profiles p on p.id = c.user_id where c.task_id = 'q
 
 -- Деревья и репозитории по людям (статистика с карточки «your fork»)
 select x_username, traces, repos_seen from profiles order by traces desc limit 20;
+
+-- Монеты: последние запуски и кто запускал
+select repo_name, symbol, mint, status, wallet, created_at, live_at from launches order by created_at desc limit 50;
+-- Сколько процентов у forks в каждой живой монете (должно быть 10)
+select repo_name, symbol, (select (h->>'bps')::int / 100.0 from jsonb_array_elements(split) h where h->>'kind' = 'wallet') forks_pct
+from launches where status = 'live' order by live_at desc;
+-- Повисшая бронь репозитория (бандл не долетел): освободить сразу, не дожидаясь 10 минут
+update launches set reserved_until = now() where repo = 'owner/name' and status = 'reserved';
+-- Лимит запусков на кошелёк в сутки
+insert into app_config (key, value) values ('launch.per_day', 3) on conflict (key) do update set value = excluded.value;
 
 -- Пересканировать один аккаунт (снимает прошлое начисление; новое — при следующем входе)
 delete from ledger where idempotency_key = 'scan:' || (select id from profiles where x_username = 'handle');

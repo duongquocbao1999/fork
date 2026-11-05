@@ -1,7 +1,7 @@
 {
   "name": "forks",
-  "version": "3.4.0",
-  "description": "Type anything and watch the line of GitHub repositories it came from grow — every point a real repo, checked against GitHub. Plus $FORK trials with sign-in with X.",
+  "version": "3.5.0",
+  "description": "Type anything and watch the line of GitHub repositories it came from grow \u2014 every point a real repo, checked against GitHub. Launch a pump.fun coin on any repository, its creator fees split for good to the people who wrote the code. Plus $FORK trials with sign-in with X.",
   "license": "MIT",
   "private": false,
   "scripts": {
@@ -22,6 +22,11 @@
     "vanilla-js"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@pump-fun/pump-sdk": "4.3.1",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.4"
   }
 }
