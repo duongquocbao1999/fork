@@ -1217,3 +1217,50 @@ body.chat .dock { display: flex; }
 .pt-i { width: 20px; height: 20px; flex: none; border-radius: 50%; overflow: hidden; display: inline-grid; place-items: center; background: var(--bg-3); border: 1px solid var(--rule); font: 600 10px var(--mono); color: var(--ink-2); }
 .pt-i img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pt-coin { align-items: center; }
+
+/* ---------- 4.2: the contract address, clear: the whole address, one button that says what it does ---------- */
+.ca-pill { display: inline-flex; align-items: stretch; max-width: 100%; height: 34px; border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--bg-3); overflow: hidden; }
+.ca-k { display: grid; place-items: center; padding: 0 10px; border-right: 1px solid var(--rule-2); font: 600 11px/1 var(--mono); letter-spacing: .06em; color: var(--ink-3); background: var(--bg-inset); }
+.ca-v { display: block; flex: 1 1 auto; min-width: 0; padding: 0 12px; font: 500 13px/32px var(--mono); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: all; background: transparent; }
+.ca-copy { position: relative; z-index: 1; flex: none; }
+.ca-v .ca-short { display: none; }
+.ca-copy { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; border-left: 1px solid var(--rule-2); background: var(--primary); color: #fff; font: 600 13px/1 var(--sans); cursor: pointer; white-space: nowrap; transition: background .12s; }
+.ca-copy:hover { background: var(--primary-hover); }
+.ca-copy:active { transform: translateY(1px); }
+.ca-copy svg { width: 14px; height: 14px; }
+.ca-copy.ok { background: var(--acc-soft); color: var(--acc); }
+.cn-t .ca-pill { margin-top: 6px; }
+.about .ca-pill { display: flex; width: 100%; }
+.about .ca-v { flex: 1; font-size: 12px; }
+@media (max-width: 900px) { .ca-v .ca-full { display: none; } .ca-v .ca-short { display: inline; } }
+
+/* ---------- 4.2: the market — trending on top, then one list ---------- */
+.trend { margin: 0 0 16px; }
+.trend-h { display: flex; align-items: baseline; gap: 10px; margin: 0 0 10px; }
+.trend-h h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 600; }
+.trend-h h2 svg { width: 16px; height: 16px; color: var(--warn); }
+.trend-h .src { font-size: 12px; color: var(--ink-3); }
+.trend-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.trend-c { flex: 0 0 172px; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--bg-2); color: inherit; text-decoration: none; scroll-snap-align: start; transition: border-color .12s, background .12s, transform .12s var(--ease); }
+.trend-c:hover { border-color: var(--ink-3); background: var(--bg-3); text-decoration: none; }
+.trend-c:active { transform: translateY(1px); }
+.trend-c.wait { height: 104px; background: linear-gradient(90deg, var(--bg-3), var(--bg-2), var(--bg-3)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.trend-c.pinned { border-color: color-mix(in srgb, var(--warn) 60%, var(--rule-2)); background: linear-gradient(180deg, var(--warn-soft), transparent 80%), var(--bg-2); }
+.tc-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tc-top .mk-img { width: 30px; height: 30px; font-size: 12px; flex: none; }
+.tc-n { display: grid; min-width: 0; }
+.tc-n b { font: 600 14px/1.2 var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-n small { font-size: 11px; color: var(--ink-3); }
+.trend-c.pinned .tc-n small { color: var(--warn); }
+.tc-p { font: 600 16px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.tc-c { font: 500 12px/1 var(--mono); } .tc-c small { color: var(--ink-3); font-family: var(--sans); }
+.trend-none { margin: 8px 0; font-size: 13px; }
+.mk-r.pinned { background: linear-gradient(90deg, var(--warn-soft), transparent 40%); box-shadow: inset 3px 0 0 var(--warn); }
+.mk-n small .vf { width: 13px; height: 13px; color: var(--link); vertical-align: -2px; margin-right: 4px; }
+.mk-more { display: flex; justify-content: center; padding: 12px; border-top: 1px solid var(--rule); }
+@media (max-width: 640px) { .trend-c { flex-basis: 150px; padding: 10px; } .tc-p { font-size: 15px; } }
+@media (prefers-reduced-motion: reduce) { .trend-c.wait { animation: none; } }
+.subnav .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; flex: none; }
+.subnav .seg::-webkit-scrollbar { display: none; }
+@media (max-width: 640px) { .subnav .seg button { padding: 0 10px; font-size: 13px; white-space: nowrap; } }

@@ -115,7 +115,7 @@
   const relOf = (x, parent) => {
     if (!parent) return '';
     const p = parent.repo;
-    return { fork: `a fork of ${p}`, port: `a port of ${p}`, rewrite: `a rewrite of ${p}`, 'built on': `built on ${p}`, 'inspired by': `inspired by ${p}`, successor: `the successor of ${p}` }[x.rel] || `came from ${p}`;
+    return { fork: `a fork of ${p}`, port: `a port of ${p}`, rewrite: `a rewrite of ${p}`, 'built on': `built on ${p}`, 'inspired by': `inspired by ${p}`, successor: `the successor of ${p}`, 'kept in': `kept in ${p}` }[x.rel] || `came from ${p}`;
   };
   const nodeMeta = x => [x.data ? B.year(x.data.created) : '', x.data ? '★ ' + kfmt(x.data.stars) : '', x.note || x.rel].filter(Boolean).join(' · ');
   function addTrace() {
@@ -175,14 +175,14 @@
     m.pick = (id, rect) => pointRepo(c, Number(id), rect);
     m.full = () => showFull(c.title.toLowerCase(), `${c.nodes.length} repositories · origin ${c.nodes[0].repo}${c.nodes[0].data ? ', ' + B.year(c.nodes[0].data.created) : ''} · traced to ${c.nodes[c.focus].repo}`, repoTree(c, 'full'), (id, rect) => pointRepo(c, Number(id), rect), '<span><i class="p"></i>the traced line</span><span>tap any repository for github</span>');
     return m.stage.grow({
-      root: '0', focus: String(c.focus), instant: !!instant,
+      root: '0', focus: String(c.focus), instant: !!instant, steps: !!c.steps,
       nodes: c.nodes.map((x, i) => ({ id: String(i), name: x.repo, when: x.data ? B.year(x.data.created) : '', meta: nodeMeta(x), parent: x.parent == null ? null : String(x.parent), size: x.data ? Math.min(1, Math.log10(x.data.stars + 1) / 5.2) : null }))
     }).then(r => {
       const root = c.nodes[0], focus = c.nodes[c.focus];
       m.head.hidden = false; m.head.innerHTML = `<span class="o">${esc(focus.repo.split('/')[0])} / </span>${esc(focus.repo.split('/').slice(1).join('/'))}`;
       m.sub.hidden = false;
       const y = root.data ? ' · ' + B.year(root.data.created) : '';
-      m.sub.innerHTML = (r.forks ? `${r.forks} fork${r.forks > 1 ? 's' : ''} from <b>${esc(root.repo)}</b>${y}` : `the origin${y}`) +
+      m.sub.innerHTML = (r.forks ? `${r.forks} ${c.steps ? 'step' : 'fork'}${r.forks > 1 ? 's' : ''} from <b>${esc(root.repo)}</b>${y}` : `the origin${y}`) +
         (focus.data ? ` · ★ ${fmt(focus.data.stars)}` : '') + ' · <span class="hint">tap any point for github</span>';
       scrollDown();
       return r;
@@ -523,7 +523,7 @@
       const j = await fetch('/api/repos?r=' + S.nodes.map(x => x.repo).join(',')).then(r => r.json().then(j => (r.ok ? j : null), () => null));
       if (j && j.repos) data = j.repos;
     } catch (_) { }
-    const c = { title: S.title, focus: S.focus, nodes: S.nodes.map(x => ({ ...x, data: data[x.repo] || null })) };
+    const c = { title: S.title, focus: S.focus, steps: true, nodes: S.nodes.map(x => ({ ...x, data: data[x.repo] || null })) };
     m.growP = growRepos(m, c, instant);
     const g = await m.growP;
     try { sessionStorage.setItem(SEEN, '1'); } catch (_) { }
@@ -533,8 +533,10 @@
     await type(m.txt, S.lines, instant);
     renderLine(m, m.tree);
     tokP.then(map => { tagCoins(m, map); priceTree(m).then(sidebar); });
-    const pumpTok = C.projectOf(c.nodes[c.focus].repo);
-    follow(m, (pumpTok ? [{ label: `trade $${pumpTok.symbol}`, href: '/coin/' + pumpTok.mint }] : []).concat(S.follow));
+    // the chips under it: forks' own coin when it exists, the pump.fun token, then the questions
+    const own = (await tokP.catch(() => new Map())).get(String(c.nodes[c.focus].repo).toLowerCase());
+    const pumpTok = C.projects.find(p => p.owner === 'pump-fun');
+    follow(m, [own && { label: `trade $${own.symbol}`, href: '/coin/' + own.mint }, pumpTok && { label: `trade $${pumpTok.symbol}`, href: '/coin/' + pumpTok.mint }].filter(Boolean).concat(S.follow));
     return g;
   }
 
@@ -549,7 +551,9 @@
     // the project tokens' prices come with the market: fill the sidebar now, not after the graph has finished typing
     if (j && j.projects) { j.projects.forEach(p => { if (p.image) logos[p.mint] = p.image; if (p.market && !(p.mint in prices)) prices[p.mint] = p.market; }); if (window.ForksShowcase) sidebar(); }
     const sc = $('#sideCoins'); if (!sc) return;
-    const list = j && j.coins ? j.coins.slice(0, 5) : [];
+    // forks' own coin (the pinned repository) first, then the newest
+    const pin = String((C.market && C.market.pinRepo) || '').toLowerCase();
+    const list = j && j.coins ? j.coins.slice().sort((a, b) => (String(b.repo).toLowerCase() === pin) - (String(a.repo).toLowerCase() === pin)).slice(0, 5) : [];
     sc.innerHTML = list.length
       ? list.map(t => `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${SH.logo(t.image, t.symbol)}</span><span class="trow-n"><span class="trow-s" style="color:var(--warn)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${t.market && t.market.mcap ? usd(t.market.mcap) : ''}${t.curve && t.curve.progress != null ? `<span class="muted">${Math.round(t.curve.progress)}% curve</span>` : ''}</span></a>`).join('') + '<p style="margin:8px 0 0;font-size:13px"><a href="/market">All coins in the market →</a></p>'
       : '<p class="muted" style="font-size:13px;margin:0">No coins yet. <a href="/launch">Launch the first one →</a></p>';

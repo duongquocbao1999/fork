@@ -13,17 +13,17 @@ Type anything and watch the GitHub repositories it forked from grow into a graph
 [![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-21262d?style=flat-square&labelColor=0d1117)](src)
 [![pump.fun](https://img.shields.io/badge/coins-pump.fun-d29922?style=flat-square&labelColor=0d1117)](#coins-on-repositories)
 [![$FORK](https://img.shields.io/badge/%24FORK-up%20to%2033%2C000-d29922?style=flat-square&labelColor=0d1117)](#fork)
-[![Tokens](https://img.shields.io/badge/project%20tokens-27-4493f8?style=flat-square&labelColor=0d1117)](#the-terminal)
+[![Tokens](https://img.shields.io/badge/project%20tokens-29-4493f8?style=flat-square&labelColor=0d1117)](#the-terminal)
 [![X](https://img.shields.io/badge/x-%40forkwikis-21262d?style=flat-square&labelColor=0d1117&logo=x)](https://x.com/forkwikis)
 
 </div>
 
-<img src="docs/media/shot-home.png" alt="forks.wiki: the $FORK box (up to 33,000 $FORK: X scan, six trials, invites, GitHub) above the Solana family graph — solana-labs/solana ($SOL) to anza-xyz/agave and jito-foundation/jito-solana ($JTO), firedancer, otter-sec/anchor to pump-fun/pump-public-docs ($PUMP) — with the tokens on the graph and their logos and prices in the sidebar" width="100%">
+<img src="docs/media/shot-home.png" alt="forks.wiki: the $FORK box (up to 33,000 $FORK: X scan, six trials, invites, GitHub) above the opening graph, from git to forks — git/git to bitcoin/bitcoin ($BTC), then litecoin and dogecoin, ethereum/go-ethereum ($ETH), solana-labs/solana ($SOL) to anza-xyz/agave and jito-solana ($JTO), and solana-foundation/anchor to pump-fun/pump-public-docs ($PUMP) to forkwiki/fork — with the tokens on the graph and their prices in the sidebar" width="100%">
 
 | | |
 |---|---|
 | **Trace** | type anything — a word, a project, `owner/name` — and get the line of real GitHub repositories it came from |
-| **Trade** | 27 project tokens, coins launched here and Solana's trending tokens, each with a terminal; you sign every trade in your own wallet |
+| **Trade** | 100+ tokens — coins launched here, 29 project tokens, Solana's top and trending tokens — each with a terminal; you sign every trade in your own wallet |
 | **Launch** | one pump.fun coin per repository; its creator fees go, for good, to the people who wrote the code |
 | **Earn** | **$FORK**, pending: your X account read once, six trials, +2,000 a friend, +3,000 for connecting GitHub |
 
@@ -31,8 +31,8 @@ Four pages, one look:
 
 | | |
 |---|---|
-| **[Graph](https://forks.wiki)** | The $FORK box up top (what there is to earn, and where you stand), then a prepared graph — where pump.fun's code comes from, on Solana — then anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
-| **[Market](https://forks.wiki/market)** | Every coin launched here, 27 project tokens (each matched to its GitHub organization), and Solana's trending tokens (GeckoTerminal), live: price, market cap, 24 h, volume, liquidity, bonding-curve progress. |
+| **[Graph](https://forks.wiki)** | The $FORK box up top (what there is to earn, and where you stand), then a prepared graph — *from git to forks*: git → bitcoin → ethereum and solana → pump.fun → this repository — then anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
+| **[Market](https://forks.wiki/market)** | A trending strip on top (forks' own coin pinned first, then Jupiter's trending Solana tokens), then one list: every coin launched here, 29 project tokens (each matched to its GitHub organization) and Solana's top tokens by Jupiter's organic score — live price, market cap, 24 h, volume, liquidity, bonding-curve progress. |
 | **[Launch](https://forks.wiki/launch)** | Pick a repository, see who gets its creator fees, name the coin, buy at launch if you want, sign once. One coin per repository. |
 | **[Guide](https://forks.wiki/guide)** | What everything is, the split, claiming, the terminal, $FORK, the commands. `/info` in the box says it in short. |
 
@@ -109,6 +109,8 @@ Set the environment variables in Netlify first, then deploy:
 | `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | coins on repositories and the terminal |
 | `PINATA_JWT` | coins on repositories: the logo and metadata go to public IPFS through [Pinata](https://pinata.cloud) (pump.fun no longer takes uploads itself) |
 | `JUP_API_KEY` | optional: Jupiter without the keyless 0.5 requests/s limit |
+| `JUP_REFERRAL_ACCOUNT` | optional: forks' 0.5% on Jupiter trades — forks' Jupiter referral account (not a secret) |
+| `PINATA_GATEWAY` | optional: your Pinata gateway, asked first for IPFS logos |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | optional: *connect GitHub* (a GitHub OAuth App, callback `/auth/github/callback`) + `0005_github.sql` |
 
 `GET /api/health` lists whatever is still missing; `GET /api/chain` says whether the market and launch functions loaded the Solana SDKs (and on which Node). Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
@@ -160,13 +162,13 @@ The logo and the metadata JSON go to public IPFS first, through Pinata, the way 
 | A coin still on its pump.fun curve | traded **on the curve**: the server builds the transaction with pump.fun's SDK, the wallet signs, the server checks it byte for byte and sends it |
 | Graduated coins, project tokens | traded **through Jupiter** (`/swap/v2/order` → `/execute`); SOL itself against USDC |
 | Prices, market caps | DexScreener; coins it hasn't seen yet are priced from their curve |
-| Logos | Jupiter's token list, then DexScreener, then the project's GitHub avatar |
-| Trending | GeckoTerminal's trending pools on Solana (≥ $10K liquidity) |
+| Logos | Jupiter's token list, then DexScreener, then the project's GitHub avatar; logos on IPFS through `/api/ipfs/<cid>` |
+| Trending, top | Jupiter's Tokens API: trending over 1 h, top by organic score over 24 h (verified or high organic activity, never flagged, with a logo); GeckoTerminal's trending pools if Jupiter doesn't answer |
 | Any other token | any Solana address with a live market opens in the terminal, labelled *not on forks* |
-| Candles, trades | GeckoTerminal (1m · 5m · 15m · 1h · 4h · 1d) |
+| Candles, trades | GeckoTerminal (1m · 5m · 15m · 1h · 4h · 1d); a coin on its curve straight from the chain (the curve's own transactions) until GeckoTerminal has caught up |
 | Holders, balances, curve progress | our RPC |
 
-No fee on trades from forks. The server never holds a key and never decides an amount: the wallet signs what the page shows.
+**forks' fee: 0.5%** on every trade made here and on the buy at launch (`config.trade.feeBps`). On a curve it's a SOL transfer to forks' treasury in the same transaction; through Jupiter it's Jupiter's referral fee (with `JUP_REFERRAL_ACCOUNT`; Jupiter keeps a fifth of it). The quote shows it before you sign. The server never holds a key and never decides an amount: the wallet signs what the page shows.
 
 ## Inside
 
@@ -191,7 +193,8 @@ netlify/
   lib/github.mjs · lineage.mjs      GitHub GraphQL and search; proposal → tree of real repos
   functions/launch.mjs   the plan, the bundle, the status, the coins on a tree
   functions/market.mjs   the market, one coin, candles, trades, holders, balances, quotes, trades
-  lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter (quotes, swaps, token logos)
+  functions/ipfs.mjs     IPFS logos through several gateways, images only, cached for good
+  lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter (quotes, swaps, token logos, trending and top lists)
   lib/split.mjs · chain.mjs         who gets the fees; IPFS (Pinata), pump.fun transactions, Jito, reading them back
 supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins) → 0005 (GitHub)
 og/                      link-preview cards, one per page (a new file name per version, so chats fetch the new one)

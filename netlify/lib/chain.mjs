@@ -81,8 +81,14 @@ async function tipAccount() {
  *   { mint, txs: [base64…], hashes: [sha256(message)…], missing: n }
  * holders: the plan's split; github ids become pump.fun GitHub fee accounts.
  */
-export async function build({ wallet, name, symbol, uri, holders, tipSol, devBuyLamports = 0 }) {
-  const user = new PublicKey(wallet), mint = Keypair.generate();
+// forks' fee on a buy or sell: { bps, to } (a SOL transfer in the same transaction); none when bps is 0
+const feeOf = (lamports, fee) => (fee && fee.bps > 0 && fee.to ? (BigInt(lamports) * BigInt(fee.bps)) / 10000n : 0n);
+const feeIx = (from, fee, lamports) => SystemProgram.transfer({ fromPubkey: from, toPubkey: new PublicKey(fee.to), lamports: Number(lamports) });
+/** A fresh mint key, made first so the coin's links (its forks.wiki page) can go into its metadata. */
+export const newMint = () => { needSdk(); const k = Keypair.generate(); return { address: k.publicKey.toBase58(), secret: Buffer.from(k.secretKey) }; };
+
+export async function build({ wallet, name, symbol, uri, holders, tipSol, devBuyLamports = 0, mintSecret = null, fee = null }) {
+  const user = new PublicKey(wallet), mint = mintSecret ? Keypair.fromSecretKey(Uint8Array.from(mintSecret)) : Keypair.generate();
   const shareholders = holders.map(h => ({ address: holderKey(h), shareBps: h.bps }));
   const github = holders.filter(h => h.kind === 'github');
   const [{ blockhash }, infos] = await Promise.all([
@@ -116,14 +122,15 @@ export async function build({ wallet, name, symbol, uri, holders, tipSol, devBuy
     // creator vault is the config's, exactly as the program will check it
     txs.push(compile([...cb(300000), update]));
     const { global, feeConfig } = await pumpState();
-    const sol = new BN(String(devBuyLamports));
+    const cut = feeOf(devBuyLamports, fee); // forks' 0.5% of the buy at launch
+    const sol = new BN(String(BigInt(devBuyLamports) - cut));
     const fresh = { ...pump.newBondingCurve(global, spl.NATIVE_MINT), creator: pump.feeSharingConfigPda(mint.publicKey), isMayhemMode: false };
     const amount = pump.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: null, amount: sol, quoteMint: spl.NATIVE_MINT });
     const ixs = await pump.PUMP_SDK.buyInstructions({
       global, bondingCurveAccountInfo: null, bondingCurve: fresh, associatedUserAccountInfo: null,
       mint: mint.publicKey, user, amount, solAmount: sol, slippage: 1, tokenProgram: spl.TOKEN_2022_PROGRAM_ID
     });
-    txs.push(compile([...cb(250000), ...ixs, tip]));
+    txs.push(compile([...cb(250000), ...ixs, ...(cut > 0n ? [feeIx(user, fee, cut)] : []), tip]));
     bought = amount.toString();
   } else {
     txs.push(compile([...cb(300000), update, tip]));
@@ -270,7 +277,7 @@ export async function curvesOf(mints) {
 }
 
 /** A trade straight on a live SOL curve: quote only (no user) or the transaction to sign. */
-export async function curveTrade({ mint: mintStr, side, amount, slippageBps, user: userStr }) {
+export async function curveTrade({ mint: mintStr, side, amount, slippageBps, user: userStr, fee = null }) {
   const mint = new PublicKey(mintStr);
   const [m, bcInfo] = await accounts([mint, pump.bondingCurvePda(mint)]);
   if (!m || !bcInfo) return null;
@@ -279,28 +286,93 @@ export async function curveTrade({ mint: mintStr, side, amount, slippageBps, use
   if (bc.complete || !solCurve) return null;
   const tokenProgram = m.owner;
   const { global, feeConfig } = await pumpState();
-  const amt = new BN(String(amount)), slip = Math.max(0.1, Number(slippageBps || 500) / 100);
+  const slip = Math.max(0.1, Number(slippageBps || 500) / 100);
+  // a buy: forks' fee comes off the SOL going in; a sell: off the SOL coming out
+  const buyCut = side === 'buy' ? feeOf(amount, fee) : 0n;
+  const amt = new BN(String(side === 'buy' ? BigInt(amount) - buyCut : BigInt(amount)));
   let out;
   if (side === 'buy') out = pump.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: bc.tokenTotalSupply, bondingCurve: bc, amount: amt, quoteMint: spl.NATIVE_MINT });
   else out = pump.getSellSolAmountFromTokenAmount({ global, feeConfig, mintSupply: bc.tokenTotalSupply, bondingCurve: bc, amount: amt });
   if (out.lten(0)) throw Object.assign(new Error('nothing out'), { code: 'too_small' });
+  const sellCut = side === 'sell' ? feeOf(out.toString(), fee) : 0n, cut = buyCut + sellCut;
   // spot price (lamports per raw token) for the impact
   const vs = BigInt(bc.virtualQuoteReserves.toString()), vt = BigInt(bc.virtualTokenReserves.toString());
   const spot = Number(vs) / Number(vt);
-  const exec = side === 'buy' ? Number(amount) / Number(out.toString()) : Number(out.toString()) / Number(amount);
+  const exec = side === 'buy' ? Number(amt.toString()) / Number(out.toString()) : Number(out.toString()) / Number(amount);
   const impact = Math.abs(exec / spot - 1) * 100;
-  const minOut = side === 'buy' ? out.toString() : out.sub(out.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString();
-  const q = { route: 'pump', inAmount: String(amount), outAmount: out.toString(), minOut, maxIn: side === 'buy' ? amt.add(amt.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString() : String(amount), impact };
+  const gross = out.toString();
+  const minOut = side === 'buy' ? gross : (BigInt(out.sub(out.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString()) - sellCut).toString();
+  const q = {
+    route: 'pump', inAmount: String(amount), outAmount: side === 'buy' ? gross : (BigInt(gross) - sellCut).toString(), minOut,
+    maxIn: side === 'buy' ? (BigInt(amt.add(amt.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString()) + buyCut).toString() : String(amount), impact,
+    forksFeeBps: cut > 0n ? fee.bps : 0, forksFeeLamports: cut.toString()
+  };
   if (!userStr) return q;
   const user = new PublicKey(userStr);
   const ixs = side === 'buy'
     ? await pump.PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: bcInfo, bondingCurve: bc, associatedUserAccountInfo: null, mint, user, amount: out, solAmount: amt, slippage: slip, tokenProgram })
     : await pump.PUMP_SDK.sellInstructions({ global, bondingCurveAccountInfo: bcInfo, bondingCurve: bc, mint, user, amount: amt, solAmount: out, slippage: slip, tokenProgram, mayhemMode: bc.isMayhemMode, cashback: bc.isCashbackCoin });
+  if (cut > 0n) ixs.push(feeIx(user, fee, cut)); // after the sell, the SOL it brought is there to pay it
   const { blockhash } = (await rpc('getLatestBlockhash', [{ commitment: 'confirmed' }])).value;
   const tx = new VersionedTransaction(new TransactionMessage({ payerKey: user, recentBlockhash: blockhash, instructions: [
     ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 300000 }), ...ixs
   ] }).compileToV0Message());
   return { ...q, tx: Buffer.from(tx.serialize()).toString('base64'), hash: sha(tx.message.serialize()) };
+}
+
+/* ---------- a curve's trades, straight from the chain (indexers lag minutes behind a new coin) ---------- */
+async function rpcBatch(calls, ms = 12000) {
+  const url = process.env.SOLANA_RPC_URL;
+  if (!url) throw Object.assign(new Error('no_rpc'), { code: 'no_rpc' });
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(calls.map(([method, params], id) => ({ jsonrpc: '2.0', id, method, params }))), signal: AbortSignal.timeout(ms) });
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !Array.isArray(j)) throw Object.assign(new Error(`rpc batch: ${r.status}`), { code: 'rpc' });
+  const out = Array(calls.length).fill(null);
+  for (const x of j) if (x && Number.isInteger(x.id) && !x.error) out[x.id] = x.result;
+  return out;
+}
+// one transaction, read by what moved on the curve itself: its SOL (what traders paid in or took out) and its
+// token account (what they bought or sold). Creation (no token account before) and anything else are skipped.
+function readCurveTx(tx, mint, curve) {
+  const m = tx && tx.meta; if (!m || m.err || !tx.transaction) return null;
+  const keys = tx.transaction.message.accountKeys.map(k => (typeof k === 'string' ? k : k.pubkey));
+  const ci = keys.indexOf(curve); if (ci < 0) return null;
+  const tb = arr => (arr || []).find(b => b.mint === mint && b.owner === curve);
+  const pre = tb(m.preTokenBalances), post = tb(m.postTokenBalances);
+  if (!pre || !post) return null;
+  const tok = BigInt(post.uiTokenAmount.amount) - BigInt(pre.uiTokenAmount.amount);
+  const sol = BigInt(m.postBalances[ci]) - BigInt(m.preBalances[ci]);
+  if (tok === 0n || sol === 0n) return null;
+  const buy = tok < 0n;
+  return { t: (tx.blockTime || 0) * 1000, side: buy ? 'buy' : 'sell', raw: (buy ? -tok : tok).toString(), lamports: (sol < 0n ? -sol : sol).toString(), decimals: post.uiTokenAmount.decimals, wallet: keys[0], tx: tx.transaction.signatures[0] };
+}
+const curveTx = new Map(); // signature → its trade (or null): a signature never changes, so it's read once
+/** The latest trades on a pump.fun curve, newest first: { t, side, raw, lamports, decimals, wallet, tx }. */
+export async function curveTrades(mintStr, limit = 60) {
+  needSdk();
+  const curve = pump.bondingCurvePda(new PublicKey(mintStr)).toBase58();
+  const sigs = (await rpc('getSignaturesForAddress', [curve, { limit: Math.min(200, limit), commitment: 'confirmed' }])) || [];
+  const list = sigs.filter(x => !x.err).map(x => x.signature);
+  const need = list.filter(x => !curveTx.has(x));
+  for (let i = 0; i < need.length; i += 40) {
+    const part = need.slice(i, i + 40);
+    const res = await rpcBatch(part.map(sig => ['getTransaction', [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]]));
+    res.forEach((tx, k) => { if (tx) curveTx.set(part[k], readCurveTx(tx, mintStr, curve)); });
+  }
+  if (curveTx.size > 20000) curveTx.clear();
+  return list.map(x => curveTx.get(x)).filter(Boolean);
+}
+/** Candles from trades, oldest first: [[t (s), open, high, low, close, volumeUsd]] in USD. */
+export function candlesFrom(trades, sec, solUsd) {
+  const rows = [...trades].filter(x => x.t).sort((a, b) => a.t - b.t), out = [];
+  for (const x of rows) {
+    const usd = Number(x.lamports) / 1e9 * solUsd, price = usd / (Number(x.raw) / 10 ** x.decimals);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    const b = Math.floor(x.t / 1000 / sec) * sec, last = out[out.length - 1];
+    if (last && last[0] === b) { last[2] = Math.max(last[2], price); last[3] = Math.min(last[3], price); last[4] = price; last[5] += usd; }
+    else out.push([b, last ? last[4] : price, Math.max(price, last ? last[4] : price), Math.min(price, last ? last[4] : price), price, usd]);
+  }
+  return out;
 }
 
 /** Send a signed transaction through our RPC; the signature back. */
@@ -368,11 +440,11 @@ async function pin(file, filename, type) {
   return cid;
 }
 export const ipfsReady = () => !!(process.env.PINATA_JWT || process.env.PUMP_IPFS_URL);
-export async function uploadMetadata({ name, symbol, description, website, twitter, image }) {
+export async function uploadMetadata({ name, symbol, description, website, telegram, twitter, image }) {
   if (process.env.PINATA_JWT) {
     const ext = image.type === 'image/png' ? 'png' : 'jpg', tag = String(symbol).toLowerCase();
     const imgCid = await pin(image.bytes, `${tag}-logo.${ext}`, image.type);
-    const meta = { name, symbol, description, image: IPFS_GW + imgCid, showName: true, createdOn: 'https://pump.fun', ...(twitter ? { twitter } : {}), ...(website ? { website } : {}) };
+    const meta = { name, symbol, description, image: IPFS_GW + imgCid, showName: true, createdOn: 'https://pump.fun', ...(twitter ? { twitter } : {}), ...(telegram ? { telegram } : {}), ...(website ? { website } : {}) };
     const metaCid = await pin(Buffer.from(JSON.stringify(meta)), `${tag}-metadata.json`, 'application/json');
     return { uri: IPFS_GW + metaCid, image: meta.image };
   }
@@ -380,7 +452,7 @@ export async function uploadMetadata({ name, symbol, description, website, twitt
   const form = new FormData();
   form.append('file', new Blob([image.bytes], { type: image.type }), image.type === 'image/png' ? 'logo.png' : 'logo.jpg');
   form.append('name', name); form.append('symbol', symbol); form.append('description', description);
-  form.append('website', website); if (twitter) form.append('twitter', twitter); form.append('showName', 'true');
+  form.append('website', website); if (twitter) form.append('twitter', twitter); if (telegram) form.append('telegram', telegram); form.append('showName', 'true');
   const r = await fetch(process.env.PUMP_IPFS_URL, { method: 'POST', body: form, signal: AbortSignal.timeout(15000) });
   const j = await r.json().catch(() => null);
   if (!r.ok || !j || !j.metadataUri) throw Object.assign(new Error(`ipfs ${r.status}`), { code: 'ipfs', why: 'uploader' });

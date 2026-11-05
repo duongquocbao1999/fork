@@ -40,6 +40,24 @@
   let info = null; // /api/coin
   const tok = () => info.coin, dec = () => info.decimals == null ? 6 : info.decimals, Q = () => info.quote;
 
+  /* ---------- the contract address: always in full where it fits, one clear button to copy it ---------- */
+  const COPY = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>';
+  const CHECK = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>';
+  const caPill = id => `<div class="ca-pill"><span class="ca-k">CA</span><code class="ca-v" title="${esc(MINT)}"><span class="ca-full">${esc(MINT)}</span><span class="ca-short">${esc(MINT.slice(0, 6))}…${esc(MINT.slice(-6))}</span></code><button class="ca-copy" type="button" id="${id}" aria-label="Copy the contract address">${COPY}<span>Copy CA</span></button></div>`;
+  function wireCa(id, sym) {
+    const b = $('#' + id); if (!b) return;
+    b.addEventListener('click', async () => {
+      let ok = true;
+      try { await navigator.clipboard.writeText(MINT); } catch (_) {
+        // no clipboard API (some in-app browsers): select it so a long-press copies it
+        ok = false; const c = b.parentElement.querySelector('.ca-v'); const r = document.createRange(); r.selectNodeContents(c); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+      SH.toast(ok ? `$${sym} contract address copied.` : 'Selected — copy it from the menu.');
+      b.classList.add('ok'); b.innerHTML = `${CHECK}<span>${ok ? 'Copied' : 'Selected'}</span>`;
+      clearTimeout(b._t); b._t = setTimeout(() => { b.classList.remove('ok'); b.innerHTML = `${COPY}<span>Copy CA</span>`; }, 1800);
+    });
+  }
+
   /* ---------- header, stats, about ---------- */
   function head() {
     const t = tok(), m = info.market || {}, proj = t.kind === 'project', other = t.kind === 'token';
@@ -51,13 +69,11 @@
       <div class="cn-t">
         <h1>$${esc(t.symbol)} <span class="nm">${esc(t.name)}</span>${proj ? '<span class="label blue">project token</span>' : other ? '<span class="label">Solana token · not on forks</span>' : '<span class="label amber">coin on forks</span>'}${curve ? (curve.complete ? '<span class="label purple">graduated</span>' : curve.onCurve ? `<span class="label green">on the curve · ${Math.round(curve.progress || 0)}%</span>` : '') : ''}</h1>
         <div class="meta">${repo ? `<a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>` : proj ? `by <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a> on GitHub` : ''}
-          <button class="btn sm" type="button" id="caBtn" title="Copy the contract address"><span class="mono">${esc(short(MINT))}</span> copy</button></div>
+          </div>
+        ${caPill('caBtn')}
       </div>
       <div class="cn-price"><b id="pxNow">${m.price != null ? usd(m.price) : '—'}</b><span class="${m.change24 == null ? 'muted' : m.change24 >= 0 ? 'up' : 'dn'}">${pct(m.change24)} <span class="muted">24h</span></span></div>`;
-    $('#caBtn').addEventListener('click', async e => {
-      try { await navigator.clipboard.writeText(MINT); SH.toast(`$${t.symbol} address copied.`); } catch (_) { SH.toast(MINT); }
-      const b = e.currentTarget; b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse');
-    });
+    wireCa('caBtn', t.symbol);
     const st = $('#stats'); st.hidden = false;
     st.innerHTML = [
       ['Market cap', usd(m.mcap)], ['Liquidity', usd(m.liquidity)], ['Volume 24h', usd(m.volume24)],
@@ -70,16 +86,13 @@
     const L = [['pump.fun', `https://pump.fun/coin/${MINT}`], ['DexScreener', `https://dexscreener.com/solana/${MINT}`], ['Solscan', `https://solscan.io/token/${MINT}`], ['Jupiter', `https://jup.ag/tokens/${MINT}`]].filter(([n]) => !(proj && n === 'pump.fun'));
     $('#about').innerHTML = `<div class="box-h"><h3>About</h3></div><div class="box-b">
       ${t.repo ? `<div class="repo" id="aboutRepo"><a class="rn" href="https://github.com/${esc(t.repo)}" target="_blank" rel="noopener">${esc(t.repo)}</a><p class="muted">Reading GitHub…</p></div>` : ''}
-      <p style="margin:0">${other ? `A token traded on Solana. It wasn't launched on forks and isn't a project token on the graph; forks only shows its market (DexScreener, GeckoTerminal) and routes trades through Jupiter. Anyone can make a token with any name: check the address before you trade.` : proj ? `The ${esc(t.name)} project's own token. It belongs to the project, not to forks; it sits on the graph on every repository of <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a>.` : `A coin launched on forks for this repository. Its creator fees go, for good, to the people in the fee split below; they claim on pump.fun with GitHub. The repository's authors didn't make or endorse it.`}</p>
+      <p style="margin:0">${t.wrapped ? esc(t.wrapped) : other ? `A token traded on Solana. It wasn't launched on forks and isn't a project token on the graph; forks only shows its market (DexScreener, GeckoTerminal) and routes trades through Jupiter. Anyone can make a token with any name: check the address before you trade.` : proj ? `The ${esc(t.name)} project's own token. It belongs to the project, not to forks; it sits on the graph on every repository of <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a>.` : `A coin launched on forks for this repository. Its creator fees go, for good, to the people in the fee split below; they claim on pump.fun with GitHub. The repository's authors didn't make or endorse it.`}</p>
       ${t.repo ? `<p class="lin" id="aboutLine" style="margin:0"></p>` : ''}
-      <div class="ca-row" id="caRow"><code>${esc(MINT)}</code><button class="btn sm" type="button">Copy</button></div>
+      ${caPill('caBtn2')}
       <dl class="kv" style="margin:0">${info.supply ? `<dt>Supply</dt><dd>${big(fromRaw(info.supply, dec()))}</dd>` : ''}<dt>Decimals</dt><dd>${dec()}</dd>${info.program ? `<dt>Program</dt><dd>${info.program === 'token-2022' ? 'Token-2022' : 'SPL Token'}</dd>` : ''}${t.live_at ? `<dt>Launched</dt><dd>${new Date(t.live_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</dd>` : ''}${t.launcher ? `<dt>Launched by</dt><dd><a href="https://solscan.io/account/${esc(t.launcher)}" target="_blank" rel="noopener">${esc(short(t.launcher))}</a></dd>` : ''}</dl>
       <div class="tkn-links">${L.map(([n, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${n} ↗</a>`).join('')}</div>
       <p class="muted" style="margin:0;font-size:12px">Not financial advice. Prices move fast; only trade what you can lose.</p></div>`;
-    $('#caRow button').addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(MINT); SH.toast('Address copied.'); } catch (_) { SH.toast(MINT); }
-      const r = $('#caRow'); r.classList.remove('pulse'); void r.offsetWidth; r.classList.add('pulse');
-    });
+    wireCa('caBtn2', t.symbol);
     if (t.repo) {
       fetch('/api/repos?r=' + encodeURIComponent(t.repo)).then(r => r.json().then(j => (r.ok ? j : null), () => null)).then(j => {
         const d = j && j.repos && (j.repos[t.repo] || Object.values(j.repos)[0]); const el = $('#aboutRepo'); if (!el) return;
@@ -147,7 +160,8 @@
     candles = j.ok ? j.candles : [];
     $('#chEmpty').textContent = j.busy ? 'The chart data source is busy. It refreshes on its own in a moment.' : candles.length < 2 ? 'No candles yet: nobody has traded it on a pool the data sources index.' : '';
     $('#chPool').textContent = j.pool ? `pool ${short(j.pool)}` : '';
-    $('#chMeta').textContent = candles.length ? `${candles.length} candles` : '';
+    $('#chMeta').textContent = candles.length ? `${candles.length} candles${j.source === 'chain' ? ' · live from the chain' : ''}` : '';
+    $('#chSrc').textContent = j.source === 'chain' ? 'Candles and trades: the coin’s pump.fun curve, read from Solana' : 'Candles: GeckoTerminal · prices: DexScreener';
     draw();
   }
   $('#tfs').innerHTML = TFS.map(t => `<button type="button" role="tab" data-tf="${t}">${t}</button>`).join('');
@@ -201,7 +215,7 @@
         <div class="bal"><span>You pay</span><span>Balance <b id="bal">—</b></span></div>
         <div class="amt"><label class="sr" for="amt">Amount</label><input id="amt" inputmode="decimal" placeholder="0.0" autocomplete="off"><span class="unit" id="unit"></span></div>
         <div class="quick" id="quick"></div>
-        <div class="qv wait" id="qv"><div class="big"><span>You receive</span><b id="qOut">—</b></div><div><span>Minimum</span><b id="qMin">—</b></div><div id="qImpRow"><span>Price impact</span><b id="qImp">—</b></div><div><span>Route</span><b id="qRoute">—</b></div></div>
+        <div class="qv wait" id="qv"><div class="big"><span>You receive</span><b id="qOut">—</b></div><div><span>Minimum</span><b id="qMin">—</b></div><div id="qImpRow"><span>Price impact</span><b id="qImp">—</b></div><div><span>Route</span><b id="qRoute">—</b></div><div><span>forks fee</span><b id="qFee">—</b></div></div>
         <div class="slip"><span>Slippage <b class="mono" id="slipV"></b></span><button type="button" id="slipB">change</button></div>
         <div class="slip-set" id="slipSet" hidden>${[100, 300, 500, 1000, 2000].map(b => `<button type="button" data-b="${b}">${b / 100}%</button>`).join('')}</div>
         <button class="btn primary go" type="button" id="go">Connect a wallet</button>
@@ -252,7 +266,7 @@
     const j = await api(`/api/balance?owner=${s.address}&mint=${MINT}`);
     if (j.ok) { bal = j; if (MINT === WSOL) bal.token = j.lamports; paintBal(); }
   }
-  function resetQuote() { lastQuote = null; $('#qv').classList.add('wait'); ['qOut', 'qMin', 'qImp', 'qRoute'].forEach(k => { $('#' + k).textContent = '—'; }); $('#qImpRow').classList.remove('warn'); }
+  function resetQuote() { lastQuote = null; $('#qv').classList.add('wait'); ['qOut', 'qMin', 'qImp', 'qRoute', 'qFee'].forEach(k => { $('#' + k).textContent = '—'; }); $('#qImpRow').classList.remove('warn'); }
   function amountRaw() {
     const v = String($('#amt').value || '').trim(); if (!v || !(Number(v.replace(',', '.')) > 0)) return null;
     return toRaw(v, side === 'buy' ? Q().decimals : dec());
@@ -263,7 +277,12 @@
     $('#qMin').textContent = `${big(fromRaw(j.minOut || j.outAmount, outDec))} ${outSym}`;
     $('#qImp').textContent = j.impact != null ? `${Number(j.impact).toFixed(2)}%` : '—';
     $('#qImpRow').classList.toggle('warn', j.impact != null && j.impact > 5);
-    $('#qRoute').textContent = j.route === 'pump' ? 'pump.fun curve' : `Jupiter${j.venues && j.venues.length ? ' · ' + j.venues.slice(0, 2).join(', ') : ''}${j.feeBps ? ` · fee ${j.feeBps / 100}%` : ''}`;
+    $('#qRoute').textContent = j.route === 'pump' ? 'pump.fun curve' : `Jupiter${j.venues && j.venues.length ? ' · ' + j.venues.slice(0, 2).join(', ') : ''}`;
+    // forks' fee, before anything is signed: on the curve a SOL transfer in the same transaction; through Jupiter
+    // its referral fee, inside feeBps (Jupiter's own part is shown with it)
+    $('#qFee').textContent = j.route === 'pump'
+      ? (Number(j.forksFeeLamports) > 0 ? `${(j.forksFeeBps / 100).toFixed(1)}% · ${big(fromRaw(j.forksFeeLamports, 9))} SOL` : 'none')
+      : j.referral ? `${((info.fee && info.fee.bps) || 50) / 100}% · in Jupiter's ${(j.feeBps || 0) / 100}% total` : j.feeBps ? `none · Jupiter ${j.feeBps / 100}%` : 'none';
     $('#qv').classList.remove('wait');
   }
   async function quote() {
@@ -309,7 +328,9 @@
           if (t.ok && t.state === 'failed') { state(`It failed on-chain (slippage or price moved). ${link}`, 'err'); break; }
         }
       }
-      $('#amt').value = ''; resetQuote(); loadBal(); holdersCache = null; setTimeout(() => { if (act === 'trades') panel(); }, 2500);
+      $('#amt').value = ''; resetQuote(); loadBal(); holdersCache = null;
+      // your trade shows up in the list and the chart as soon as the chain has it
+      [1500, 5000, 10000].forEach(ms => setTimeout(() => { if (act === 'trades') panel(); chart(); }, ms));
       const r = $('#trade').getBoundingClientRect(); burst(r.left + r.width / 2, r.top + 80);
     } finally { busy = false; btn.classList.remove('busy'); paintGo(); }
   }
@@ -336,7 +357,10 @@
     tf = info.curve && info.curve.onCurve ? '1m' : '15m'; paintTf();
     tradeBox(); actTabs(); panel(); chart();
     $('#buybar').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (!b) return; side = b.dataset.s; document.querySelector(`#trade [data-side="${side}"]`).click(); $('#trade').scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', block: 'start' }); setTimeout(() => $('#amt').focus({ preventScroll: true }), 400); });
-    setInterval(() => { if (document.hidden) return; chart(); if (act === 'trades') panel(); }, 20000);
+    // a coin on its curve is read straight from the chain: refresh it often; anything else every 20 s
+    const live = () => !!(info.curve && info.curve.onCurve);
+    let tick = 0;
+    setInterval(() => { if (document.hidden) return; tick++; if (live() ? tick % 2 === 0 : tick % 4 === 0) chart(); if (act === 'trades' && (live() || tick % 4 === 0)) panel(); }, 5000);
     setInterval(async () => { if (document.hidden) return; const k = await api('/api/coin?mint=' + encodeURIComponent(MINT)); if (k.ok) { info = { ...info, market: k.market, curve: k.curve }; const m = k.market || {}; const px = $('#pxNow'); if (px && m.price != null) px.textContent = usd(m.price); } }, 30000);
   }
   boot();

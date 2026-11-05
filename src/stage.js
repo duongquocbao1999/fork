@@ -162,7 +162,8 @@
       return new Promise(res => setTimeout(() => {
         el.classList.remove('growing'); el.classList.add('grown');
         const forks = path.length - 1, root = byId.get(data.root);
-        setStatus(forks ? `${forks} fork${forks > 1 ? 's' : ''} from ${root.name.toLowerCase()}` : `${root.name.toLowerCase()} · the origin`);
+        const unit = data.steps ? 'step' : 'fork'; // a showcase that isn't only forks counts steps
+        setStatus(forks ? `${forks} ${unit}${forks > 1 ? 's' : ''} from ${root.name.toLowerCase()}` : `${root.name.toLowerCase()} · the origin`);
         if (opts.onFull) { acts.innerHTML = '<button type="button">open ↗</button>'; acts.querySelector('button').onclick = opts.onFull; }
         if (fast && opts.onPoint) { const f = svg.querySelector('.st-n.focus .dot'); if (f) { const r = f.getBoundingClientRect(); opts.onPoint(r.left + r.width / 2, r.top + r.height / 2, true); } }
         res({ path, forks, root, focus: byId.get(data.focus) });

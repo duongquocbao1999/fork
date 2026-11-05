@@ -6,7 +6,8 @@
 //
 //   GET  /api/market                         coins (forks) + project tokens, with market data and curve progress
 //   GET  /api/prices?mints=a,b               market data for up to 60 mints
-//   GET  /api/trending                       Solana's trending tokens (GeckoTerminal), any token with a market
+//   GET  /api/trending                       { trending, top }: Jupiter's trending (1h) and top tokens by organic activity (24h);
+//                                            GeckoTerminal's trending pools when Jupiter doesn't answer
 //   GET  /api/coin?mint=                     one coin: what it is, its market, its curve, decimals
 //   GET  /api/chart?mint=&tf=15m             candles (1m 5m 15m 1h 4h 1d)
 //   GET  /api/trades?mint=                   the latest trades
@@ -19,8 +20,8 @@
 //   GET  /api/chain                          did this function load the Solana SDKs? (node version, error)
 import C from '../../src/config.js';
 import { json, rpc as db, sameOrigin, seal, unseal } from '../lib/server.mjs';
-import { BASE58, balances, checkSigned, coinState, curveAddress, curveTrade, curvesOf, holders, sdkStatus, sendRaw, sigStatus } from '../lib/chain.mjs';
-import { USDC, WSOL, TIMEFRAMES, candles, icons, jupExecute, jupOrder, markets, ownerAvatar, poolOf, poolTrades, solUsd, trending } from '../lib/markets.mjs';
+import { BASE58, balances, candlesFrom, checkSigned, coinState, curveAddress, curveTrade, curveTrades, curvesOf, holders, sdkStatus, sendRaw, sigStatus } from '../lib/chain.mjs';
+import { USDC, WSOL, TIMEFRAMES, candles, icons, jupExecute, jupList, jupOrder, markets, ownerAvatar, poolOf, poolTrades, solUsd, trending } from '../lib/markets.mjs';
 
 const hits = new Map();
 function limited(key, n) {
@@ -50,7 +51,7 @@ async function forksCoin(mint) {
 const MIN_LIQ = 1000;
 async function identify(mint) {
   const p = C.projectByMint(mint);
-  if (p) return { kind: 'project', mint, symbol: p.symbol, name: p.name, owner: p.owner, repo: null, image: null };
+  if (p) return { kind: 'project', mint, symbol: p.symbol, name: p.name, owner: p.owner, repo: null, image: null, wrapped: p.wrapped || null };
   const l = await forksCoin(mint);
   if (l) return { kind: 'forks', mint, symbol: l.symbol, name: l.name, image: l.image, repo: l.repo_name, split: l.split, launcher: l.wallet, live_at: l.live_at };
   if (mint === USDC) return null;
@@ -59,6 +60,19 @@ async function identify(mint) {
   return null;
 }
 const quoteMint = mint => (mint === WSOL ? USDC : WSOL);
+const TF_SEC = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
+// is this mint on a live pump.fun curve? (its trades and candles then come straight from the chain)
+async function onCurve(mint) {
+  if (!hasRpc() || C.projectByMint(mint) || mint === WSOL) return false;
+  try { const c = (await curvesOf([mint]))[mint]; return !!(c && !c.complete); } catch (_) { return false; }
+}
+const chainTrade = (x, sol) => {
+  const usd = sol ? Number(x.lamports) / 1e9 * sol : 0, amount = Number(x.raw) / 10 ** x.decimals;
+  return { t: x.t, side: x.side, amount, usd, sol: Number(x.lamports) / 1e9, price: usd && amount ? usd / amount : null, wallet: x.wallet, tx: x.tx };
+};
+// forks' fee: on the curve, a transfer to the treasury in the same transaction; through Jupiter, its referral fee
+const FEE = () => (C.trade.feeBps > 0 && C.launch.treasury ? { bps: C.trade.feeBps, to: C.launch.treasury } : null);
+const feeInfo = () => ({ bps: FEE() ? C.trade.feeBps : 0, jupiter: !!(process.env.JUP_REFERRAL_ACCOUNT && FEE()) });
 
 export default async (req, context) => {
   const url = new URL(req.url), path = url.pathname.replace(/\/$/, ''), q = k => (url.searchParams.get(k) || '').trim();
@@ -91,12 +105,15 @@ export default async (req, context) => {
       }, 200, cdn(20));
     }
     if (path === '/api/trending') {
+      const [tr, top] = await Promise.all([jupList('toptrending', '1h', 40).catch(() => null), jupList('toporganicscore', '24h', 100).catch(() => null)]);
+      if (tr || top) return json({ ok: true, trending: (tr || []).slice(0, 20), top: top || [], tokens: (tr || []).slice(0, 20), source: 'jupiter' }, 200, cdn(120));
       try {
         const list = await trending(), missing = list.filter(t => !t.image).map(t => t.mint);
         const ic = missing.length ? await icons(missing) : {};
-        return json({ ok: true, tokens: list.map(t => (t.image ? t : { ...t, image: ic[t.mint] || null })), source: 'geckoterminal' }, 200, cdn(90));
+        const tokens = list.map(t => (t.image ? t : { ...t, image: ic[t.mint] || null }));
+        return json({ ok: true, trending: tokens, top: [], tokens, source: 'geckoterminal' }, 200, cdn(90));
       }
-      catch (e) { console.error('trending', e.code || '', e.message); return json({ ok: true, tokens: [], busy: true }, 200, cdn(15)); }
+      catch (e) { console.error('trending', e.code || '', e.message); return json({ ok: true, trending: [], top: [], tokens: [], busy: true }, 200, cdn(15)); }
     }
     if (path === '/api/prices') {
       const mints = q('mints').split(',').map(s => s.trim()).filter(s => BASE58.test(s)).slice(0, 60);
@@ -131,12 +148,22 @@ export default async (req, context) => {
         program: state ? state.program : null,
         curve: state && state.curve ? { complete: state.curve.complete, progress: state.curve.progress, onCurve: !state.curve.complete && state.curve.solCurve } : null,
         quote: { mint: quoteMint(mint), symbol: mint === WSOL ? 'USDC' : 'SOL', decimals: mint === WSOL ? 6 : 9 },
-        trading: hasRpc()
+        trading: hasRpc(), fee: feeInfo()
       }, 200, cdn(10));
     }
     if (path === '/api/chart') {
       const mint = q('mint'), tf = TIMEFRAMES.includes(q('tf')) ? q('tf') : '15m';
       if (!BASE58.test(mint)) return err('bad_mint');
+      // a coin on its curve: GeckoTerminal while it keeps up, else candles from the curve's own trades
+      if (await onCurve(mint)) {
+        const pool = curveAddress(mint);
+        const gt = await candles(mint, pool, tf).catch(() => []);
+        const fresh = gt.length >= 12 && Date.now() / 1000 - gt[gt.length - 1][0] < TF_SEC[tf] * 3;
+        if (fresh) return json({ ok: true, candles: gt, pool, tf, source: 'geckoterminal' }, 200, cdn(tf === '1m' ? 15 : 45));
+        if (limited('chain:' + ip, 40)) return json({ ok: true, candles: gt, pool, tf, source: 'geckoterminal' }, 200, cdn(10));
+        const [list, sol] = await Promise.all([curveTrades(mint, 150), solUsd().catch(() => null)]);
+        return json({ ok: true, candles: sol ? candlesFrom(list, TF_SEC[tf], sol) : [], pool, tf, source: 'chain' }, 200, cdn(8));
+      }
       const pool = (await poolOf(mint, BASE58.test(q('pool')) ? q('pool') : null)) || (C.projectByMint(mint) || !hasRpc() ? null : curveAddress(mint)); // a pump.fun coin's pool is its curve
       if (!pool) return json({ ok: true, candles: [], pool: null }, 200, cdn(30));
       try { return json({ ok: true, candles: await candles(mint, pool, tf), pool, tf, source: 'geckoterminal' }, 200, cdn(tf === '1m' ? 15 : 45)); }
@@ -145,6 +172,11 @@ export default async (req, context) => {
     if (path === '/api/trades') {
       const mint = q('mint');
       if (!BASE58.test(mint)) return err('bad_mint');
+      // a coin on its curve: its trades from the chain, seconds after they land
+      if (await onCurve(mint) && !limited('chain:' + ip, 40)) {
+        const [list, sol] = await Promise.all([curveTrades(mint, 60), solUsd().catch(() => null)]);
+        return json({ ok: true, trades: list.map(x => chainTrade(x, sol)), pool: curveAddress(mint), source: 'chain' }, 200, cdn(4));
+      }
       const pool = (await poolOf(mint, BASE58.test(q('pool')) ? q('pool') : null)) || (C.projectByMint(mint) || !hasRpc() ? null : curveAddress(mint)); // a pump.fun coin's pool is its curve
       if (!pool) return json({ ok: true, trades: [] }, 200, cdn(15));
       try { return json({ ok: true, trades: await poolTrades(mint, pool), pool, source: 'geckoterminal' }, 200, cdn(8)); }
@@ -196,7 +228,7 @@ export default async (req, context) => {
       const owner = p.owner ? String(p.owner) : null;
       // on a live SOL curve: straight to the curve
       if (mint !== WSOL) {
-        const c = await curveTrade({ mint, side, amount, slippageBps, user: owner }).catch(e => { if (e.code === 'too_small') throw e; return null; });
+        const c = await curveTrade({ mint, side, amount, slippageBps, user: owner, fee: FEE() }).catch(e => { if (e.code === 'too_small') throw e; return null; });
         if (c) {
           const out = { ok: true, ...c, tx: undefined, hash: undefined };
           if (owner) { out.tx = c.tx; out.ticket = seal({ k: 'trade', hash: c.hash, owner }, 120); }
@@ -206,7 +238,7 @@ export default async (req, context) => {
       // everything else: Jupiter
       const io = side === 'buy' ? { inputMint: quoteMint(mint), outputMint: mint } : { inputMint: mint, outputMint: quoteMint(mint) };
       try {
-        const j = await jupOrder({ ...io, amount, slippageBps, taker: owner });
+        const j = await jupOrder({ ...io, amount, slippageBps, taker: owner, feeBps: FEE() ? C.trade.feeBps : 0 });
         return json({ ok: true, ...j, tx: owner ? j.tx : undefined, requestId: owner ? j.requestId : undefined });
       } catch (e) {
         if (e.code === 'upstream_busy') return err('busy', 429);

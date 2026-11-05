@@ -174,14 +174,46 @@ export async function poolTrades(mint, pool) {
   });
 }
 
+/* ---------- Jupiter's token lists: what's trending, what's on top (logos, prices, volume, verification) ---------- */
+const shapeJup = t => {
+  const d = t.stats24h || {}, h = t.stats1h || {};
+  return {
+    kind: 'token', mint: t.id, symbol: String(t.symbol || '?').slice(0, 16), name: String(t.name || t.symbol || '').slice(0, 48),
+    image: typeof t.icon === 'string' && /^https:\/\//.test(t.icon) ? t.icon : null,
+    verified: !!t.isVerified, organic: t.organicScoreLabel || null, holders: t.holderCount != null ? Number(t.holderCount) : null, created: t.createdAt || null,
+    market: {
+      price: t.usdPrice != null ? Number(t.usdPrice) : null, mcap: t.mcap != null ? Number(t.mcap) : t.fdv != null ? Number(t.fdv) : null,
+      liquidity: t.liquidity != null ? Number(t.liquidity) : null, volume24: (Number(d.buyVolume) || 0) + (Number(d.sellVolume) || 0),
+      change24: d.priceChange != null ? Number(d.priceChange) : null, change1: h.priceChange != null ? Number(h.priceChange) : null,
+      txns24: (Number(d.numBuys) || 0) + (Number(d.numSells) || 0)
+    }
+  };
+};
+// only tokens Jupiter vouches for (verified, or high organic activity) and that have a logo; never flagged
+// ones, never stablecoins
+const keep = t => t && t.id && !(t.audit && t.audit.isSus) && (t.isVerified || t.organicScoreLabel === 'high') && typeof t.icon === 'string' && /^https:\/\//.test(t.icon) && !NOT_A_TOKEN.has(t.id) && !(t.tags || []).includes('stable');
+/** Jupiter's Tokens API v2 lists: 'toptrending' | 'toptraded' | 'toporganicscore' over 5m | 1h | 6h | 24h. Cached five minutes. */
+export async function jupList(category, interval, limit = 100) {
+  return cached(`jl:${category}:${interval}:${limit}`, 300e3, async () => {
+    const r = await fetch(`https://api.jup.ag/tokens/v2/${category}/${interval}?limit=${limit}`, { headers: { accept: 'application/json', ...jupHeaders() }, signal: AbortSignal.timeout(8000) });
+    if (r.status === 429) throw Object.assign(new Error('jupiter tokens busy'), { code: 'upstream_busy' });
+    if (!r.ok) throw Object.assign(new Error('jupiter tokens ' + r.status), { code: 'upstream' });
+    const list = await r.json();
+    return (Array.isArray(list) ? list : []).filter(keep).map(shapeJup);
+  });
+}
+
 /* ---------- Jupiter: quotes and swaps for everything off a curve ---------- */
 const JUP = () => (process.env.JUP_URL || 'https://api.jup.ag/swap/v2').replace(/\/$/, '');
 const jupHeaders = () => (process.env.JUP_API_KEY ? { 'x-api-key': process.env.JUP_API_KEY } : {});
 /** GET /order: a quote (no taker) or a quote with the transaction to sign (taker). */
-export async function jupOrder({ inputMint, outputMint, amount, slippageBps, taker }) {
+export async function jupOrder({ inputMint, outputMint, amount, slippageBps, taker, feeBps }) {
   const q = new URLSearchParams({ inputMint, outputMint, amount: String(amount) });
   if (slippageBps) q.set('slippageBps', String(slippageBps));
   if (taker) q.set('taker', taker);
+  // forks' fee: Jupiter's referral program (the referral account and its SOL/USDC token accounts set up once)
+  const ref = process.env.JUP_REFERRAL_ACCOUNT, fee = Number(feeBps) || 0;
+  if (ref && fee >= 50 && fee <= 255) { q.set('referralAccount', ref); q.set('referralFee', String(fee)); }
   const key = 'jup:' + q.toString();
   const run = async () => {
     const r = await fetch(`${JUP()}/order?${q}`, { headers: { accept: 'application/json', ...jupHeaders() }, signal: AbortSignal.timeout(8000) });
@@ -192,7 +224,8 @@ export async function jupOrder({ inputMint, outputMint, amount, slippageBps, tak
     return {
       route: 'jupiter', inAmount: j.inAmount, outAmount: j.outAmount, minOut: j.otherAmountThreshold,
       impact: j.priceImpact != null ? Math.abs(Number(j.priceImpact)) : j.priceImpactPct != null ? Math.abs(Number(j.priceImpactPct) * 100) : null,
-      feeBps: j.feeBps != null ? j.feeBps : null, router: j.router || null,
+      feeBps: j.feeBps != null ? j.feeBps : null, feeMint: j.feeMint || null, referral: !!(j.referralAccount || (ref && fee >= 50)),
+      platformFeeBps: j.platformFee && j.platformFee.feeBps != null ? j.platformFee.feeBps : null, router: j.router || null,
       venues: (j.routePlan || []).map(s => s.swapInfo && s.swapInfo.label).filter(Boolean).slice(0, 4),
       tx: j.transaction || null, requestId: j.requestId || null
     };

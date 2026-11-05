@@ -14,7 +14,7 @@ import C from '../../src/config.js';
 import { json, rpc as db, sameOrigin, seal, siteOrigin, unseal } from '../lib/server.mjs';
 import { NAME } from '../lib/github.mjs';
 import { plan } from '../lib/split.mjs';
-import { BASE58, build, checkSigned, cosign, ipfsReady, landed, sdkStatus, sendBundle, uploadMetadata } from '../lib/chain.mjs';
+import { BASE58, build, checkSigned, cosign, ipfsReady, landed, newMint, sdkStatus, sendBundle, uploadMetadata } from '../lib/chain.mjs';
 
 const L = C.launch;
 const SYMBOL = /^[A-Z0-9]{2,10}$/;
@@ -165,8 +165,12 @@ export default async (req, context) => {
       if (devBuyLamports > 0 && devBuyLamports < 1e6) return err('bad_dev_buy'); // below 0.001 SOL
       const x = String(body.x || '').trim();
       if (x && !/^https:\/\/(x|twitter)\.com\/[A-Za-z0-9_]{1,15}(\/status\/\d{1,25})?\/?$/.test(x)) return err('bad_x');
-      const meta = await uploadMetadata({ name, symbol, description: describe(p), website: `https://github.com/${p.repo}`, twitter: x || null, image: img });
-      const b = await build({ wallet, name, symbol, uri: meta.uri, holders: p.holders, tipSol: L.tipSol, devBuyLamports });
+      // the mint first, so its links can point at it: pump.fun's "website" → the coin's page on forks.wiki,
+      // its "telegram" → the repository on GitHub
+      const mk = newMint();
+      const meta = await uploadMetadata({ name, symbol, description: describe(p), website: `${C.site.url}/coin/${mk.address}`, telegram: `https://github.com/${p.repo}`, twitter: x || null, image: img });
+      const b = await build({ wallet, name, symbol, uri: meta.uri, holders: p.holders, tipSol: L.tipSol, devBuyLamports, mintSecret: mk.secret,
+        fee: C.trade.feeBps > 0 && L.treasury ? { bps: C.trade.feeBps, to: L.treasury } : null });
       const r = await db('api_launch_reserve', { p_repo: p.repo, p_repo_name: p.repo, p_wallet: wallet, p_mint: b.mint, p_symbol: symbol, p_name: name, p_uri: meta.uri, p_image: meta.image, p_split: p.holders });
       if (!r || !r.ok) return err((r && r.error) || 'reserve', 409);
       return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret) }, 150) });

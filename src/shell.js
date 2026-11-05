@@ -158,8 +158,12 @@
     return '0.0' + String(z).split('').map(c => SUB[c]).join('') + Math.round(a * 10 ** (z + d)).toString().slice(0, d).replace(/0+$/, '');
   }
 
-  // a token's logo: <img data-fb="S">; if it doesn't load, its first letter takes its place
-  const logo = (src, sym, attrs = '') => (src ? `<img src="${esc(src)}" alt="" data-fb="${esc(String(sym || '?')[0])}" loading="lazy" referrerpolicy="no-referrer"${attrs}>` : esc(String(sym || '?')[0]));
+  // a token's logo: <img data-fb="S">; if it doesn't load, its first letter takes its place. Logos on IPFS (most
+  // pump.fun coins) come through forks.wiki/api/ipfs/<cid>: public gateways are too slow to trust with them.
+  const IPFS = /^(?:ipfs:\/\/|https?:\/\/[^/]+\/ipfs\/)((?:Qm[1-9A-HJ-NP-Za-km-z]{44})|(?:b[a-z2-7]{50,100}))(?:[/?#].*)?$/;
+  const IPFS_SUB = /^https?:\/\/(b[a-z2-7]{50,100})\.ipfs\.[^/]+\/?(?:[?#].*)?$/;
+  const img = src => { const m = String(src || '').match(IPFS) || String(src || '').match(IPFS_SUB); return m ? '/api/ipfs/' + m[1] : src; };
+  const logo = (src, sym, attrs = '') => (src ? `<img src="${esc(img(src))}" alt="" data-fb="${esc(String(sym || '?')[0])}" loading="lazy" referrerpolicy="no-referrer"${attrs}>` : esc(String(sym || '?')[0]));
   document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset && t.dataset.fb != null) t.replaceWith(document.createTextNode(t.dataset.fb)); }, true);
-  window.ForksShell = { mount, toast, search, market, tiny, esc, logo, MARK, I };
+  window.ForksShell = { mount, toast, search, market, tiny, esc, logo, img, MARK, I };
 })();

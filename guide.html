@@ -53,7 +53,7 @@
       <ul>
         <li><b>The graph.</b> A search engine for where code came from. Every point is a real public repository; every line is a real relation.</li>
         <li><b>A launchpad.</b> Anyone with a Solana wallet can launch a repository's coin on pump.fun. One coin per repository. Its creator fees are split once, for good, between the people behind the code and forks.</li>
-        <li><b>A market.</b> Every coin launched here, the project tokens on the graph (27 Solana projects, each matched to its GitHub organization), and what's trending on Solana — each with a terminal: chart, trades, holders, and a buy/sell panel that trades from your own wallet. Paste any Solana token's address in the search box to open its terminal; tokens that aren't from forks or a project are labelled so.</li>
+        <li><b>A market.</b> What's trending on Solana up top (forks' own coin pinned first), then one list: every coin launched here, the project tokens on the graph (29 Solana projects, each matched to its GitHub organization), and Solana's top tokens — each with a terminal: chart, trades, holders, and a buy/sell panel that trades from your own wallet. Paste any Solana token's address in the search box to open its terminal; tokens that aren't from forks or a project are labelled so.</li>
       </ul>
 
       <h2 id="graph">Reading a graph</h2>
@@ -109,11 +109,13 @@
       <h2 id="trade">The terminal</h2>
       <p>Every coin and project token has a page: <code>forks.wiki/coin/&lt;address&gt;</code>.</p>
       <ul>
-        <li><b>Chart</b>: candles from 1 minute to 1 day, from GeckoTerminal's on-chain data.</li>
+        <li><b>Chart</b>: candles from 1 minute to 1 day, from GeckoTerminal's on-chain data. A coin still on its curve is read straight from the chain — its curve's own trades — so a fresh coin has trades and a chart within seconds.</li>
         <li><b>Trades</b>, <b>holders</b> (the top 20, read from the chain; the bonding curve is labelled) and, for coins on forks, the <b>fee split</b>.</li>
         <li><b>Buy and sell</b>. A coin still on its pump.fun bonding curve trades directly on the curve: the server builds the transaction, your wallet signs it, the server checks it is exactly what it built and sends it. Everything else — graduated coins, project tokens — trades through Jupiter, which picks the route. SOL itself is bought and sold for USDC.</li>
       </ul>
-      <p>You see what you'll receive, the minimum after slippage (5% by default, changeable), the price impact and the route before you sign. forks takes no fee on trades. pump.fun's fee is built into the curve's price; Jupiter's, when it takes one, is shown in the route.</p>
+      <p>You see what you'll receive, the minimum after slippage (5% by default, changeable), the price impact and the route before you sign. <b>forks takes 0.5%</b> of every trade made here and of the buy at launch, shown as <i>forks fee</i> in the quote before you sign. On a curve it's a SOL transfer to forks' wallet inside the same transaction (off the SOL you pay on a buy, off the SOL you get on a sell); through Jupiter it's Jupiter's referral fee, inside the fee Jupiter shows. pump.fun's own fee is built into the curve's price.</p>
+      <h3 id="trending">Where do trending and top tokens come from?</h3>
+      <p>From Jupiter's token lists: <i>trending</i> is what's traded most on Solana over the last hour, <i>top</i> is the tokens with the most organic (non-bot) activity over the last day. forks keeps only tokens Jupiter verified or rates highly, drops anything flagged and stablecoins, and refreshes every few minutes. Being listed isn't a recommendation: anyone can make a token with any name, so check the address.</p>
       <div class="note"><b>Your keys, your trade</b>forks never holds your funds or your keys. Every trade is a transaction your wallet shows you and signs; nothing moves without it.</div>
 
       <h2 id="fork">$FORK</h2>
@@ -149,13 +151,13 @@
       <h3>My launch said "it didn't land".</h3>
       <p>The bundle wasn't included in time (the network was busy). Bundles are all or nothing, so nothing was charged. Try again; retrying the same repository doesn't use up your day.</p>
       <h3>Why is there no chart?</h3>
-      <p>The chart appears once someone has traded the coin and the data sources have indexed it, usually within minutes.</p>
+      <p>The chart appears once someone has traded the coin. A coin on its pump.fun curve is charted from its trades on the chain right away; other tokens once GeckoTerminal has indexed their pool, usually within minutes.</p>
 
       <h2 id="fine">The fine print</h2>
       <ul>
         <li>Nothing on forks is financial advice. Coins on repositories are memecoins; most go to zero.</li>
         <li>forks is not affiliated with GitHub, pump.fun, Jupiter or any project shown. Project tokens belong to their projects.</li>
-        <li>Prices come from DexScreener, candles and trades from GeckoTerminal, holders and balances from the Solana chain.</li>
+        <li>Prices come from DexScreener and Jupiter, candles and trades from GeckoTerminal (and the chain, for coins on a curve), trending and top lists from Jupiter, holders and balances from the Solana chain.</li>
         <li>The code is open: <a href="https://github.com/forkwiki/fork" target="_blank" rel="noopener">github.com/forkwiki/fork</a>.</li>
       </ul>
     </article>

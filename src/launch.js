@@ -285,9 +285,9 @@
       const v = devSol(), est = $('[data-est]');
       if (!v) { est.textContent = ''; paint(); return; }
       if (v > L.maxDevBuySol) { est.textContent = `at most ${L.maxDevBuySol} SOL`; paint(); return; }
-      // a fresh curve: 30 SOL and 1,073,000,000 tokens virtual; ~1% fees off the top
-      const net = v * 0.99, tokens = 1073000000 - (30 * 1073000000) / (30 + net);
-      est.textContent = `≈ ${Math.round(tokens).toLocaleString('en-US')} tokens, ${(tokens / 1e7).toFixed(2)}% of the supply`;
+      // a fresh curve: 30 SOL and 1,073,000,000 tokens virtual; forks' fee off the top, then pump.fun's ~1%
+      const fee = (C.trade && C.trade.feeBps) || 0, net = v * (1 - fee / 10000) * 0.99, tokens = 1073000000 - (30 * 1073000000) / (30 + net);
+      est.textContent = `≈ ${Math.round(tokens).toLocaleString('en-US')} tokens, ${(tokens / 1e7).toFixed(2)}% of the supply${fee ? ` · includes forks' ${fee / 100}% fee (${(v * fee / 10000).toFixed(4)} SOL)` : ''}`;
       paint();
     });
 
@@ -430,7 +430,7 @@
     const text = `$${coin.symbol} — the coin for github.com/${coin.repo}. its creator fees go to the people who wrote it, locked for good.\n\n${C.site.url}/coin/${coin.mint}`;
     const el = card(m, 'tkn' + (justNow ? ' new' : ''), `<span>// coin · <b>${esc(coin.repo)}</b></span><span class="tkn-live">on pump.fun</span>`, `
       <div class="tkn-top">
-        <span class="tkn-img">${coin.image ? `<img src="${esc(coin.image)}" alt="" width="56" height="56">` : `<b>${esc(coin.symbol[0])}</b>`}</span>
+        <span class="tkn-img">${coin.image ? window.ForksShell.logo(coin.image, coin.symbol, ' width="56" height="56"') : `<b>${esc(coin.symbol[0])}</b>`}</span>
         <span class="tkn-id"><b class="tkn-sym">$${esc(coin.symbol)}</b><span>${esc(coin.name)} · <a href="https://github.com/${esc(owner)}/${esc(name)}" target="_blank" rel="noopener">${esc(coin.repo)}</a></span></span>
         <span class="tkn-mk">${mk && mk.mcap ? `<b class="mono">${usd(mk.mcap)}</b><span>mcap ${ch}</span>` : `<span>${justNow ? 'just launched' : 'no trades seen yet'}</span>`}</span>
       </div>
@@ -455,7 +455,7 @@
     const m = await say(`the newest coins on repositories. tap one for its split and address.`);
     const el = card(m, 'tkn-list', `<span>// coins · newest first</span><span>${list.length}</span>`, list.map(t => `
       <button class="tkl" type="button" data-r="${esc(t.repo)}">
-        <span class="tkn-img sm">${t.image ? `<img src="${esc(t.image)}" alt="" width="32" height="32" loading="lazy">` : `<b>${esc(t.symbol[0])}</b>`}</span>
+        <span class="tkn-img sm">${t.image ? window.ForksShell.logo(t.image, t.symbol, ' width="32" height="32"') : `<b>${esc(t.symbol[0])}</b>`}</span>
         <span class="tkl-id"><b>$${esc(t.symbol)}</b><span>${esc(t.repo)}</span></span>
         <span class="tkl-m mono">${t.market && t.market.mcap ? usd(t.market.mcap) : ''}</span>
       </button>`).join(''));

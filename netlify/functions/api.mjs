@@ -24,10 +24,10 @@ export default async req => {
         missing: missing.concat(process.env.GITHUB_TOKEN ? [] : ['GITHUB_TOKEN']), config, db, migrations,
         github: !!process.env.GITHUB_TOKEN,
         model: !!process.env.FORKS_LLM_KEY,
-        // coins on repositories: an RPC (secret) and forks' treasury wallet in src/config.js
         // coins on repositories: open when the treasury is set in src/config.js and these env are there
         // the terminal: trading needs the RPC; Jupiter works without a key but at 0.5 requests a second
-        trade: { rpc: !!process.env.SOLANA_RPC_URL, jupiter_key: !!process.env.JUP_API_KEY, check: '/api/chain' }, node: process.version,
+        // forks' 0.5%: on the curve it goes to launch.treasury; through Jupiter only with JUP_REFERRAL_ACCOUNT
+        trade: { rpc: !!process.env.SOLANA_RPC_URL, jupiter_key: !!process.env.JUP_API_KEY, fee_bps: C.launch.treasury ? C.trade.feeBps : 0, jupiter_fee: !!(process.env.JUP_REFERRAL_ACCOUNT && C.launch.treasury && C.trade.feeBps > 0), check: '/api/chain' }, node: process.version,
         // the coin's logo and metadata go to IPFS through Pinata (pump.fun no longer takes uploads itself)
         launch: { rpc: !!process.env.SOLANA_RPC_URL, treasury: C.launch.treasury || null, ipfs: process.env.PINATA_JWT ? 'pinata' : process.env.PUMP_IPFS_URL ? 'custom' : null, ready: !!(process.env.SOLANA_RPC_URL && C.launch.treasury && process.env.SUPABASE_URL && process.env.GITHUB_TOKEN && process.env.SESSION_SECRET && (process.env.PINATA_JWT || process.env.PUMP_IPFS_URL)), missing: [!C.launch.treasury && 'src/config.js launch.treasury', !process.env.SOLANA_RPC_URL && 'SOLANA_RPC_URL', !(process.env.PINATA_JWT || process.env.PUMP_IPFS_URL) && 'PINATA_JWT'].filter(Boolean) },
         // connect GitHub (optional trial): a GitHub OAuth App with exactly this callback URL, and 0005_github.sql

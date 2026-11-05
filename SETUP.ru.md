@@ -82,13 +82,16 @@
 | `FORKS_TRACES_PER_MIN` | новых деревьев с одного IP в минуту | нет (8) |
 | `SOLANA_RPC_URL` | mainnet RPC с ключом, например `https://mainnet.helius-rpc.com/?api-key=…` | да, для монет (5.7) |
 | `JITO_URL` | block engine Jito, например `https://ny.mainnet.block-engine.jito.wtf` | нет (`https://mainnet.block-engine.jito.wtf`) |
-| `PUMP_IPFS_URL` | куда грузить лого и метаданные | нет (`https://pump.fun/api/ipfs`) |
+| `PINATA_JWT` | JWT ключа Pinata (Files: Write) — лого и метаданные монет в IPFS (5.7, шаг 0) | да, для монет |
+| `PINATA_GATEWAY` | свой шлюз Pinata (`имя.mypinata.cloud`) — его `/api/ipfs/<cid>` спрашивает первым, когда показывает лого | нет (публичные шлюзы) |
+| `PUMP_IPFS_URL` | другой загрузчик со старой формой pump.fun, только если нет `PINATA_JWT` | нет |
 | `LAUNCH_BUILDS_PER_MIN` | сборок запуска с одного IP в минуту | нет (6) |
 | `JUP_API_KEY` | бесплатный ключ Jupiter (developers.jup.ag/portal) — для сделок через Jupiter | рекомендуется: без ключа 0,5 запроса в секунду на весь сайт |
 | `JUP_URL` | адрес Swap API | нет (`https://api.jup.ag/swap/v2`) |
+| `JUP_REFERRAL_ACCOUNT` | адрес реферального аккаунта forks в Jupiter (5.10) — 0,5% со сделок через Jupiter. Не секрет | нет: без него сделки через Jupiter идут без комиссии forks |
 
 3. **После изменения env заново задеплой** (`npx netlify-cli deploy --prod` или Deploys → Trigger deploy). Без этого функции не видят новые значения.
-4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "4"`, `github: true`, `model: true`; для монет — `launch.ready: true`. Поле `callback_url` скопировать в X Portal символ в символ.
+4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "4"`, `github: true`, `model: true`; для монет — `launch.ready: true`; для комиссии — `trade.fee_bps: 50` и (после 5.10) `trade.jupiter_fee: true`. Поле `callback_url` скопировать в X Portal символ в символ.
 5. DeepSeek работает по предоплате: сколько положил на баланс, больше не потратится. Один новый вопрос — около 700 токенов на вход (большая часть — одинаковый промпт, он идёт по цене кэша) и около 250 на выход; повторный вопрос модель не трогает (кэш на неделю). В логах функции `trace` видно токены каждого вызова.
 6. Пройти вход целиком с телефона, в том числе из браузера внутри X: кнопка **get +10,000 $FORK** → sign in with x → X → назад → анимация X-скана → follow, like, retweet, comment → вопрос в чат → карточка: copy card → quote on x → вставить ссылку на свой квоут → кошелёк. Потом открыть `forks.wiki/r/<твой хендл>` в другом браузере и войти другим аккаунтом.
 
@@ -127,7 +130,7 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | `/launch`: «couldn't build it just now» | Функция `launch` не собралась (деплой без `npm install`) или RPC не отвечает; смотри логи функции `launch` |
 | «IPFS didn’t take the logo just now» / раньше «pump.fun’s IPFS didn’t answer» | pump.fun больше не принимает загрузки на `pump.fun/api/ipfs` (с осени 2026). С 4.1.1 лого и метаданные идут в IPFS через Pinata: нужен `PINATA_JWT` (раздел 5.7). Если ключ есть — Pinata не ответил, повторить |
 | «The logo can’t be stored on IPFS: the site’s Pinata key is missing or wrong» | Нет `PINATA_JWT`, ключ отозван или у него нет права Files: Write; после смены ключа — редеплой |
-| Превью ссылки в X / Telegram старое | Платформы кэшируют превью. С 4.1.1 у каждой версии свой файл картинки (`/og/home-41.png`), новые посты подтянут новую. Telegram: отправить ссылку боту @WebpageBot — он обновит превью; в X новые посты берут новую карточку, старые остаются как были |
+| Превью ссылки в X / Telegram старое | Платформы кэшируют превью. С 4.1.1 у каждой версии свой файл картинки (`/og/home-42.png` в 4.2), новые посты подтянут новую. Telegram: отправить ссылку боту @WebpageBot — он обновит превью; в X новые посты берут новую карточку, старые остаются как были |
 | «the bundle relay is busy» | Jito ответил 429 три раза подряд (без ключа лимит ~1 запрос в секунду). Повторить или поставить `JITO_URL` региона ближе |
 | «it didn’t land: the network was busy» | Бандл не попал в блок за ~1 минуту (мало чаевых, перегрузка). Бандл — всё или ничего, денег не списано; повторить. Можно поднять `launch.tipSol` в `src/config.js` |
 | «your wallet changed the transactions» | Кошелёк дописал свои инструкции в транзакции; такой бандл не несёт закреплённый сплит, сервер его не отправляет. Другой кошелёк |
@@ -137,10 +140,15 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | Терминал: котировка «busy, retrying…» / «The router is busy» | Jupiter отвечает 429: нет `JUP_API_KEY` (лимит 0,5 запроса в секунду на весь сайт) |
 | Терминал: «no route» | Jupiter не нашёл маршрут (у токена нет ликвидности) — для монет на кривой pump.fun маршрут идёт напрямую, это не про них |
 | Терминал: «The network refused it: …» | RPC отклонил транзакцию при симуляции: чаще всего проскальзывание (цена ушла) или мало SOL на комиссию |
-| Терминал: нет графика / «No candles yet» | GeckoTerminal ещё не проиндексировал пул (обычно минуты после первых сделок) или упёрся в свой бесплатный лимит (30 запросов в минуту) |
+| Терминал: нет графика / «No candles yet» | Монета на кривой: ещё не было сделок (с 4.2 график строится из сделок на цепи, нужен `SOLANA_RPC_URL`). Монета после кривой и другие токены: GeckoTerminal ещё не проиндексировал пул или упёрся в свой лимит (30 запросов в минуту) |
+| Терминал: сделки свежей монеты появляются с задержкой | До 4.2 сделки брались только у GeckoTerminal (он индексирует минуты). С 4.2 у монеты на кривой — с цепи, задержка ≈5 с. Если всё равно пусто — RPC не отвечает или упёрся в лимит (Helius free: смотри дашборд) |
+| Котировка: «forks fee: none» на сделке через Jupiter | Нет `JUP_REFERRAL_ACCOUNT` или не было редеплоя (`/api/health` → `trade.jupiter_fee`). Сделки на кривой берут 0,5% и без него |
+| Jupiter-сделка прошла, а комиссия не пришла | У реферального аккаунта нет токен-аккаунта для монеты, в которой Jupiter взял комиссию (`feeMint`): тогда сделка идёт без комиссии. Создать токен-аккаунты SOL и USDC (5.10) |
+| Лого монеты не видно (буква вместо картинки) | Картинка на IPFS ещё не разошлась по шлюзам (минуты после запуска) или ни один шлюз не ответил; `/api/ipfs/<cid>` пробует несколько. Можно задать свой `PINATA_GATEWAY` |
+| У монеты на pump.fun website/telegram старые или пустые | Метаданные монеты на цепи не меняются. С 4.2 новые монеты получают website = `forks.wiki/coin/<CA>` и telegram = репозиторий на GitHub; монеты, запущенные раньше, остаются как были |
 | `/coin/<адрес>`: «Couldn’t read this coin», маркет пустой, `/api/tokens` и `/api/market` отдают 502 | Функции `market` и `launch` не стартуют: Solana SDK не загрузился (до 4.0.1 — `uuid` 14 в зависимостях требует Node ≥ 20.19, а функции на Netlify шли на Node 18). Открыть `/api/chain`: `sdk.ok` должен быть `true`, там же версия Node и текст ошибки. Лечится деплоем 4.0.1 **после `npm install`** |
 | `/coin/<адрес>`: «No market for this address» | У токена нет пары на DexScreener с ликвидностью от $1 000 (или это не токен). Терминал открывает монеты forks, токены проектов и любые токены Solana с живым рынком |
-| Маркет → Trending пустой, «GeckoTerminal didn’t answer» | GeckoTerminal не ответил или упёрся в лимит (≈30 запросов в минуту на весь сайт); список кэшируется на 2 минуты, повторить позже |
+| Маркет: полоса Trending пустая, «Nothing trending right now» / чип top пустой | Jupiter Tokens API не ответил (без `JUP_API_KEY` лимит общий на весь сайт) и запасной GeckoTerminal тоже; списки кэшируются на 2–5 минут, повторить позже |
 | Тост «GitHub sign-in is not set up on this site yet.» | Нет `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`, не запущена `0005_github.sql` или не было редеплоя (смотри `github_connect` в `/api/health`) |
 | GitHub: «The redirect_uri is not associated with this application» | В GitHub OAuth App поле Authorization callback URL не совпадает с `github_connect.callback_url` из `/api/health` символ в символ |
 | Тост «That GitHub account is already connected to another X account.» | Этот GitHub уже привязан к другому X-аккаунту: один GitHub — один X, навсегда |
@@ -242,9 +250,9 @@ insert into launch_blocklist (pattern, reason) values ('owner/name', 'asked') on
 
 ## 5.8. Маркет и терминал (4.0)
 
-- **Маркет** `/market`: монеты, запущенные через forks, токены проектов (`config.projects` в `src/config.js`, по владельцу на GitHub: `pump-fun` → PUMP и т.д.; с 4.1 их 27) и вкладка **Trending** — трендовые токены Solana с GeckoTerminal (ликвидность от $10 000, без SOL/USDC/USDT). Добавить проект — новая строка `{ owner, symbol, name, mint }`, owner строчными; mint сверить на DexScreener или Solscan.
+- **Маркет** `/market` (с 4.2): сверху полоса **Trending on Solana** — монета на `forkwiki/fork` закреплена первой (`config.market.pinRepo`), дальше трендовые токены Solana за час из Jupiter Tokens API (`toptrending/1h`). Ниже один общий список: монеты, запущенные через forks, токены проектов (`config.projects` в `src/config.js`, по владельцу на GitHub: `pump-fun` → PUMP и т.д.; с 4.2 их 29, с BTC и ETH на Solana) и топ токенов Solana по organic score за сутки из Jupiter (`toporganicscore/24h`, до 100: только verified или с высоким organic score, без помеченных как подозрительные, без стейблкоинов, у каждого есть лого). Чипы all · coins · projects · top, сортировки, «show more». Если Jupiter не ответил — запасной вариант, трендовые пулы GeckoTerminal. Добавить проект — новая строка `{ owner, symbol, name, mint }`, owner строчными; mint сверить на DexScreener или Solscan.
 - **Любой токен**: адрес любого токена Solana с живым рынком (пара на DexScreener с ликвидностью от $1 000) открывает терминал с пометкой «Solana token · not on forks»; торговля через Jupiter.
-- **Терминал** `/coin/<адрес>`: график (GeckoTerminal), сделки, держатели (наш RPC), сплит, покупка и продажа. Монета на кривой pump.fun торгуется прямо на кривой: сервер собирает транзакцию через SDK pump.fun, кошелёк подписывает, сервер сверяет байты и отправляет через `SOLANA_RPC_URL`. Всё остальное — через Jupiter (`/order` → `/execute`, Jupiter сам доводит транзакцию до блока). Комиссии forks со сделок нет (`trade.feeBps: 0`).
+- **Терминал** `/coin/<адрес>`: график (GeckoTerminal), сделки, держатели (наш RPC), сплит, покупка и продажа. Монета на кривой pump.fun торгуется прямо на кривой: сервер собирает транзакцию через SDK pump.fun, кошелёк подписывает, сервер сверяет байты и отправляет через `SOLANA_RPC_URL`. Всё остальное — через Jupiter (`/order` → `/execute`, Jupiter сам доводит транзакцию до блока). Комиссия forks — 0,5% (раздел 5.10). Сделки и график монеты на кривой с 4.2 читаются прямо с цепи (транзакции её bonding curve через наш RPC), пока GeckoTerminal не проиндексировал пул: сделки обновляются каждые 5 с, график — каждые 10 с.
 - **Что нужно**: тот же `SOLANA_RPC_URL`, и желательно `JUP_API_KEY` (бесплатно на developers.jup.ag/portal → Scope: Functions, «Contains secret values»). Проверка: `/api/health` → `trade.rpc: true`, `trade.jupiter_key: true`; `/api/chain` → `sdk.ok: true` (функции маркета и запуска загрузили Solana SDK; там же версия Node на Netlify).
 - **Покупка при запуске** на странице `/launch` и в чате: до 20 SOL (`launch.maxDevBuySol`), четвёртой транзакцией в том же бандле, после закрепления сплита.
 
@@ -269,6 +277,32 @@ insert into launch_blocklist (pattern, reason) values ('owner/name', 'asked') on
 Пока GitHub-приложения или `0005` нет, сайт работает как раньше: без плитки GitHub, `/github` отвечает «isn't open yet».
 
 ⚠️ Не проверено вживую: настоящий GitHub OAuth (на стенде — поддельный github.com с теми же запросами: обмен кода, `/user`, отзыв токена).
+
+## 5.10. Комиссия forks 0,5% и доля 10% (4.2)
+
+forks зарабатывает двумя способами, и оба работают **без кошелька forks на сервере**:
+
+1. **0,5% со сделок через forks** (`trade.feeBps: 50` в `src/config.js`; 0 — выключить):
+   - **монета на кривой pump.fun** — в ту же транзакцию, которую подписывает кошелёк, сервер добавляет обычный перевод SOL на `launch.treasury`: при покупке 0,5% от SOL на входе, при продаже — 0,5% от SOL на выходе. Работает сразу, ничего настраивать не нужно;
+   - **покупка при запуске** (dev buy) — так же: 0,5% от суммы, перевод в той же транзакции бандла;
+   - **через Jupiter** (монеты после кривой, токены проектов, любые токены) — реферальная комиссия Jupiter: `/order` с `referralAccount` и `referralFee=50`. Jupiter оставляет себе 20% от неё, forks получает 0,4% от сделки. Нужен реферальный аккаунт (ниже); без него сделки идут без комиссии forks.
+   - Комиссия видна в котировке до подписи: строка **forks fee** (`0.5% · 0.005 SOL`). Сумму считает сервер, клиент её не присылает; сервер сверяет подписанную транзакцию байт-в-байт со своей.
+2. **10% creator fees каждой монеты** — это доля в сплите pump.fun (раздел 5.7). Монету создаёт кошелёк запускающего, а не наш: сплит записан в fee-sharing config pump.fun на цепи, и pump.fun сам раздаёт creator fees по долям. Доля forks уходит на `launch.treasury`, людям — на их GitHub-аккаунты. Собирать и рассылать ничего не нужно.
+
+### Реферальный аккаунт Jupiter (`JUP_REFERRAL_ACCOUNT`)
+
+1. Кошелёк treasury (тот же, что `launch.treasury`) в Phantom, на нём ≈0,01 SOL на аренду аккаунтов.
+2. **referral.jup.ag** → Connect wallet (кошелёк treasury) → создать реферальный аккаунт в проекте **Jupiter Ultra** (проект `DkiqsTrw1u1bYFumumC7sCG2S8K25qc2vemJFHyW2wJc`; Swap API v2 работает только с аккаунтами этого проекта).
+3. В том же аккаунте создать **токен-аккаунты для SOL (`So11111111111111111111111111111111111111112`) и USDC** — Jupiter берёт комиссию в SOL, стейблкоинах, LST или bluechip-токенах; если токен-аккаунта для нужной монеты нет, сделка проходит без комиссии.
+4. Скопировать **адрес реферального аккаунта** (не адрес кошелька) → Netlify: `npx netlify-cli env:set JUP_REFERRAL_ACCOUNT '<адрес>'` → редеплой. Это публичный адрес, не секрет.
+5. Проверка: `/api/health` → `trade.fee_bps: 50`, `trade.jupiter_fee: true`; в терминале токена проекта котировка показывает `forks fee 0.5% · in Jupiter's …% total`.
+6. Накопленное забирать на referral.jup.ag → Claim (кошельком treasury).
+
+### Как забрать 10% creator fees
+
+Creator fees копятся в хранилище монеты на pump.fun; распределение (`distribute_creator_fees`) раздаёт их всем по долям сплита сразу — 10% приходят прямо на кошелёк treasury. Запустить его может любой кошелёк (инструкция не требует подписи получателей). На pump.fun это кнопка распределения / claim на странице монеты или в профиле — точное место в интерфейсе pump.fun меняется, проверить на первой монете. Если долго никто не распределяет — зайти на pump.fun кошельком treasury и запустить самому.
+
+⚠️ Не проверено вживую: реферальная комиссия Jupiter (на стенде — поддельный Jupiter, который возвращает `referralAccount`), интерфейс referral.jup.ag, кнопки распределения на pump.fun (на цепи это `distribute_creator_fees` из SDK pump.fun 4.3.1). Перевод 0,5% на кривой — обычный `SystemProgram.transfer`, проверен на стенде с настоящими подписями. Первая сделка — на маленькую сумму, потом посмотреть treasury в Solscan.
 
 ## 6. Админ-сниппеты (SQL Editor)
 

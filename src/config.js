@@ -43,6 +43,9 @@
       { owner: 'jup-ag', symbol: 'JUP', name: 'Jupiter', mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN' },
       { owner: 'orca-so', symbol: 'ORCA', name: 'Orca', mint: 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE' },
       { owner: 'raydium-io', symbol: 'RAY', name: 'Raydium', mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R' },
+      // Bitcoin and Ethereum have no token of their own on Solana: what trades here is a wrapped one, and it says so
+      { owner: 'bitcoin', symbol: 'BTC', name: 'Bitcoin · cbBTC', mint: 'cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij', wrapped: 'cbBTC, Coinbase’s wrapped bitcoin on Solana, backed 1:1 by bitcoin Coinbase holds. It is not bitcoin itself and not issued by the Bitcoin project.' },
+      { owner: 'ethereum', symbol: 'ETH', name: 'Ether · Wormhole', mint: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs', wrapped: 'Ether bridged to Solana by Wormhole (WETH), backed by ether locked on Ethereum. It is not issued by the Ethereum project.' },
       // owners lowercase (GitHub names are case-insensitive); each one checked against a live repository, each
       // mint against DexScreener, with at least ~$15K of liquidity (Nov 2026)
       { owner: 'pyth-network', symbol: 'PYTH', name: 'Pyth Network', mint: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3' },
@@ -68,13 +71,17 @@
       { owner: 'hivemapper', symbol: 'HONEY', name: 'Hivemapper', mint: '4vMsoUT2BWatFweudnQM1xedRLfJgJ7hswhcpz4xgBTy' }
     ],
     // The terminal. Trades on a pump.fun curve go straight to the curve (built by the server, signed by the
-    // wallet); everything else goes through Jupiter. No forks fee on trades (feeBps 0; a Jupiter referral
-    // account would be needed to take one).
+    // wallet); everything else goes through Jupiter.
     trade: {
       slippageBps: 500,           // default slippage, 5%
       quickBuy: [0.1, 0.5, 1],    // SOL buttons on the buy tab
-      feeBps: 0
-    }
+      // forks' fee on every trade made here, and on the buy at launch: 0.5%. On a pump.fun curve it is a plain
+      // SOL transfer to launch.treasury inside the same transaction; through Jupiter it is Jupiter's referral
+      // fee (env JUP_REFERRAL_ACCOUNT; Jupiter keeps 20% of it; 50–255 bps). Shown before every signature.
+      feeBps: 50
+    },
+    // the market: the coin launched on this repository is pinned first, wherever it would sort
+    market: { pinRepo: 'forkwiki/fork' }
   };
   // the project token of a repository, by its GitHub owner
   CONFIG.projectOf = repo => {
