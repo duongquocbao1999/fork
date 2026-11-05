@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.0.1 — 2026-11-06
+
+- **Fix: the market, the terminal and launches were down on Netlify** (`/api/market`, `/api/coin`, `/api/tokens`… answered 502; the terminal said *Couldn’t read this coin*). `@solana/web3.js` pulls `rpc-websockets`, which now requires `uuid` 14 — an ES-module-only package that CommonJS can load only on Node ≥ 20.19/22.12; the functions ran on an older Node and crashed on start. `package.json` pins that `uuid` to 11 (`overrides`), so the SDKs load on Node 18, 20 and 22.
+- The SDKs now load defensively (`netlify/lib/chain.mjs`): if one can't load, the functions still start — prices, charts, trades lists and coin pages keep working, and anything that needs the chain answers `not_configured` with `why: "sdk"` instead of a crash.
+- `GET /api/chain`: did the market function load the Solana SDKs, which Node it runs on, the error if not. `/api/health` shows `node` and points to it; `launch.missing` lists the SDK when it's missing.
+- The home sidebar fills its token prices from the market as soon as it answers, not after the graph has finished typing.
+
 ## 4.0.0 — 2026-11-06
 
 - **A new look**, borrowed from code hosts without their names or marks: a flat canvas, boxes with a muted header, hairline borders, 6px corners, system type with mono for code and numbers, a green primary button, an underlined tab bar; dark and light. One stylesheet for every page (`css/forks.css`); the header, tabs, search, wallet menu and footer come from `src/shell.js`. The animated canvas is gone.

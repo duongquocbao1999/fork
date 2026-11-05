@@ -27,7 +27,7 @@ export default async req => {
         // coins on repositories: an RPC (secret) and forks' treasury wallet in src/config.js
         // coins on repositories: open when the treasury is set in src/config.js and these env are there
         // the terminal: trading needs the RPC; Jupiter works without a key but at 0.5 requests a second
-        trade: { rpc: !!process.env.SOLANA_RPC_URL, jupiter_key: !!process.env.JUP_API_KEY },
+        trade: { rpc: !!process.env.SOLANA_RPC_URL, jupiter_key: !!process.env.JUP_API_KEY, check: '/api/chain' }, node: process.version,
         launch: { rpc: !!process.env.SOLANA_RPC_URL, treasury: C.launch.treasury || null, ready: !!(process.env.SOLANA_RPC_URL && C.launch.treasury && process.env.SUPABASE_URL && process.env.GITHUB_TOKEN && process.env.SESSION_SECRET), missing: [!C.launch.treasury && 'src/config.js launch.treasury', !process.env.SOLANA_RPC_URL && 'SOLANA_RPC_URL'].filter(Boolean) },
         callback_url: `${siteOrigin(req)}${CALLBACK_PATH}`
       });

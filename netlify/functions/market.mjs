@@ -15,9 +15,10 @@
 //   POST /api/trade/build  { mint, side, amount, slippageBps, owner }   the same quote + the transaction to sign
 //   POST /api/trade/send   { route, ticket | requestId, tx }             send the signed transaction
 //   GET  /api/tx?sig=                        pending | confirmed | failed
+//   GET  /api/chain                          did this function load the Solana SDKs? (node version, error)
 import C from '../../src/config.js';
 import { json, rpc as db, sameOrigin, seal, unseal } from '../lib/server.mjs';
-import { BASE58, balances, checkSigned, coinState, curveAddress, curveTrade, curvesOf, holders, sendRaw, sigStatus } from '../lib/chain.mjs';
+import { BASE58, balances, checkSigned, coinState, curveAddress, curveTrade, curvesOf, holders, sdkStatus, sendRaw, sigStatus } from '../lib/chain.mjs';
 import { USDC, WSOL, TIMEFRAMES, candles, jupExecute, jupOrder, markets, poolOf, poolTrades, solUsd } from '../lib/markets.mjs';
 
 const hits = new Map();
@@ -30,7 +31,7 @@ function limited(key, n) {
 const ipOf = (req, ctx) => (ctx && ctx.ip) || req.headers.get('x-nf-client-connection-ip') || 'anon';
 const err = (code, status = 400, extra = {}) => json({ ok: false, error: code, ...extra }, status);
 const cdn = s => ({ 'cache-control': `public, max-age=${Math.min(s, 15)}`, 'netlify-cdn-cache-control': `public, s-maxage=${s}, stale-while-revalidate=${s * 3}`, 'netlify-vary': 'query' });
-const hasRpc = () => !!process.env.SOLANA_RPC_URL;
+const hasRpc = () => !!process.env.SOLANA_RPC_URL && sdkStatus().ok;
 const hasDb = () => !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 const NO_FN = e => /PGRST202|Could not find the function/.test(String(e && e.message));
 const RAW = /^\d{1,30}$/;
@@ -57,6 +58,8 @@ export default async (req, context) => {
   const url = new URL(req.url), path = url.pathname.replace(/\/$/, ''), q = k => (url.searchParams.get(k) || '').trim();
   const ip = ipOf(req, context);
   try {
+    if (path === '/api/chain') return json({ ok: true, rpc: !!process.env.SOLANA_RPC_URL, jupiter_key: !!process.env.JUP_API_KEY, sdk: sdkStatus() });
+
     /* ---------- lists ---------- */
     if (path === '/api/market') {
       const coins = await forksCoins(50);
@@ -212,9 +215,10 @@ export default async (req, context) => {
     return err('not_found', 404);
   } catch (e) {
     if (e.code === 'too_small') return err('too_small', 400);
+    if (e.code === 'sdk') { console.error('market', path, e.message); return err('not_configured', 503, { why: 'sdk' }); }
     console.error('market', path, e.code || '', e.message);
     return err(e.code === 'rpc' ? 'rpc' : e.code === 'upstream_busy' ? 'busy' : 'server', e.code === 'rpc' || e.code === 'upstream' ? 502 : e.code === 'upstream_busy' ? 429 : 500);
   }
 };
 
-export const config = { path: ['/api/market', '/api/prices', '/api/coin', '/api/chart', '/api/trades', '/api/holders', '/api/balance', '/api/tx', '/api/trade/quote', '/api/trade/build', '/api/trade/send'] };
+export const config = { path: ['/api/chain', '/api/market', '/api/prices', '/api/coin', '/api/chart', '/api/trades', '/api/holders', '/api/balance', '/api/tx', '/api/trade/quote', '/api/trade/build', '/api/trade/send'] };

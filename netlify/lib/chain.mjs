@@ -15,11 +15,27 @@
 import { createHash, createPublicKey, verify as edVerify } from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const web3 = require('@solana/web3.js');
-const spl = require('@solana/spl-token');
-const pump = require('@pump-fun/pump-sdk');
-const { Keypair, PublicKey, SystemProgram, ComputeBudgetProgram, TransactionMessage, VersionedTransaction } = web3;
-const BN = require('bn.js');
+// The SDKs load defensively: if the host's Node can't load one (an old runtime, a dependency missing from the
+// upload), the function still starts — prices, charts and coin lists keep working, and anything that needs
+// the chain answers { error: 'sdk' } instead of taking the whole function down. GET /api/chain says why.
+let LOAD_ERROR = null;
+const sdkError = () => Object.assign(new Error('solana sdk unavailable: ' + (LOAD_ERROR ? LOAD_ERROR.message : '')), { code: 'sdk' });
+const absent = () => new Proxy({}, { get(_, k) { if (typeof k === 'symbol' || k === 'then') return undefined; throw sdkError(); } });
+// (each require keeps its literal name: Netlify's bundler finds the modules to upload by reading these calls)
+function load(id, get) {
+  try { return get(); }
+  catch (e) { LOAD_ERROR = LOAD_ERROR || Object.assign(e, { module: id }); console.error('chain: cannot load', id, '-', e.code || '', e.message); return null; }
+}
+const web3 = load('@solana/web3.js', () => require('@solana/web3.js')) || absent();
+const spl = load('@solana/spl-token', () => require('@solana/spl-token')) || absent();
+const pump = load('@pump-fun/pump-sdk', () => require('@pump-fun/pump-sdk')) || absent();
+const BN = load('bn.js', () => require('bn.js')) || absent();
+const W = k => (LOAD_ERROR ? undefined : web3[k]);
+const Keypair = W('Keypair'), PublicKey = W('PublicKey'), SystemProgram = W('SystemProgram'), ComputeBudgetProgram = W('ComputeBudgetProgram'), TransactionMessage = W('TransactionMessage'), VersionedTransaction = W('VersionedTransaction');
+/** Did the Solana SDKs load? { ok, node, error, module } — for /api/chain and the health check. */
+export const sdkStatus = () => ({ ok: !LOAD_ERROR, node: process.version, error: LOAD_ERROR ? String(LOAD_ERROR.code || '') + ' ' + String(LOAD_ERROR.message || '').split('\n')[0].slice(0, 300) : null, module: LOAD_ERROR ? LOAD_ERROR.module : null });
+/** Throws { code: 'sdk' } when the SDKs didn't load. */
+export const needSdk = () => { if (LOAD_ERROR) throw sdkError(); };
 
 const JITO = () => (process.env.JITO_URL || 'https://mainnet.block-engine.jito.wtf').replace(/\/$/, '');
 const TIP_ACCOUNTS = [ // Jito's published mainnet tip accounts; refreshed from getTipAccounts when it answers
@@ -204,7 +220,7 @@ export async function pumpState() {
 }
 
 /* ---------- a mint and its curve, as the terminal needs them ---------- */
-const WSOL = spl.NATIVE_MINT.toBase58();
+const WSOL = 'So11111111111111111111111111111111111111112'; // spl.NATIVE_MINT
 /** { decimals, supply (raw string), program ('spl'|'token-2022'), curve: null | { complete, solCurve, progress, ... } } */
 export async function coinState(mintStr) {
   const mint = new PublicKey(mintStr);

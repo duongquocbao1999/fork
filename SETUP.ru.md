@@ -135,6 +135,7 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | Терминал: «no route» | Jupiter не нашёл маршрут (у токена нет ликвидности) — для монет на кривой pump.fun маршрут идёт напрямую, это не про них |
 | Терминал: «The network refused it: …» | RPC отклонил транзакцию при симуляции: чаще всего проскальзывание (цена ушла) или мало SOL на комиссию |
 | Терминал: нет графика / «No candles yet» | GeckoTerminal ещё не проиндексировал пул (обычно минуты после первых сделок) или упёрся в свой бесплатный лимит (30 запросов в минуту) |
+| `/coin/<адрес>`: «Couldn’t read this coin», маркет пустой, `/api/tokens` и `/api/market` отдают 502 | Функции `market` и `launch` не стартуют: Solana SDK не загрузился (до 4.0.1 — `uuid` 14 в зависимостях требует Node ≥ 20.19, а функции на Netlify шли на Node 18). Открыть `/api/chain`: `sdk.ok` должен быть `true`, там же версия Node и текст ошибки. Лечится деплоем 4.0.1 **после `npm install`** |
 | `/coin/<адрес>`: «Not a coin on forks» | Терминал открывает только монеты, запущенные через forks, и токены проектов из `config.projects` |
 
 
@@ -227,7 +228,7 @@ insert into launch_blocklist (pattern, reason) values ('owner/name', 'asked') on
 
 - **Маркет** `/market`: монеты, запущенные через forks, и токены проектов (`config.projects` в `src/config.js`, по владельцу на GitHub: `pump-fun` → PUMP и т.д.). Добавить проект — новая строка `{ owner, symbol, name, mint }`; mint сверить на DexScreener или Solscan.
 - **Терминал** `/coin/<адрес>`: график (GeckoTerminal), сделки, держатели (наш RPC), сплит, покупка и продажа. Монета на кривой pump.fun торгуется прямо на кривой: сервер собирает транзакцию через SDK pump.fun, кошелёк подписывает, сервер сверяет байты и отправляет через `SOLANA_RPC_URL`. Всё остальное — через Jupiter (`/order` → `/execute`, Jupiter сам доводит транзакцию до блока). Комиссии forks со сделок нет (`trade.feeBps: 0`).
-- **Что нужно**: тот же `SOLANA_RPC_URL`, и желательно `JUP_API_KEY` (бесплатно на developers.jup.ag/portal → Scope: Functions, «Contains secret values»). Проверка: `/api/health` → `trade.rpc: true`, `trade.jupiter_key: true`.
+- **Что нужно**: тот же `SOLANA_RPC_URL`, и желательно `JUP_API_KEY` (бесплатно на developers.jup.ag/portal → Scope: Functions, «Contains secret values»). Проверка: `/api/health` → `trade.rpc: true`, `trade.jupiter_key: true`; `/api/chain` → `sdk.ok: true` (функции маркета и запуска загрузили Solana SDK; там же версия Node на Netlify).
 - **Покупка при запуске** на странице `/launch` и в чате: до 20 SOL (`launch.maxDevBuySol`), четвёртой транзакцией в том же бандле, после закрепления сплита.
 
 ⚠️ Не проверено вживую: торговля на кривой через SDK pump.fun 4.3.1 (инструкции `buy`/`sell` — те же, что SDK использует в своих примерах), Jupiter `/order` + `/execute` с настоящим ключом, покупка при запуске, лимиты GeckoTerminal и DexScreener под нагрузкой. На стенде всё прошло с поддельными сервисами и настоящими подписями. Первые сделки — на маленькие суммы.

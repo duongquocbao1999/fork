@@ -94,7 +94,7 @@ Set the environment variables in Netlify first, then deploy:
 | `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | coins on repositories and the terminal |
 | `JUP_API_KEY` | optional: Jupiter without the keyless 0.5 requests/s limit |
 
-`GET /api/health` lists whatever is still missing. Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
+`GET /api/health` lists whatever is still missing; `GET /api/chain` says whether the market and launch functions loaded the Solana SDKs (and on which Node). Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
 
 ## $FORK
 

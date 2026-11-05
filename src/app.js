@@ -498,6 +498,8 @@
     st.innerHTML = rows.map(t => { const mk = prices[t.mint]; return `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${esc(t.symbol[0])}</span><span class="trow-n"><span class="trow-s" style="color:var(--link)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${mk && mk.price != null ? usd(mk.price) : '—'}${mk && mk.change24 != null ? `<span class="${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}</span></a>`; }).join('');
   }
   SH.market().then(j => {
+    // the project tokens' prices come with the market: fill the sidebar now, not after the graph has finished typing
+    if (j && j.projects) { j.projects.forEach(p => { if (p.market && !(p.mint in prices)) prices[p.mint] = p.market; }); if (window.ForksShowcase) sidebar(); }
     const sc = $('#sideCoins'); if (!sc) return;
     const list = j && j.coins ? j.coins.slice(0, 5) : [];
     sc.innerHTML = list.length
