@@ -134,6 +134,7 @@
   const trees = []; // every tree on the page, so a coin that lands can show up on it
   // the tokens on a tree: a project's own token (blue, by GitHub owner) and a coin launched here (amber)
   let prices = {};
+  const logos = {}; // project token logos, from the market
   const usd = n => (n == null ? '' : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}b` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}m` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}k` : n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(4)}` : n > 0 ? `$${SH.tiny(n)}` : '$0');
   const pct = c => (c == null ? '' : `${c >= 0 ? '+' : ''}${Number(c).toFixed(1)}%`);
   function tokensOf(repo, map) {
@@ -402,7 +403,7 @@
     if (d && d.home && /^https?:\/\//.test(d.home)) links.push(['homepage', d.home]);
     if (!d) links.push(['search on github', `https://github.com/search?q=${enc(x.repo.split('/')[1] || x.repo)}&type=repositories`]);
     const coin = LAUNCH.known(x.repo), proj = C.projectOf(x.repo), canCoin = !!LAUNCH.repoOf(x.repo) && (x.data || coin);
-    const tokBlock = t => { const mk = prices[t.mint]; return `<div class="pt-coin${t.kind === 'project' ? ' project' : ''}"><span class="pt-k">${t.kind === 'project' ? 'project token' : 'coin on forks'}</span><b>$${esc(t.symbol)}</b>${mk && mk.price != null ? `<span class="mono">${usd(mk.price)}</span>${mk.change24 != null ? `<span class="mono ${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}` : ''}<a href="/coin/${esc(t.mint)}">trade →</a></div>`; };
+    const tokBlock = t => { const mk = prices[t.mint]; return `<div class="pt-coin${t.kind === 'project' ? ' project' : ''}"><span class="pt-i">${SH.logo(logos[t.mint] || t.image || (mk && mk.image), t.symbol)}</span><span class="pt-k">${t.kind === 'project' ? 'project token' : 'coin on forks'}</span><b>$${esc(t.symbol)}</b>${mk && mk.price != null ? `<span class="mono">${usd(mk.price)}</span>${mk.change24 != null ? `<span class="mono ${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}` : ''}<a href="/coin/${esc(t.mint)}">trade →</a></div>`; };
     openPoint({
       name: x.repo, coin: (proj ? tokBlock({ kind: 'project', ...proj }) : '') + (coin ? tokBlock({ kind: 'forks', ...coin }) : ''),
       meta: d ? [`★ ${fmt(d.stars)}`, d.lang, `since ${B.year(d.created)}`, d.archived ? 'archived' : '', d.fork && d.fork !== '?' ? `github fork of ${d.fork}` : ''].filter(Boolean).join(' · ') : '',
@@ -542,15 +543,15 @@
     const st = $('#sideTokens'); if (!st) return;
     const S = window.ForksShowcase, seen = new Set(), rows = [];
     S.nodes.forEach(x => { const p = C.projectOf(x.repo); if (p && !seen.has(p.mint)) { seen.add(p.mint); rows.push({ ...p, repo: x.repo }); } });
-    st.innerHTML = rows.map(t => { const mk = prices[t.mint]; return `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${esc(t.symbol[0])}</span><span class="trow-n"><span class="trow-s" style="color:var(--link)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${mk && mk.price != null ? usd(mk.price) : '—'}${mk && mk.change24 != null ? `<span class="${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}</span></a>`; }).join('');
+    st.innerHTML = rows.map(t => { const mk = prices[t.mint]; return `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${SH.logo(logos[t.mint] || (mk && mk.image), t.symbol)}</span><span class="trow-n"><span class="trow-s" style="color:var(--link)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${mk && mk.price != null ? usd(mk.price) : '—'}${mk && mk.change24 != null ? `<span class="${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}</span></a>`; }).join('');
   }
   SH.market().then(j => {
     // the project tokens' prices come with the market: fill the sidebar now, not after the graph has finished typing
-    if (j && j.projects) { j.projects.forEach(p => { if (p.market && !(p.mint in prices)) prices[p.mint] = p.market; }); if (window.ForksShowcase) sidebar(); }
+    if (j && j.projects) { j.projects.forEach(p => { if (p.image) logos[p.mint] = p.image; if (p.market && !(p.mint in prices)) prices[p.mint] = p.market; }); if (window.ForksShowcase) sidebar(); }
     const sc = $('#sideCoins'); if (!sc) return;
     const list = j && j.coins ? j.coins.slice(0, 5) : [];
     sc.innerHTML = list.length
-      ? list.map(t => `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${t.image ? `<img src="${esc(t.image)}" alt="" loading="lazy">` : esc(t.symbol[0])}</span><span class="trow-n"><span class="trow-s" style="color:var(--warn)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${t.market && t.market.mcap ? usd(t.market.mcap) : ''}${t.curve && t.curve.progress != null ? `<span class="muted">${Math.round(t.curve.progress)}% curve</span>` : ''}</span></a>`).join('') + '<p style="margin:8px 0 0;font-size:13px"><a href="/market">All coins in the market →</a></p>'
+      ? list.map(t => `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${SH.logo(t.image, t.symbol)}</span><span class="trow-n"><span class="trow-s" style="color:var(--warn)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${t.market && t.market.mcap ? usd(t.market.mcap) : ''}${t.curve && t.curve.progress != null ? `<span class="muted">${Math.round(t.curve.progress)}% curve</span>` : ''}</span></a>`).join('') + '<p style="margin:8px 0 0;font-size:13px"><a href="/market">All coins in the market →</a></p>'
       : '<p class="muted" style="font-size:13px;margin:0">No coins yet. <a href="/launch">Launch the first one →</a></p>';
   });
 

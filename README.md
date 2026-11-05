@@ -12,11 +12,20 @@ Type anything and watch the GitHub repositories it forked from grow into a graph
 [![License: MIT](https://img.shields.io/badge/license-MIT-21262d?style=flat-square&labelColor=0d1117)](LICENSE)
 [![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-21262d?style=flat-square&labelColor=0d1117)](src)
 [![pump.fun](https://img.shields.io/badge/coins-pump.fun-d29922?style=flat-square&labelColor=0d1117)](#coins-on-repositories)
+[![$FORK](https://img.shields.io/badge/%24FORK-up%20to%2033%2C000-d29922?style=flat-square&labelColor=0d1117)](#fork)
+[![Tokens](https://img.shields.io/badge/project%20tokens-27-4493f8?style=flat-square&labelColor=0d1117)](#the-terminal)
 [![X](https://img.shields.io/badge/x-%40forkwikis-21262d?style=flat-square&labelColor=0d1117&logo=x)](https://x.com/forkwikis)
 
 </div>
 
-<img src="docs/media/shot-home.png" alt="forks.wiki: the home page opens on the Solana family graph — solana-labs/solana ($SOL) to anza-xyz/agave and jito-foundation/jito-solana ($JTO), firedancer, otter-sec/anchor to pump-fun/pump-public-docs ($PUMP), orca-so/whirlpools ($ORCA), jup-ag/whirlpools ($JUP) and raydium-io/raydium-cp-swap ($RAY) — with the tokens and their prices in the sidebar" width="100%">
+<img src="docs/media/shot-home.png" alt="forks.wiki: the $FORK box (up to 33,000 $FORK: X scan, six trials, invites, GitHub) above the Solana family graph — solana-labs/solana ($SOL) to anza-xyz/agave and jito-foundation/jito-solana ($JTO), firedancer, otter-sec/anchor to pump-fun/pump-public-docs ($PUMP) — with the tokens on the graph and their logos and prices in the sidebar" width="100%">
+
+| | |
+|---|---|
+| **Trace** | type anything — a word, a project, `owner/name` — and get the line of real GitHub repositories it came from |
+| **Trade** | 27 project tokens, coins launched here and Solana's trending tokens, each with a terminal; you sign every trade in your own wallet |
+| **Launch** | one pump.fun coin per repository; its creator fees go, for good, to the people who wrote the code |
+| **Earn** | **$FORK**, pending: your X account read once, six trials, +2,000 a friend, +3,000 for connecting GitHub |
 
 Four pages, one look:
 
@@ -31,10 +40,16 @@ Every coin has a terminal at `forks.wiki/coin/<address>`: candles, trades, holde
 
 <table>
 <tr>
-<td width="68%"><img src="docs/media/shot-coin.png" alt="the terminal for $PUMP: price, stats, candles from 1m to 1d, trades, and the buy/sell panel"></td>
-<td width="32%"><img src="docs/media/shot-phone.png" alt="the home page on a phone: the graph grows top to bottom with $SOL and $JTO on their repositories"></td>
+<td width="68%"><img src="docs/media/shot-coin.png" alt="the terminal for $PUMP: logo, price, stats, candles from 1m to 1d, trades, and the buy/sell panel"></td>
+<td width="32%"><img src="docs/media/shot-phone.png" alt="the home page on a phone: the $FORK box with Sign in with X and four tiles, then the graph"></td>
+</tr>
+<tr>
+<td width="68%"><img src="docs/media/shot-market.png" alt="the market's project tokens: SOL, ORCA, RAY, JTO, PYTH, W, MET, KMNO with their logos, price, market cap, 24h change and volume"></td>
+<td width="32%"><img src="docs/media/shot-launch.png" alt="the launch page: a repository's card and who gets its creator fees"></td>
 </tr>
 </table>
+
+<sub>Screenshots from the test stand: prices, logos and coins there are stand data.</sub>
 
 ## How a question becomes a tree
 
@@ -92,6 +107,7 @@ Set the environment variables in Netlify first, then deploy:
 | `GITHUB_TOKEN` | fine-grained token, public repositories read-only |
 | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_URL` | only for `/freeforks` |
 | `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | coins on repositories and the terminal |
+| `PINATA_JWT` | coins on repositories: the logo and metadata go to public IPFS through [Pinata](https://pinata.cloud) (pump.fun no longer takes uploads itself) |
 | `JUP_API_KEY` | optional: Jupiter without the keyless 0.5 requests/s limit |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | optional: *connect GitHub* (a GitHub OAuth App, callback `/auth/github/callback`) + `0005_github.sql` |
 
@@ -135,7 +151,7 @@ The coin's **creator fees are split once, for good**, between the people behind 
 
 People claim on pump.fun by signing in with GitHub; nobody has to sign up first. The launcher can **buy at launch** (up to 20 SOL), first, in the same bundle. Bots and organizations get nothing (pump.fun can't pay an organization). The server decides the split from GitHub and the line; the page never sends it.
 
-The launch is one Jito bundle of up to three transactions — GitHub fee accounts, `create_v2` + the fee-sharing config, then `update_fee_shares_v2`, which revokes the admin — so a coin never exists without its locked split. The server holds no wallet: the launcher's wallet signs and pays, the fresh mint key co-signs after it, and every byte is checked against what the server built. A coin is listed only after the server reads that split back from the chain. Not made or endorsed by the repositories' authors; not financial advice. Owners can ask to be left out (`launch_blocklist`).
+The logo and the metadata JSON go to public IPFS first, through Pinata, the way pump.fun's own docs do it (`https://ipfs.io/ipfs/<cid>`). The launch is one Jito bundle of up to three transactions — GitHub fee accounts, `create_v2` + the fee-sharing config, then `update_fee_shares_v2`, which revokes the admin — so a coin never exists without its locked split. The server holds no wallet: the launcher's wallet signs and pays, the fresh mint key co-signs after it, and every byte is checked against what the server built. A coin is listed only after the server reads that split back from the chain. Not made or endorsed by the repositories' authors; not financial advice. Owners can ask to be left out (`launch_blocklist`).
 
 ## The terminal
 
@@ -144,6 +160,9 @@ The launch is one Jito bundle of up to three transactions — GitHub fee account
 | A coin still on its pump.fun curve | traded **on the curve**: the server builds the transaction with pump.fun's SDK, the wallet signs, the server checks it byte for byte and sends it |
 | Graduated coins, project tokens | traded **through Jupiter** (`/swap/v2/order` → `/execute`); SOL itself against USDC |
 | Prices, market caps | DexScreener; coins it hasn't seen yet are priced from their curve |
+| Logos | Jupiter's token list, then DexScreener, then the project's GitHub avatar |
+| Trending | GeckoTerminal's trending pools on Solana (≥ $10K liquidity) |
+| Any other token | any Solana address with a live market opens in the terminal, labelled *not on forks* |
 | Candles, trades | GeckoTerminal (1m · 5m · 15m · 1h · 4h · 1d) |
 | Holders, balances, curve progress | our RPC |
 
@@ -168,13 +187,14 @@ src/
 netlify/
   functions/trace.mjs    one request → one answer: candidates, one model call, the check, the cache
   functions/repos.mjs    GitHub for the fallback
-  functions/auth-*.mjs · api.mjs    sign in with X (and who invited you), the trials
+  functions/auth-*.mjs · api.mjs    sign in with X (and who invited you), connect GitHub, the trials
   lib/github.mjs · lineage.mjs      GitHub GraphQL and search; proposal → tree of real repos
   functions/launch.mjs   the plan, the bundle, the status, the coins on a tree
   functions/market.mjs   the market, one coin, candles, trades, holders, balances, quotes, trades
-  lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter
-  lib/split.mjs · chain.mjs         who gets the fees; pump.fun transactions, Jito, reading them back
-supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins)
+  lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter (quotes, swaps, token logos)
+  lib/split.mjs · chain.mjs         who gets the fees; IPFS (Pinata), pump.fun transactions, Jito, reading them back
+supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins) → 0005 (GitHub)
+og/                      link-preview cards, one per page (a new file name per version, so chats fetch the new one)
 fonts/                   Anybody and JetBrains Mono, self-hosted (OFL)
 ```
 

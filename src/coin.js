@@ -47,7 +47,7 @@
     const repo = t.repo || (proj ? null : null);
     const curve = info.curve;
     $('#cnH').innerHTML = `
-      <span class="cn-img">${t.image || m.image ? `<img src="${esc(t.image || m.image)}" alt="">` : esc(t.symbol[0])}</span>
+      <span class="cn-img">${SH.logo(t.image || m.image, t.symbol)}</span>
       <div class="cn-t">
         <h1>$${esc(t.symbol)} <span class="nm">${esc(t.name)}</span>${proj ? '<span class="label blue">project token</span>' : other ? '<span class="label">Solana token · not on forks</span>' : '<span class="label amber">coin on forks</span>'}${curve ? (curve.complete ? '<span class="label purple">graduated</span>' : curve.onCurve ? `<span class="label green">on the curve · ${Math.round(curve.progress || 0)}%</span>` : '') : ''}</h1>
         <div class="meta">${repo ? `<a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>` : proj ? `by <a href="https://github.com/${esc(t.owner)}" target="_blank" rel="noopener">${esc(t.owner)}</a> on GitHub` : ''}

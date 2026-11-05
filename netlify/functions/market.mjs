@@ -20,7 +20,7 @@
 import C from '../../src/config.js';
 import { json, rpc as db, sameOrigin, seal, unseal } from '../lib/server.mjs';
 import { BASE58, balances, checkSigned, coinState, curveAddress, curveTrade, curvesOf, holders, sdkStatus, sendRaw, sigStatus } from '../lib/chain.mjs';
-import { USDC, WSOL, TIMEFRAMES, candles, jupExecute, jupOrder, markets, poolOf, poolTrades, solUsd, trending } from '../lib/markets.mjs';
+import { USDC, WSOL, TIMEFRAMES, candles, icons, jupExecute, jupOrder, markets, ownerAvatar, poolOf, poolTrades, solUsd, trending } from '../lib/markets.mjs';
 
 const hits = new Map();
 function limited(key, n) {
@@ -50,7 +50,7 @@ async function forksCoin(mint) {
 const MIN_LIQ = 1000;
 async function identify(mint) {
   const p = C.projectByMint(mint);
-  if (p) return { kind: 'project', mint, symbol: p.symbol, name: p.name, owner: p.owner, repo: null };
+  if (p) return { kind: 'project', mint, symbol: p.symbol, name: p.name, owner: p.owner, repo: null, image: null };
   const l = await forksCoin(mint);
   if (l) return { kind: 'forks', mint, symbol: l.symbol, name: l.name, image: l.image, repo: l.repo_name, split: l.split, launcher: l.wallet, live_at: l.live_at };
   if (mint === USDC) return null;
@@ -70,10 +70,11 @@ export default async (req, context) => {
     if (path === '/api/market') {
       const coins = await forksCoins(50);
       const mints = coins.map(c => c.mint).concat(C.projects.map(p => p.mint));
-      const [mk, curves, sol] = await Promise.all([
+      const [mk, curves, sol, ic] = await Promise.all([
         markets(mints),
         hasRpc() && coins.length ? curvesOf(coins.map(c => c.mint)).catch(() => ({})) : {},
-        solUsd().catch(() => null)
+        solUsd().catch(() => null),
+        icons(C.projects.map(p => p.mint))
       ]);
       const withCurve = c => {
         const cv = curves[c.mint] || null, m = mk[c.mint] || null;
@@ -85,11 +86,16 @@ export default async (req, context) => {
       return json({
         ok: true, sol,
         coins: coins.map(withCurve),
-        projects: C.projects.map(p => ({ kind: 'project', mint: p.mint, symbol: p.symbol, name: p.name, owner: p.owner, market: mk[p.mint] || null }))
+        // a project's logo: Jupiter's token list, else DexScreener's, else its GitHub organization's avatar
+        projects: C.projects.map(p => ({ kind: 'project', mint: p.mint, symbol: p.symbol, name: p.name, owner: p.owner, image: ic[p.mint] || (mk[p.mint] && mk[p.mint].image) || ownerAvatar(p.owner), market: mk[p.mint] || null }))
       }, 200, cdn(20));
     }
     if (path === '/api/trending') {
-      try { return json({ ok: true, tokens: await trending(), source: 'geckoterminal' }, 200, cdn(90)); }
+      try {
+        const list = await trending(), missing = list.filter(t => !t.image).map(t => t.mint);
+        const ic = missing.length ? await icons(missing) : {};
+        return json({ ok: true, tokens: list.map(t => (t.image ? t : { ...t, image: ic[t.mint] || null })), source: 'geckoterminal' }, 200, cdn(90));
+      }
       catch (e) { console.error('trending', e.code || '', e.message); return json({ ok: true, tokens: [], busy: true }, 200, cdn(15)); }
     }
     if (path === '/api/prices') {
@@ -104,11 +110,14 @@ export default async (req, context) => {
       if (!BASE58.test(mint)) return err('bad_mint');
       const id = await identify(mint);
       if (!id) return err('unknown', 404);
-      const [mk, state, sol] = await Promise.all([
+      const [mk, state, sol, ic] = await Promise.all([
         markets([mint]).then(m => m[mint]),
         hasRpc() ? coinState(mint).catch(() => null) : null,
-        solUsd().catch(() => null)
+        solUsd().catch(() => null),
+        // project logos come in one batch shared with /api/market (Jupiter's limit is shared with trading)
+        id.kind === 'project' ? icons(C.projects.map(p => p.mint)) : {}
       ]);
+      if (!id.image) id.image = ic[mint] || (mk && mk.image) || (id.kind === 'project' ? ownerAvatar(id.owner) : (await icons([mint]))[mint] || null);
       let market = mk || null;
       if (state && state.curve && sol && (!market || !market.mcap)) {
         const mcap = Number(state.curve.mcapLamports) / 1e9 * sol;

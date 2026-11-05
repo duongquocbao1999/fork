@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.1.1 — 2026-11-06
+
+- **Launches work again: the logo and metadata go to IPFS through Pinata.** pump.fun no longer takes uploads at `pump.fun/api/ipfs` (launches stopped at *Logo and metadata to IPFS*). Now the server pins the logo, then the metadata JSON pointing to it (`name`, `symbol`, `description`, `image`, `showName`, `createdOn`, `website`, `twitter`), both to public IPFS through Pinata's v3 API, as pump.fun's own docs do, and uses `https://ipfs.io/ipfs/<cid>`. New env `PINATA_JWT` (secret); launches stay closed until it's set (`/api/health` → `launch.ipfs`, `launch.missing`). `PUMP_IPFS_URL` still works for another uploader when there's no Pinata key.
+- **Logos for the project tokens**: Jupiter's token list first (what wallets show), then DexScreener (from any pair), then the project's GitHub avatar — in the market, the sidebar, the terminal, the point card and the trending tab. One batch for all 27, cached six hours (Jupiter's limit is shared with trading); a logo that doesn't load falls back to its letter.
+- **Link previews**: a designed card for each page (home, market and terminal, launch, guide) at `/og/<page>-41.png` — a new file name per version, so X, Telegram and Discord fetch the new one instead of a cached old picture — with full Open Graph and X card tags (size, alt, `@forkwikis`). A real favicon (`/favicon.ico`, `/favicon.svg`) and an Apple touch icon, which crawlers and phones ask for by URL.
+- **README**: what forks does in four lines, new screenshots (home with $FORK, market with logos, terminal, launch, phone), the new env, `docs/media/social.png` for the repository's social preview.
+
 ## 4.1.0 — 2026-11-06
 
 - **$FORK on the home page, big.** A box right under the title: *up to 33,000 $FORK* — the X scan (2,000–20,000), six trials (+10,000), +2,000 per friend, GitHub (+3,000, optional) — with *Sign in with X*. Signed in, it shows your pending allocation, your progress through the trials and the next step (continue, connect GitHub, invite). On phones it stays big where it counts and the graph still starts on the first screen. The sidebar's small $FORK button is gone.

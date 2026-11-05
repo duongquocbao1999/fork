@@ -43,7 +43,7 @@
         : other ? `<span class="label">#${t.rank + 1} trending</span>${esc(t.name || '')}${m.liquidity ? ` · liq ${usd(m.liquidity)}` : ''}${t.created ? ` · ${ago(t.created)}` : ''}`
         : `${REPO}${esc(t.repo)}${t.live_at ? ` · ${ago(t.live_at)}` : ''}`;
       return `<a class="mk-r" href="/coin/${esc(t.mint)}">
-        <span class="mk-id"><span class="mk-img">${t.image ? `<img src="${esc(t.image)}" alt="" loading="lazy">` : esc((t.symbol || '?')[0])}</span>
+        <span class="mk-id"><span class="mk-img">${SH.logo(t.image || m.image, t.symbol)}</span>
           <span class="mk-n"><b><span>$${esc(t.symbol)}</span>${proj || other ? '' : '<span class="tok forks" style="height:18px">forks</span>'}</b><small>${sub}</small>
           ${cv && !proj && !other ? `<span class="prog${cv.complete ? ' done' : ''}" title="bonding curve ${cv.progress != null ? Math.round(cv.progress) + '%' : ''}"><i style="width:${Math.max(2, cv.progress || 0)}%"></i></span>` : ''}</span></span>
         <span class="mk-v">${m.price != null ? usd(m.price) : '—'}<small class="hide-m">${cv && !proj && !other ? (cv.complete ? 'graduated' : `curve ${cv.progress != null ? Math.round(cv.progress) : 0}%`) : ''}</small></span>

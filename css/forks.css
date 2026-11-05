@@ -1214,3 +1214,6 @@ body.chat .dock { display: flex; }
   .earn-fine .long { display: none; }
 }
 @media (min-width: 641px) { .earn-fine .short { display: none; } }
+.pt-i { width: 20px; height: 20px; flex: none; border-radius: 50%; overflow: hidden; display: inline-grid; place-items: center; background: var(--bg-3); border: 1px solid var(--rule); font: 600 10px var(--mono); color: var(--ink-2); }
+.pt-i img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pt-coin { align-items: center; }

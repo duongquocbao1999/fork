@@ -350,13 +350,39 @@ export async function holders(mintStr) {
 }
 
 /* ---------- metadata on pump.fun's IPFS ---------- */
+// The coin's logo and metadata on IPFS. pump.fun no longer takes uploads at pump.fun/api/ipfs; its own docs
+// (pump-fun/pump-fun-skills, create-coin/METADATA.md) pin both to public IPFS with Pinata: the logo first, then
+// the metadata JSON that points to it, both served as https://ipfs.io/ipfs/<cid>.
+// Env: PINATA_JWT (secret; a Pinata API key with files:write). PUMP_IPFS_URL: any other uploader that takes
+// pump.fun's old form and answers { metadataUri } — used only when there's no Pinata key.
+const IPFS_GW = 'https://ipfs.io/ipfs/';
+async function pin(file, filename, type) {
+  const form = new FormData();
+  form.append('network', 'public');
+  form.append('name', filename);
+  form.append('file', new Blob([file], { type }), filename);
+  const r = await fetch('https://uploads.pinata.cloud/v3/files', { method: 'POST', headers: { authorization: `Bearer ${process.env.PINATA_JWT}` }, body: form, signal: AbortSignal.timeout(20000) });
+  const j = await r.json().catch(() => null);
+  const cid = j && j.data && j.data.cid;
+  if (!r.ok || !cid) throw Object.assign(new Error(`pinata ${r.status} ${j && (j.error && (j.error.message || j.error) || j.message) || ''}`.trim()), { code: 'ipfs', why: r.status === 401 || r.status === 403 ? 'pinata_key' : r.status === 429 ? 'pinata_busy' : 'pinata' });
+  return cid;
+}
+export const ipfsReady = () => !!(process.env.PINATA_JWT || process.env.PUMP_IPFS_URL);
 export async function uploadMetadata({ name, symbol, description, website, twitter, image }) {
+  if (process.env.PINATA_JWT) {
+    const ext = image.type === 'image/png' ? 'png' : 'jpg', tag = String(symbol).toLowerCase();
+    const imgCid = await pin(image.bytes, `${tag}-logo.${ext}`, image.type);
+    const meta = { name, symbol, description, image: IPFS_GW + imgCid, showName: true, createdOn: 'https://pump.fun', ...(twitter ? { twitter } : {}), ...(website ? { website } : {}) };
+    const metaCid = await pin(Buffer.from(JSON.stringify(meta)), `${tag}-metadata.json`, 'application/json');
+    return { uri: IPFS_GW + metaCid, image: meta.image };
+  }
+  if (!process.env.PUMP_IPFS_URL) throw Object.assign(new Error('no ipfs uploader: set PINATA_JWT'), { code: 'ipfs', why: 'no_pinata' });
   const form = new FormData();
   form.append('file', new Blob([image.bytes], { type: image.type }), image.type === 'image/png' ? 'logo.png' : 'logo.jpg');
   form.append('name', name); form.append('symbol', symbol); form.append('description', description);
   form.append('website', website); if (twitter) form.append('twitter', twitter); form.append('showName', 'true');
-  const r = await fetch(process.env.PUMP_IPFS_URL || 'https://pump.fun/api/ipfs', { method: 'POST', body: form, signal: AbortSignal.timeout(15000) });
+  const r = await fetch(process.env.PUMP_IPFS_URL, { method: 'POST', body: form, signal: AbortSignal.timeout(15000) });
   const j = await r.json().catch(() => null);
-  if (!r.ok || !j || !j.metadataUri) throw Object.assign(new Error(`ipfs ${r.status}`), { code: 'ipfs' });
+  if (!r.ok || !j || !j.metadataUri) throw Object.assign(new Error(`ipfs ${r.status}`), { code: 'ipfs', why: 'uploader' });
   return { uri: j.metadataUri, image: (j.metadata && j.metadata.image) || null };
 }

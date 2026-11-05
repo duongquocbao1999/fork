@@ -125,7 +125,9 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | Задание «give it a few more seconds» | Нажали раньше 5 с — сервер считает по своим часам, повтор засчитает |
 | `/launch`: карточка с бейджем PREVIEW, кнопка «launches open soon» | Пустой `launch.treasury` в `src/config.js`, нет `SOLANA_RPC_URL`, не запущена `0004_launch.sql` (смотри `launch.missing` и `migrations` в `/api/health`) или не было редеплоя |
 | `/launch`: «couldn't build it just now» | Функция `launch` не собралась (деплой без `npm install`) или RPC не отвечает; смотри логи функции `launch` |
-| «pump.fun’s ipfs didn’t answer» | pump.fun не принял загрузку лого с сервера Netlify. Повторить; если стабильно — `PUMP_IPFS_URL` на другой IPFS-аплоадер с тем же ответом `{ metadataUri }` |
+| «IPFS didn’t take the logo just now» / раньше «pump.fun’s IPFS didn’t answer» | pump.fun больше не принимает загрузки на `pump.fun/api/ipfs` (с осени 2026). С 4.1.1 лого и метаданные идут в IPFS через Pinata: нужен `PINATA_JWT` (раздел 5.7). Если ключ есть — Pinata не ответил, повторить |
+| «The logo can’t be stored on IPFS: the site’s Pinata key is missing or wrong» | Нет `PINATA_JWT`, ключ отозван или у него нет права Files: Write; после смены ключа — редеплой |
+| Превью ссылки в X / Telegram старое | Платформы кэшируют превью. С 4.1.1 у каждой версии свой файл картинки (`/og/home-41.png`), новые посты подтянут новую. Telegram: отправить ссылку боту @WebpageBot — он обновит превью; в X новые посты берут новую карточку, старые остаются как были |
 | «the bundle relay is busy» | Jito ответил 429 три раза подряд (без ключа лимит ~1 запрос в секунду). Повторить или поставить `JITO_URL` региона ближе |
 | «it didn’t land: the network was busy» | Бандл не попал в блок за ~1 минуту (мало чаевых, перегрузка). Бандл — всё или ничего, денег не списано; повторить. Можно поднять `launch.tipSol` в `src/config.js` |
 | «your wallet changed the transactions» | Кошелёк дописал свои инструкции в транзакции; такой бандл не несёт закреплённый сплит, сервер его не отправляет. Другой кошелёк |
@@ -213,6 +215,12 @@ on conflict (key) do update set value = excluded.value;
 Как это устроено на цепи: три транзакции одним Jito-бандлом (всё или ничего): (A) GitHub-аккаунты для fees, которых ещё нет; (B) `create_v2` + `create_fee_sharing_config`; (C) `update_fee_shares_v2` — финальный сплит, после неё админ отозван и сплит не меняется никогда, + чаевые Jito. Сервер не хранит кошелька: подписывает только свежий ключ mint (он едет зашифрованным в 150-секундном тикете и подписывает create уже после кошелька). Перед отправкой сервер проверяет, что каждая транзакция байт-в-байт та, что он собрал, и подпись кошелька верна. В список сайта монета попадает только после того, как сервер прочитал с цепи: кривая создана, creator = конфиг сплита, доли совпадают, админ отозван.
 
 ### Включить
+
+0. **Pinata (лого и метаданные монеты в IPFS).** pump.fun больше не принимает загрузки через свой `/api/ipfs`; его собственная инструкция (pump-fun-skills → create-coin → METADATA.md) кладёт картинку и JSON в публичный IPFS через Pinata. Так делает и forks:
+   - app.pinata.cloud → зарегистрироваться (бесплатного плана хватает: 2 файла на монету);
+   - **API Keys → New Key** → права **Files: Write** (или Admin) → Create → скопировать **JWT** (длинная строка `eyJ…`, показывается один раз);
+   - Netlify: `PINATA_JWT` (Functions, «Contains secret values») → редеплой;
+   - проверка: `/api/health` → `launch.ipfs: "pinata"`, `launch.ready: true`.
 
 1. **Кошелёк forks** (для 10%): создай отдельный Solana-кошелёк в Phantom, публичный адрес → `src/config.js` → `launch.treasury`. Приватный ключ никуда не нужен и на сервер не идёт.
 2. **RPC**: helius.dev → бесплатный аккаунт → Mainnet RPC URL с `api-key` → `SOLANA_RPC_URL` в Netlify (секрет, только сервер).

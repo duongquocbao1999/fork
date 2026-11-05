@@ -377,7 +377,7 @@
           bad_image: 'That logo is too big. Try another.',
           bad_dev_buy: `Buy at launch: 0.001 to ${L.maxDevBuySol} SOL.`, bad_x: 'X link: https://x.com/handle',
           bad_symbol: 'Ticker: 2–10 letters or digits.', bad_name: 'The name can’t have < > or control characters.',
-          ipfs: 'pump.fun’s IPFS didn’t answer. Try again.', rate_limited: 'Too many at once. Give it a minute.', expired: 'The split expired. Try again.'
+          ipfs: b.why === 'no_pinata' || b.why === 'pinata_key' ? 'The logo can’t be stored on IPFS: the site’s Pinata key is missing or wrong.' : 'IPFS didn’t take the logo just now. Try again.', not_configured: 'Launches aren’t set up on this site yet.', rate_limited: 'Too many at once. Give it a minute.', expired: 'The split expired. Try again.'
         }[b.error] || 'Couldn’t build it just now. Try again.');
       }
       step('build', 'ok', null, [b.created ? `${b.created} GitHub fee account${b.created > 1 ? 's' : ''} to open` : '', b.bought ? `you buy ≈ ${Math.round(Number(b.bought) / 1e6).toLocaleString('en-US')} ${symbol}` : ''].filter(Boolean).join(' · '));

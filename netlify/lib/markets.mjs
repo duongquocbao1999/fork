@@ -55,10 +55,46 @@ export async function markets(mints) {
   for (let i = 0; i < uniq.length; i += 30) {
     const chunk = uniq.slice(i, i + 30);
     const pairs = await cached('ds:' + chunk.join(','), 20e3, () => get(`https://api.dexscreener.com/tokens/v1/solana/${chunk.join(',')}`).catch(() => []));
-    for (const m of chunk) out[m] = shape(pick(Array.isArray(pairs) ? pairs : [], m));
+    const list = Array.isArray(pairs) ? pairs : [];
+    for (const m of chunk) {
+      const best = shape(pick(list, m));
+      // the logo sits on some pairs only: take it from any pair the token is the base of
+      if (best && !best.image) { const w = list.find(p => p && p.baseToken && p.baseToken.address === m && p.info && p.info.imageUrl); if (w) best.image = w.info.imageUrl; }
+      out[m] = best;
+    }
   }
   return out;
 }
+
+/* ---------- logos: Jupiter's token list first (what wallets show), DexScreener's next ---------- */
+/** { mint: icon url } for up to 100 mints, from Jupiter's Tokens API v2: kept six hours; after a failure the
+ *  last answer (or {}) is kept five minutes, so a busy Jupiter isn't asked again on every page view. */
+const iconMemo = new Map();
+export async function icons(mints) {
+  const uniq = [...new Set(mints)].filter(Boolean).sort().slice(0, 100);
+  if (!uniq.length) return {};
+  const key = uniq.join(','), hit = iconMemo.get(key), now = Date.now();
+  if (hit && (now < hit.until || hit.p)) return hit.p || hit.v;
+  const p = (async () => {
+    try {
+      const r = await fetch(`https://api.jup.ag/tokens/v2/search?query=${key}`, { headers: { accept: 'application/json', ...jupHeaders() }, signal: AbortSignal.timeout(6000) });
+      if (!r.ok) throw new Error('jupiter tokens ' + r.status);
+      const list = await r.json(), out = {};
+      for (const t of Array.isArray(list) ? list : []) if (t && t.id && typeof t.icon === 'string' && /^https:\/\//.test(t.icon)) out[t.id] = t.icon;
+      iconMemo.set(key, { v: out, until: Date.now() + 6 * 3600e3 });
+      return out;
+    } catch (e) {
+      const v = hit ? hit.v : {};
+      iconMemo.set(key, { v, until: Date.now() + 5 * 60e3 });
+      return v;
+    }
+  })();
+  iconMemo.set(key, { v: hit ? hit.v : {}, until: 0, p });
+  if (iconMemo.size > 500) iconMemo.clear();
+  return p;
+}
+/** A GitHub owner's avatar: the project's own picture when no token list has a logo. */
+export const ownerAvatar = owner => (owner ? `https://github.com/${encodeURIComponent(owner)}.png?size=96` : null);
 export async function solUsd() {
   const m = await markets([WSOL]);
   return m[WSOL] && m[WSOL].price ? m[WSOL].price : null;

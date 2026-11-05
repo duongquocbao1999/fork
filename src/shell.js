@@ -158,5 +158,8 @@
     return '0.0' + String(z).split('').map(c => SUB[c]).join('') + Math.round(a * 10 ** (z + d)).toString().slice(0, d).replace(/0+$/, '');
   }
 
-  window.ForksShell = { mount, toast, search, market, tiny, esc, MARK, I };
+  // a token's logo: <img data-fb="S">; if it doesn't load, its first letter takes its place
+  const logo = (src, sym, attrs = '') => (src ? `<img src="${esc(src)}" alt="" data-fb="${esc(String(sym || '?')[0])}" loading="lazy" referrerpolicy="no-referrer"${attrs}>` : esc(String(sym || '?')[0]));
+  document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.dataset && t.dataset.fb != null) t.replaceWith(document.createTextNode(t.dataset.fb)); }, true);
+  window.ForksShell = { mount, toast, search, market, tiny, esc, logo, MARK, I };
 })();

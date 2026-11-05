@@ -14,7 +14,7 @@ import C from '../../src/config.js';
 import { json, rpc as db, sameOrigin, seal, siteOrigin, unseal } from '../lib/server.mjs';
 import { NAME } from '../lib/github.mjs';
 import { plan } from '../lib/split.mjs';
-import { BASE58, build, checkSigned, cosign, landed, sdkStatus, sendBundle, uploadMetadata } from '../lib/chain.mjs';
+import { BASE58, build, checkSigned, cosign, ipfsReady, landed, sdkStatus, sendBundle, uploadMetadata } from '../lib/chain.mjs';
 
 const L = C.launch;
 const SYMBOL = /^[A-Z0-9]{2,10}$/;
@@ -42,7 +42,7 @@ function unlock(s) {
 }
 const NO_FN = e => /PGRST202|Could not find the function/.test(String(e && e.message)); // a database without 0004
 const ipOf = (req, ctx) => (ctx && ctx.ip) || req.headers.get('x-nf-client-connection-ip') || 'anon';
-const ready = () => !!(L.treasury && process.env.SOLANA_RPC_URL && sdkStatus().ok && process.env.SUPABASE_URL && process.env.SESSION_SECRET && process.env.GITHUB_TOKEN);
+const ready = () => !!(L.treasury && process.env.SOLANA_RPC_URL && sdkStatus().ok && ipfsReady() && process.env.SUPABASE_URL && process.env.SESSION_SECRET && process.env.GITHUB_TOKEN);
 
 // the line above a repo as upstream draws it, from the same cached trace the page shows
 async function tracedLine(req, repo) {
@@ -114,7 +114,7 @@ export default async (req, context) => {
       return json({ ok: true, tokens: list.map(t => ({ ...t, market: m[t.mint] || null })) }, 200, { 'cache-control': 'public, max-age=20', 'netlify-cdn-cache-control': 'public, s-maxage=20', 'netlify-vary': 'query=repos' });
     }
 
-    if (!ready()) return err('not_configured', 503, { missing: [!L.treasury && 'src/config.js launch.treasury', !process.env.SOLANA_RPC_URL && 'SOLANA_RPC_URL', !process.env.SUPABASE_URL && 'SUPABASE_URL', !process.env.GITHUB_TOKEN && 'GITHUB_TOKEN', !sdkStatus().ok && 'solana sdk (see /api/chain)'].filter(Boolean) });
+    if (!ready()) return err('not_configured', 503, { missing: [!L.treasury && 'src/config.js launch.treasury', !process.env.SOLANA_RPC_URL && 'SOLANA_RPC_URL', !process.env.SUPABASE_URL && 'SUPABASE_URL', !process.env.GITHUB_TOKEN && 'GITHUB_TOKEN', !ipfsReady() && 'PINATA_JWT', !sdkStatus().ok && 'solana sdk (see /api/chain)'].filter(Boolean) });
 
     if (path === '/api/launch/plan' && req.method === 'GET') {
       const repo = (url.searchParams.get('repo') || '').trim();
@@ -187,7 +187,7 @@ export default async (req, context) => {
     if (NO_FN(e)) return err('not_configured', 503, { missing: ['supabase/migrations/0004_launch.sql'] });
     if (e.code === 'sdk') { console.error('launch', e.message); return err('not_configured', 503, { why: 'sdk' }); }
     console.error('launch', e.code || '', e.message);
-    return err(e.code || 'server', e.code === 'ipfs' || e.code === 'rpc' || e.code === 'jito' || e.code === 'jito_busy' ? 502 : 500);
+    return err(e.code || 'server', e.code === 'ipfs' || e.code === 'rpc' || e.code === 'jito' || e.code === 'jito_busy' ? 502 : 500, e.why ? { why: e.why } : {});
   }
 };
 
