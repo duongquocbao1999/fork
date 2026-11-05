@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Guide · forks</title>
+<meta name="description" content="How forks works: the graph of GitHub repositories, project tokens and coins on repositories, launching a coin on pump.fun with a locked fee split, the trading terminal, and $FORK.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230d1117'/%3E%3Cg fill='none' stroke='%233fb950' stroke-width='2.1' stroke-linecap='round'%3E%3Cpath d='M9 20V3.6'/%3E%3Cpath d='M9 14.4C9 10 15.4 10.5 15.4 6.8'/%3E%3C/g%3E%3Ccircle cx='9' cy='20' r='2.4' fill='%233fb950'/%3E%3Ccircle cx='15.4' cy='5.1' r='1.8' fill='%230d1117' stroke='%233fb950' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/forks.css">
+<meta property="og:title" content="Guide · forks">
+<meta property="og:description" content="The graph, the tokens on it, launching a repository's coin, the terminal, and $FORK — explained.">
+<meta property="og:image" content="https://forks.wiki/docs/media/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#010409">
+</head>
+<body class="guide-page">
+<main class="page">
+  <div class="guide">
+    <nav class="toc" id="toc" aria-label="On this page">
+      <a href="#what">What forks is</a>
+      <a href="#graph">Reading a graph</a>
+      <a href="#tokens">Tokens on repositories</a>
+      <a href="#launch">Launching a coin</a>
+      <a href="#split">The fee split</a>
+      <a href="#claim">Claiming fees</a>
+      <a href="#trade">The terminal</a>
+      <a href="#fork">$FORK</a>
+      <a href="#commands">Commands</a>
+      <a href="#faq">Questions</a>
+      <a href="#fine">The fine print</a>
+    </nav>
+    <article class="md">
+      <h1>How forks works</h1>
+      <p>forks is the family tree of open-source code, and the tokens on it. Type anything and upstream, the model behind the site, grows the line of GitHub repositories it came from: forks, ports, rewrites, the frameworks it was built on. Some of those repositories have tokens. Some of them have a coin launched here, whose creator fees go to the people who wrote the code.</p>
+      <div class="cta"><a class="btn primary" href="/">Open the graph</a><a class="btn" href="/market">Market</a><a class="btn" href="/launch">Launch a coin</a></div>
+
+      <h2 id="what">What forks is</h2>
+      <p>Three things on one site:</p>
+      <ul>
+        <li><b>The graph.</b> A search engine for where code came from. Every point is a real public repository; every line is a real relation.</li>
+        <li><b>A launchpad.</b> Anyone with a Solana wallet can launch a repository's coin on pump.fun. One coin per repository. Its creator fees are split once, for good, between the people behind the code and forks.</li>
+        <li><b>A market.</b> Every coin launched here and the project tokens on the graph, each with a terminal: chart, trades, holders, and a buy/sell panel that trades from your own wallet.</li>
+      </ul>
+
+      <h2 id="graph">Reading a graph</h2>
+      <p>The home page opens on a prepared graph — where pump.fun's code comes from, on Solana — so you can see what a graph is before you ask for one. Then type anything: a project (<code>llama.cpp</code>), a word (<code>doge</code>), <code>owner/name</code> or a GitHub link.</p>
+      <ul>
+        <li><b>Points</b> are repositories. Bigger points have more stars. Tap one for GitHub, its forks, the network graph, its token, or to launch its coin.</li>
+        <li><b>The green line</b> is the traced line: from the origin to what you asked about, which is ringed. Grey branches are notable forks along the way.</li>
+        <li><b>Under a point</b>: the year it started, its stars, and how it came from its parent — <i>fork</i> (GitHub's own fork record), <i>port</i>, <i>rewrite</i>, <i>built on</i>, <i>inspired by</i>, <i>successor</i>.</li>
+        <li><b>The list under the graph</b> holds every repository with its description, language and stars; open it with <i>show</i>.</li>
+      </ul>
+      <p>upstream proposes the tree; the server checks every repository against GitHub before it is drawn, keeps GitHub's own fork records, and drops anything that doesn't exist. A question asked before is answered from the cache.</p>
+
+      <h2 id="tokens">Tokens on repositories</h2>
+      <table>
+        <thead><tr><th></th><th>What it is</th><th>Where it shows</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tok project">$PUMP</span></td><td><b>A project token</b>: the official token of the organization behind a repository (SOL for Solana, PUMP for pump.fun, JUP for Jupiter…). It belongs to its project, not to forks.</td><td>On every repository of that GitHub owner, in blue.</td></tr>
+          <tr><td><span class="tok forks">$RKT</span></td><td><b>A coin on forks</b>: launched here for one repository. Its creator fees go to the people in its fee split.</td><td>On that repository, in amber.</td></tr>
+        </tbody>
+      </table>
+      <p>Tap either for its terminal. A repository can show both: its project's token and its own coin.</p>
+
+      <h2 id="launch">Launching a coin</h2>
+      <ol>
+        <li><b>Pick a repository</b> on the <a href="/launch">launch page</a>, or tap a point on any graph and choose <i>launch a coin</i>. It has to be public and have at least one person to pay.</li>
+        <li><b>Check the split</b>. The server reads the owner, the top contributors and the line the repository came from — GitHub's fork record first, then the graph — and shows who gets what.</li>
+        <li><b>Name the coin</b>: a ticker (2–10 letters or digits), a name, a logo (one is drawn for you from the repository's line, or upload your own), an optional X link.</li>
+        <li><b>Buy at launch</b>, if you want: up to 20 SOL, bought first in the same bundle, before anyone else can.</li>
+        <li><b>Tick the box, connect, sign once.</b> Your wallet signs three or four transactions. They go to Solana as one Jito bundle: all of them land, or none do and nothing is charged.</li>
+      </ol>
+      <p>Your wallet pays pump.fun's account rent, the GitHub fee accounts that don't exist yet, a small tip for the bundle, and whatever you buy. It shows the total before you sign. One coin per repository; a wallet can launch on three repositories a day.</p>
+      <div class="note warn"><b>Locked means locked</b>The split is written on-chain in the same bundle that creates the coin, and the admin key that could change it is revoked in that bundle. Nobody can change it afterwards: not you, not the authors, not forks.</div>
+
+      <h2 id="split">The fee split</h2>
+      <p>pump.fun pays a coin's <b>creator fees</b> — a share of every trade — to its creator. For a coin launched here, the creator is a sharing config split like this:</p>
+      <table>
+        <thead><tr><th>Who</th><th>Part</th><th>How</th></tr></thead>
+        <tbody>
+          <tr><td>The repository's owner</td><td>70%</td><td>A person's GitHub account. For an organization, its top 5 people share it.</td></tr>
+          <tr><td>Top contributors</td><td>5%</td><td>The next two people by commits.</td></tr>
+          <tr><td>The parent repository's owner</td><td>10%</td><td>What it was forked from (GitHub's record), or what the graph says it came from.</td></tr>
+          <tr><td>Grandparent · one more up</td><td>3% · 2%</td><td>Further up the line.</td></tr>
+          <tr><td>forks</td><td>10%</td><td>The site's wallet.</td></tr>
+        </tbody>
+      </table>
+      <p>A part with nobody in it goes to the owner. A person who appears twice gets both parts. Bots are skipped, and organizations are never paid directly, because pump.fun can't pay a GitHub organization. At most ten recipients.</p>
+      <p>A coin is listed on forks only after the server reads it back from the chain and finds exactly this split, locked.</p>
+
+      <h2 id="claim">Claiming fees</h2>
+      <p>If your GitHub account is in a coin's split, your part piles up on pump.fun. To collect it, sign in to pump.fun with GitHub and claim. You don't need to do anything before the coin exists, and you don't need a forks account.</p>
+      <p>Don't want coins on your code? Ask, and your account or repository goes on the blocklist: no new coins can be launched on it here, and existing ones leave forks' lists. A coin already on the chain stays on the chain.</p>
+
+      <h2 id="trade">The terminal</h2>
+      <p>Every coin and project token has a page: <code>forks.wiki/coin/&lt;address&gt;</code>.</p>
+      <ul>
+        <li><b>Chart</b>: candles from 1 minute to 1 day, from GeckoTerminal's on-chain data.</li>
+        <li><b>Trades</b>, <b>holders</b> (the top 20, read from the chain; the bonding curve is labelled) and, for coins on forks, the <b>fee split</b>.</li>
+        <li><b>Buy and sell</b>. A coin still on its pump.fun bonding curve trades directly on the curve: the server builds the transaction, your wallet signs it, the server checks it is exactly what it built and sends it. Everything else — graduated coins, project tokens — trades through Jupiter, which picks the route. SOL itself is bought and sold for USDC.</li>
+      </ul>
+      <p>You see what you'll receive, the minimum after slippage (5% by default, changeable), the price impact and the route before you sign. forks takes no fee on trades. pump.fun's fee is built into the curve's price; Jupiter's, when it takes one, is shown in the route.</p>
+      <div class="note"><b>Your keys, your trade</b>forks never holds your funds or your keys. Every trade is a transaction your wallet shows you and signs; nothing moves without it.</div>
+
+      <h2 id="fork">$FORK</h2>
+      <p>The <i>get +10,000 $FORK</i> button, or <code>/freeforks</code>:</p>
+      <ol>
+        <li><b>Sign in with X.</b> upstream reads your account — time on X, followers, posts, lists, verified — and forks you a one-time pending allocation.</li>
+        <li><b>Six trials</b>, 10,000 together: follow, like, retweet, comment, ask upstream anything, and quote the post with your fork card.</li>
+        <li><b>Invite</b> with <code>forks.wiki/r/&lt;handle&gt;</code>: +2,000 for each friend who signs in through it and finishes three trials.</li>
+      </ol>
+      <p>Allocations are <b>pending</b>: a record of what you've earned, not a balance or a token you hold.</p>
+
+      <h2 id="commands">Commands</h2>
+      <p>Type them in the box on the graph:</p>
+      <pre><code>/info             what forks is, in short
+/help             everything you can type
+/launch &lt;repo&gt;    a repository's coin, or the way to launch it
+/coins            the newest coins
+/freeforks        sign in with X for $FORK, then six trials
+/invite           your invite link
+/clear            start over</code></pre>
+      <p>Anything else is traced. Press <kbd>/</kbd> anywhere to jump to the search box.</p>
+
+      <h2 id="faq">Questions</h2>
+      <h3>Did the authors of the code make these coins?</h3>
+      <p>No. Anyone can launch a repository's coin; the authors didn't make or endorse it. They are paid by it, if they claim.</p>
+      <h3>Why can't the split change?</h3>
+      <p>Because a promise isn't worth much. The split is locked on-chain at creation, so the people it pays can trust it without trusting anyone.</p>
+      <h3>Someone launched the coin for my repository. Can I take it over?</h3>
+      <p>No, there is one coin per repository, but you already get the owner's 70% of its creator fees. Claim it on pump.fun with GitHub.</p>
+      <h3>My launch said "it didn't land".</h3>
+      <p>The bundle wasn't included in time (the network was busy). Bundles are all or nothing, so nothing was charged. Try again; retrying the same repository doesn't use up your day.</p>
+      <h3>Why is there no chart?</h3>
+      <p>The chart appears once someone has traded the coin and the data sources have indexed it, usually within minutes.</p>
+
+      <h2 id="fine">The fine print</h2>
+      <ul>
+        <li>Nothing on forks is financial advice. Coins on repositories are memecoins; most go to zero.</li>
+        <li>forks is not affiliated with GitHub, pump.fun, Jupiter or any project shown. Project tokens belong to their projects.</li>
+        <li>Prices come from DexScreener, candles and trades from GeckoTerminal, holders and balances from the Solana chain.</li>
+        <li>The code is open: <a href="https://github.com/forkwiki/fork" target="_blank" rel="noopener">github.com/forkwiki/fork</a>.</li>
+      </ul>
+    </article>
+  </div>
+</main>
+<script src="/src/config.js"></script>
+<script src="/src/wallet.js"></script>
+<script src="/src/shell.js"></script>
+<script>
+ForksShell.mount({ page: 'guide', crumb: 'guide' });
+// the table of contents follows the page
+(function () {
+  const links = [...document.querySelectorAll('#toc a')], heads = links.map(a => document.querySelector(a.getAttribute('href')));
+  const mark = () => { let i = 0; heads.forEach((h, k) => { if (h && h.getBoundingClientRect().top < 160) i = k; }); links.forEach((a, k) => a.classList.toggle('on', k === i)); };
+  addEventListener('scroll', mark, { passive: true }); mark();
+})();
+</script>
+</body>
+</html>

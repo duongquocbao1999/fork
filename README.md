@@ -1,36 +1,38 @@
 <div align="center">
 
-<img src="docs/media/banner.svg" alt="forks — where did it come from?" width="100%">
+<img src="docs/media/logo.svg" width="48" alt="">
 
-### Type anything. Watch the GitHub repositories it came from grow.
+# forks
 
-Every point is a real public repository — a fork, a port, a rewrite, a project built on the one before — with its stars, its year and one tap to GitHub.
+### Every repository has a family tree. Some have tokens.
 
-[![forks.wiki](https://img.shields.io/badge/forks.wiki-live-6EE7B7?style=flat-square&labelColor=090B0A)](https://forks.wiki)
-[![License: MIT](https://img.shields.io/badge/license-MIT-151A17?style=flat-square&labelColor=090B0A)](LICENSE)
-[![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-151A17?style=flat-square&labelColor=090B0A)](src)
-[![DeepSeek](https://img.shields.io/badge/deepseek--flash-1%20call%20per%20question-151A17?style=flat-square&labelColor=090B0A)](#what-a-question-costs)
-[![$FORK](https://img.shields.io/badge/%24FORK-%2Ffreeforks-E8B45A?style=flat-square&labelColor=090B0A)](#fork)
-[![X](https://img.shields.io/badge/x-%40forkwikis-151A17?style=flat-square&labelColor=090B0A&logo=x)](https://x.com/forkwikis)
+Type anything and watch the GitHub repositories it forked from grow into a graph — with the tokens on them: a project's own token, and coins launched here on pump.fun, whose creator fees go to the people who wrote the code.
 
-<br>
-
-<img src="docs/media/demo.gif" alt="typing 'where did dogecoin come from?': probes search, then the line grows bitcoin/bitcoin → litecoin-project/litecoin → dogecoin/dogecoin, with branches, and the list of repositories opens" width="100%">
+[![forks.wiki](https://img.shields.io/badge/forks.wiki-live-3fb950?style=flat-square&labelColor=0d1117)](https://forks.wiki)
+[![License: MIT](https://img.shields.io/badge/license-MIT-21262d?style=flat-square&labelColor=0d1117)](LICENSE)
+[![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-21262d?style=flat-square&labelColor=0d1117)](src)
+[![pump.fun](https://img.shields.io/badge/coins-pump.fun-d29922?style=flat-square&labelColor=0d1117)](#coins-on-repositories)
+[![X](https://img.shields.io/badge/x-%40forkwikis-21262d?style=flat-square&labelColor=0d1117&logo=x)](https://x.com/forkwikis)
 
 </div>
 
-<br>
+<img src="docs/media/shot-home.png" alt="forks.wiki: the home page opens on the Solana family graph — solana-labs/solana ($SOL) to anza-xyz/agave and jito-foundation/jito-solana ($JTO), firedancer, otter-sec/anchor to pump-fun/pump-public-docs ($PUMP), orca-so/whirlpools ($ORCA), jup-ag/whirlpools ($JUP) and raydium-io/raydium-cp-swap ($RAY) — with the tokens and their prices in the sidebar" width="100%">
 
-`bitcoin/bitcoin` was forked into `litecoin-project/litecoin`, which was forked into `dogecoin/dogecoin`. `neovim/neovim` forked `vim/vim`. `ollama/ollama` is built on `ggml-org/llama.cpp`. Open source is one family tree, and forks shows you a branch of it from a single question — a word, a project, `owner/name`, a GitHub link, even something that isn't software at all.
+Four pages, one look:
+
+| | |
+|---|---|
+| **[Graph](https://forks.wiki)** | Opens on a prepared graph — where pump.fun's code comes from, on Solana — then traces anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
+| **[Market](https://forks.wiki/market)** | Every coin launched here and the project tokens on the graph, live: price, market cap, 24 h, volume, bonding-curve progress. |
+| **[Launch](https://forks.wiki/launch)** | Pick a repository, see who gets its creator fees, name the coin, buy at launch if you want, sign once. One coin per repository. |
+| **[Guide](https://forks.wiki/guide)** | What everything is, the split, claiming, the terminal, $FORK, the commands. `/info` in the box says it in short. |
+
+Every coin has a terminal at `forks.wiki/coin/<address>`: candles, trades, holders, the fee split, and buy/sell from your own wallet.
 
 <table>
 <tr>
-<td width="68%"><img src="docs/media/shot-answer.png" alt="the result: dogecoin/dogecoin, 2 forks from bitcoin/bitcoin, and the repositories — the line numbered from the origin, then the branches"></td>
-<td width="32%"><img src="docs/media/shot-phone.png" alt="the same tree on a phone, growing top to bottom like git log --graph"></td>
-</tr>
-<tr>
-<td><sub><b>The result.</b> The line from the origin to your answer, the branches around it, every repo with its stars, language, age and how it came from its parent. Folded into one line until you open it.</sub></td>
-<td><sub><b>On a phone</b> the tree grows top to bottom, one row per repository.</sub></td>
+<td width="68%"><img src="docs/media/shot-coin.png" alt="the terminal for $PUMP: price, stats, candles from 1m to 1d, trades, and the buy/sell panel"></td>
+<td width="32%"><img src="docs/media/shot-phone.png" alt="the home page on a phone: the graph grows top to bottom with $SOL and $JTO on their repositories"></td>
 </tr>
 </table>
 
@@ -89,7 +91,8 @@ Set the environment variables in Netlify first, then deploy:
 | `FORKS_LLM_KEY` | DeepSeek API key (any OpenAI-compatible API works with `FORKS_LLM_URL` / `FORKS_LLM_MODEL`) |
 | `GITHUB_TOKEN` | fine-grained token, public repositories read-only |
 | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_URL` | only for `/freeforks` |
-| `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | only for coins on repositories |
+| `SOLANA_RPC_URL` (+ `launch.treasury` in `src/config.js`) | coins on repositories and the terminal |
+| `JUP_API_KEY` | optional: Jupiter without the keyless 0.5 requests/s limit |
 
 `GET /api/health` lists whatever is still missing. Step by step, in Russian: **[SETUP.ru.md](SETUP.ru.md)**.
 
@@ -125,20 +128,35 @@ The coin's **creator fees are split once, for good**, between the people behind 
 | up the line | 10% · 3% · 2% | the owners of the repo it forked from, and the two above — GitHub's fork record first, upstream's traced line after |
 | forks | 10% | forks' wallet |
 
-People claim on pump.fun by signing in with GitHub; nobody has to sign up first. Bots and organizations get nothing (pump.fun can't pay an organization). The server decides the split from GitHub and the line; the page never sends it.
+People claim on pump.fun by signing in with GitHub; nobody has to sign up first. The launcher can **buy at launch** (up to 20 SOL), first, in the same bundle. Bots and organizations get nothing (pump.fun can't pay an organization). The server decides the split from GitHub and the line; the page never sends it.
 
 The launch is one Jito bundle of up to three transactions — GitHub fee accounts, `create_v2` + the fee-sharing config, then `update_fee_shares_v2`, which revokes the admin — so a coin never exists without its locked split. The server holds no wallet: the launcher's wallet signs and pays, the fresh mint key co-signs after it, and every byte is checked against what the server built. A coin is listed only after the server reads that split back from the chain. Not made or endorsed by the repositories' authors; not financial advice. Owners can ask to be left out (`launch_blocklist`).
+
+## The terminal
+
+| | |
+|---|---|
+| A coin still on its pump.fun curve | traded **on the curve**: the server builds the transaction with pump.fun's SDK, the wallet signs, the server checks it byte for byte and sends it |
+| Graduated coins, project tokens | traded **through Jupiter** (`/swap/v2/order` → `/execute`); SOL itself against USDC |
+| Prices, market caps | DexScreener; coins it hasn't seen yet are priced from their curve |
+| Candles, trades | GeckoTerminal (1m · 5m · 15m · 1h · 4h · 1d) |
+| Holders, balances, curve progress | our RPC |
+
+No fee on trades from forks. The server never holds a key and never decides an amount: the wallet signs what the page shows.
 
 ## Inside
 
 ```
-index.html               the page: tokens, layout, every style
+index.html · market.html · coin.html · launch.html · guide.html     the pages
+css/forks.css            one stylesheet: tokens (dark and light), every component
 src/
   prompt.js              upstream's brief and its json — shared by the server and the Claude artifact
   brain.js               routing, which brain the page has, the GitHub-only fallback
   stage.js               the growing tree
-  app.js                 input, results, the repository list, cards, full view
-  field.js               the living canopy behind everything
+  shell.js               the header, tabs, search, wallet menu and footer of every page
+  app.js · showcase.js   the graph page: the showcase, input, results, tokens on trees, the point card
+  market.js · coin.js    the market list; a coin's terminal: chart, trades, holders, buy/sell
+  launchpage.js          the launch page around the launch form
   quest.js · config.js   /freeforks, /invite and every public setting
   card.js                your fork as a picture: drawn on a canvas, copied, quoted
   launch.js · wallet.js  coins on repositories: the split, the logo, the launch; Solana wallets (Wallet Standard)
@@ -148,6 +166,8 @@ netlify/
   functions/auth-*.mjs · api.mjs    sign in with X (and who invited you), the trials
   lib/github.mjs · lineage.mjs      GitHub GraphQL and search; proposal → tree of real repos
   functions/launch.mjs   the plan, the bundle, the status, the coins on a tree
+  functions/market.mjs   the market, one coin, candles, trades, holders, balances, quotes, trades
+  lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter
   lib/split.mjs · chain.mjs         who gets the fees; pump.fun transactions, Jito, reading them back
 supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins)
 fonts/                   Anybody and JetBrains Mono, self-hosted (OFL)
@@ -158,5 +178,7 @@ More: [docs/UPSTREAM.md](docs/UPSTREAM.md) · [docs/DESIGN_SYSTEM.md](docs/DESIG
 ## License
 
 [MIT](LICENSE). Repository data comes from GitHub's API; forks links to every repository it shows.
+
+Not financial advice. forks is not affiliated with GitHub, pump.fun, Jupiter or the projects shown; project tokens belong to their projects.
 
 <div align="center"><br><img src="docs/media/logo.svg" width="36" alt=""><br><sub><i>everything forks from something.</i></sub></div>

@@ -1,0 +1,220 @@
+// The market and the terminal. Coins launched on forks and the project tokens on the graph, with live
+// prices (DexScreener), candles and trades (GeckoTerminal), holders and balances (our RPC), and trading:
+// a coin still on its pump.fun curve trades straight on the curve (the server builds the transaction, the
+// wallet signs, the server checks every byte and sends it); anything else goes through Jupiter.
+// The server never holds a key and never decides an amount for anyone: the wallet signs what it is shown.
+//
+//   GET  /api/market                         coins (forks) + project tokens, with market data and curve progress
+//   GET  /api/prices?mints=a,b               market data for up to 60 mints
+//   GET  /api/coin?mint=                     one coin: what it is, its market, its curve, decimals
+//   GET  /api/chart?mint=&tf=15m             candles (1m 5m 15m 1h 4h 1d)
+//   GET  /api/trades?mint=                   the latest trades
+//   GET  /api/holders?mint=                  the top 20 holders
+//   GET  /api/balance?owner=&mint=           a wallet's SOL and token balance
+//   GET  /api/trade/quote?mint=&side=&amount=&slippageBps=   a quote (pump curve or Jupiter)
+//   POST /api/trade/build  { mint, side, amount, slippageBps, owner }   the same quote + the transaction to sign
+//   POST /api/trade/send   { route, ticket | requestId, tx }             send the signed transaction
+//   GET  /api/tx?sig=                        pending | confirmed | failed
+import C from '../../src/config.js';
+import { json, rpc as db, sameOrigin, seal, unseal } from '../lib/server.mjs';
+import { BASE58, balances, checkSigned, coinState, curveAddress, curveTrade, curvesOf, holders, sendRaw, sigStatus } from '../lib/chain.mjs';
+import { USDC, WSOL, TIMEFRAMES, candles, jupExecute, jupOrder, markets, poolOf, poolTrades, solUsd } from '../lib/markets.mjs';
+
+const hits = new Map();
+function limited(key, n) {
+  const now = Date.now(), list = (hits.get(key) || []).filter(t => now - t < 60_000);
+  list.push(now); hits.set(key, list);
+  if (hits.size > 5000) hits.clear();
+  return list.length > n;
+}
+const ipOf = (req, ctx) => (ctx && ctx.ip) || req.headers.get('x-nf-client-connection-ip') || 'anon';
+const err = (code, status = 400, extra = {}) => json({ ok: false, error: code, ...extra }, status);
+const cdn = s => ({ 'cache-control': `public, max-age=${Math.min(s, 15)}`, 'netlify-cdn-cache-control': `public, s-maxage=${s}, stale-while-revalidate=${s * 3}`, 'netlify-vary': 'query' });
+const hasRpc = () => !!process.env.SOLANA_RPC_URL;
+const hasDb = () => !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+const NO_FN = e => /PGRST202|Could not find the function/.test(String(e && e.message));
+const RAW = /^\d{1,30}$/;
+
+async function forksCoins(limit = 50) {
+  if (!hasDb()) return [];
+  try { return await db('api_tokens_recent', { p_limit: limit }); } catch (e) { if (NO_FN(e)) return []; throw e; }
+}
+async function forksCoin(mint) {
+  if (!hasDb()) return null;
+  try { const l = await db('api_launch_get', { p_mint: mint }); return l && l.status === 'live' ? l : null; } catch (e) { if (NO_FN(e)) return null; throw e; }
+}
+// what a mint is to us: a coin launched here, a project token, or neither (still tradable by address? no: only these)
+async function identify(mint) {
+  const p = C.projectByMint(mint);
+  if (p) return { kind: 'project', mint, symbol: p.symbol, name: p.name, owner: p.owner, repo: null };
+  const l = await forksCoin(mint);
+  if (l) return { kind: 'forks', mint, symbol: l.symbol, name: l.name, image: l.image, repo: l.repo_name, split: l.split, launcher: l.wallet, live_at: l.live_at };
+  return null;
+}
+const quoteMint = mint => (mint === WSOL ? USDC : WSOL);
+
+export default async (req, context) => {
+  const url = new URL(req.url), path = url.pathname.replace(/\/$/, ''), q = k => (url.searchParams.get(k) || '').trim();
+  const ip = ipOf(req, context);
+  try {
+    /* ---------- lists ---------- */
+    if (path === '/api/market') {
+      const coins = await forksCoins(50);
+      const mints = coins.map(c => c.mint).concat(C.projects.map(p => p.mint));
+      const [mk, curves, sol] = await Promise.all([
+        markets(mints),
+        hasRpc() && coins.length ? curvesOf(coins.map(c => c.mint)).catch(() => ({})) : {},
+        solUsd().catch(() => null)
+      ]);
+      const withCurve = c => {
+        const cv = curves[c.mint] || null, m = mk[c.mint] || null;
+        // a coin DexScreener hasn't seen yet: its market cap from the curve itself
+        const mcap = m && m.mcap ? m.mcap : cv && sol ? Number(cv.mcapLamports) / 1e9 * sol : null;
+        // a pump.fun coin has a billion tokens: the price follows from the market cap
+        return { ...c, kind: 'forks', market: m ? { ...m, mcap } : mcap ? { mcap, price: mcap / 1e9, change24: null, volume24: 0 } : null, curve: cv && { complete: cv.complete, progress: cv.progress } };
+      };
+      return json({
+        ok: true, sol,
+        coins: coins.map(withCurve),
+        projects: C.projects.map(p => ({ kind: 'project', mint: p.mint, symbol: p.symbol, name: p.name, owner: p.owner, market: mk[p.mint] || null }))
+      }, 200, cdn(20));
+    }
+    if (path === '/api/prices') {
+      const mints = q('mints').split(',').map(s => s.trim()).filter(s => BASE58.test(s)).slice(0, 60);
+      if (!mints.length) return err('bad_mints');
+      return json({ ok: true, prices: await markets(mints) }, 200, cdn(20));
+    }
+
+    /* ---------- one coin ---------- */
+    if (path === '/api/coin') {
+      const mint = q('mint');
+      if (!BASE58.test(mint)) return err('bad_mint');
+      const id = await identify(mint);
+      if (!id) return err('unknown', 404);
+      const [mk, state, sol] = await Promise.all([
+        markets([mint]).then(m => m[mint]),
+        hasRpc() ? coinState(mint).catch(() => null) : null,
+        solUsd().catch(() => null)
+      ]);
+      let market = mk || null;
+      if (state && state.curve && sol && (!market || !market.mcap)) {
+        const mcap = Number(state.curve.mcapLamports) / 1e9 * sol;
+        const supply = Number(state.supply) / 10 ** state.decimals;
+        market = { ...(market || {}), mcap, price: market && market.price ? market.price : supply ? mcap / supply : null };
+      }
+      return json({
+        ok: true, coin: id, market, sol,
+        decimals: state ? state.decimals : mint === WSOL ? 9 : null,
+        supply: state ? state.supply : null,
+        program: state ? state.program : null,
+        curve: state && state.curve ? { complete: state.curve.complete, progress: state.curve.progress, onCurve: !state.curve.complete && state.curve.solCurve } : null,
+        quote: { mint: quoteMint(mint), symbol: mint === WSOL ? 'USDC' : 'SOL', decimals: mint === WSOL ? 6 : 9 },
+        trading: hasRpc()
+      }, 200, cdn(10));
+    }
+    if (path === '/api/chart') {
+      const mint = q('mint'), tf = TIMEFRAMES.includes(q('tf')) ? q('tf') : '15m';
+      if (!BASE58.test(mint)) return err('bad_mint');
+      const pool = (await poolOf(mint, BASE58.test(q('pool')) ? q('pool') : null)) || (C.projectByMint(mint) || !hasRpc() ? null : curveAddress(mint)); // a pump.fun coin's pool is its curve
+      if (!pool) return json({ ok: true, candles: [], pool: null }, 200, cdn(30));
+      try { return json({ ok: true, candles: await candles(mint, pool, tf), pool, tf, source: 'geckoterminal' }, 200, cdn(tf === '1m' ? 15 : 45)); }
+      catch (e) { return json({ ok: true, candles: [], pool, tf, busy: e.code === 'upstream_busy' }, 200, cdn(10)); }
+    }
+    if (path === '/api/trades') {
+      const mint = q('mint');
+      if (!BASE58.test(mint)) return err('bad_mint');
+      const pool = (await poolOf(mint, BASE58.test(q('pool')) ? q('pool') : null)) || (C.projectByMint(mint) || !hasRpc() ? null : curveAddress(mint)); // a pump.fun coin's pool is its curve
+      if (!pool) return json({ ok: true, trades: [] }, 200, cdn(15));
+      try { return json({ ok: true, trades: await poolTrades(mint, pool), pool, source: 'geckoterminal' }, 200, cdn(8)); }
+      catch (e) { return json({ ok: true, trades: [], pool, busy: e.code === 'upstream_busy' }, 200, cdn(8)); }
+    }
+    if (path === '/api/holders') {
+      const mint = q('mint');
+      if (!BASE58.test(mint) || mint === WSOL) return err('bad_mint');
+      if (!hasRpc()) return err('not_configured', 503);
+      if (limited('holders:' + ip, 30)) return err('rate_limited', 429);
+      return json({ ok: true, ...(await holders(mint)) }, 200, cdn(60));
+    }
+    if (path === '/api/balance') {
+      const owner = q('owner'), mint = q('mint');
+      if (!BASE58.test(owner) || (mint && !BASE58.test(mint))) return err('bad_owner');
+      if (!hasRpc()) return err('not_configured', 503);
+      if (limited('bal:' + ip, 60)) return err('rate_limited', 429);
+      const b = await balances(owner, mint || null);
+      // a USDC balance too, for the SOL page (paid in USDC)
+      if (mint === WSOL) { const u = await balances(owner, USDC); b.quoteToken = u.token; }
+      return json({ ok: true, ...b });
+    }
+    if (path === '/api/tx') {
+      const sig = q('sig');
+      if (!/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(sig)) return err('bad_sig');
+      if (!hasRpc()) return err('not_configured', 503);
+      if (limited('tx:' + ip, 90)) return err('rate_limited', 429);
+      return json({ ok: true, ...(await sigStatus(sig)) });
+    }
+
+    /* ---------- trading ---------- */
+    if (path === '/api/trade/quote' || path === '/api/trade/build') {
+      let p;
+      if (path === '/api/trade/build') {
+        if (req.method !== 'POST') return err('method', 405);
+        if (!sameOrigin(req)) return err('bad_origin', 403);
+        try { p = JSON.parse(await req.text() || '{}'); } catch { return err('bad_json'); }
+        if (!BASE58.test(String(p.owner || ''))) return err('bad_owner');
+        if (limited('build:' + ip, 20)) return err('rate_limited', 429);
+      } else {
+        p = { mint: q('mint'), side: q('side'), amount: q('amount'), slippageBps: q('slippageBps') };
+        if (limited('quote:' + ip, 60)) return err('rate_limited', 429);
+      }
+      const mint = String(p.mint || ''), side = p.side === 'sell' ? 'sell' : p.side === 'buy' ? 'buy' : null, amount = String(p.amount || '');
+      const slippageBps = Math.max(10, Math.min(5000, Number(p.slippageBps) || C.trade.slippageBps));
+      if (!BASE58.test(mint) || !side || !RAW.test(amount) || amount === '0') return err('bad_trade');
+      if (!(await identify(mint))) return err('unknown', 404);
+      if (!hasRpc()) return err('not_configured', 503);
+      const owner = p.owner ? String(p.owner) : null;
+      // on a live SOL curve: straight to the curve
+      if (mint !== WSOL) {
+        const c = await curveTrade({ mint, side, amount, slippageBps, user: owner }).catch(e => { if (e.code === 'too_small') throw e; return null; });
+        if (c) {
+          const out = { ok: true, ...c, tx: undefined, hash: undefined };
+          if (owner) { out.tx = c.tx; out.ticket = seal({ k: 'trade', hash: c.hash, owner }, 120); }
+          return json(out);
+        }
+      }
+      // everything else: Jupiter
+      const io = side === 'buy' ? { inputMint: quoteMint(mint), outputMint: mint } : { inputMint: mint, outputMint: quoteMint(mint) };
+      try {
+        const j = await jupOrder({ ...io, amount, slippageBps, taker: owner });
+        return json({ ok: true, ...j, tx: owner ? j.tx : undefined, requestId: owner ? j.requestId : undefined });
+      } catch (e) {
+        if (e.code === 'upstream_busy') return err('busy', 429);
+        return err('no_route', 409, { why: e.why || null });
+      }
+    }
+    if (path === '/api/trade/send') {
+      if (req.method !== 'POST') return err('method', 405);
+      if (!sameOrigin(req)) return err('bad_origin', 403);
+      if (limited('send:' + ip, 20)) return err('rate_limited', 429);
+      let b; try { b = JSON.parse(await req.text() || '{}'); } catch { return err('bad_json'); }
+      if (typeof b.tx !== 'string' || b.tx.length > 3000) return err('bad_tx');
+      if (b.route === 'jupiter') {
+        if (typeof b.requestId !== 'string' || !b.requestId || b.requestId.length > 200) return err('bad_request');
+        const r = await jupExecute({ signedTransaction: b.tx, requestId: b.requestId });
+        return json({ ok: r.ok, signature: r.signature, error: r.ok ? null : 'failed', why: r.error, code: r.code, out: r.out }, r.ok ? 200 : 409);
+      }
+      const t = unseal(b.ticket);
+      if (!t || t.k !== 'trade') return err('expired', 409);
+      const bad = checkSigned([b.tx], [t.hash], t.owner, null);
+      if (bad) return err('bad_signed', 400, { why: bad });
+      try { return json({ ok: true, signature: await sendRaw(b.tx) }); }
+      catch (e) { return err('send_failed', 409, { why: String(e.message || '').replace(/^rpc sendTransaction: \d+ /, '').slice(0, 240) }); }
+    }
+    return err('not_found', 404);
+  } catch (e) {
+    if (e.code === 'too_small') return err('too_small', 400);
+    console.error('market', path, e.code || '', e.message);
+    return err(e.code === 'rpc' ? 'rpc' : e.code === 'upstream_busy' ? 'busy' : 'server', e.code === 'rpc' || e.code === 'upstream' ? 502 : e.code === 'upstream_busy' ? 429 : 500);
+  }
+};
+
+export const config = { path: ['/api/market', '/api/prices', '/api/coin', '/api/chart', '/api/trades', '/api/holders', '/api/balance', '/api/tx', '/api/trade/quote', '/api/trade/build', '/api/trade/send'] };

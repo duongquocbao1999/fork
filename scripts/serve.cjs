@@ -44,7 +44,10 @@ http.createServer(async (req, res) => {
       console.error(route.name, e); res.writeHead(500, { 'content-type': 'application/json' }); return res.end('{"error":"server"}');
     }
   }
-  let file = path.normalize(path.join(root, url === '/' ? 'index.html' : url));
+  // netlify.toml's rewrite (/coin/<mint> → coin.html) and Netlify's pretty URLs (/market → market.html)
+  let rel = url === '/' ? 'index.html' : /^\/coin\/[^/]+\/?$/.test(url) ? 'coin.html' : url;
+  if (/^\/[a-z]+\/?$/.test(rel) && fs.existsSync(path.join(root, rel.replace(/\/$/, '') + '.html'))) rel = rel.replace(/\/$/, '') + '.html';
+  let file = path.normalize(path.join(root, rel));
   if (!file.startsWith(root + path.sep) || /(^|[\\/])\.|node_modules/.test(path.relative(root, file))) { res.writeHead(404); return res.end('Not found'); }
   fs.readFile(file, (err, buf) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }

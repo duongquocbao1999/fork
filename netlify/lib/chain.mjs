@@ -7,7 +7,8 @@
 //   tx A  (only if needed)  create pump.fun's GitHub fee accounts for recipients that don't have one yet
 //   tx B  create_v2 (pump.fun) + create_fee_sharing_config — the coin, its creator vault moved to a split
 //   tx C  update_fee_shares_v2 — the final split, which revokes the admin: it can never change again
-//         + the Jito tip
+//   tx D  (only with "buy at launch") the launcher's first buy on the new curve
+//   the last of them carries the Jito tip
 // In a bundle they land together or not at all, so a coin never exists without its locked split.
 //
 // Env: SOLANA_RPC_URL (Helius or any mainnet RPC; secret), JITO_URL (optional block engine endpoint).
@@ -18,6 +19,7 @@ const web3 = require('@solana/web3.js');
 const spl = require('@solana/spl-token');
 const pump = require('@pump-fun/pump-sdk');
 const { Keypair, PublicKey, SystemProgram, ComputeBudgetProgram, TransactionMessage, VersionedTransaction } = web3;
+const BN = require('bn.js');
 
 const JITO = () => (process.env.JITO_URL || 'https://mainnet.block-engine.jito.wtf').replace(/\/$/, '');
 const TIP_ACCOUNTS = [ // Jito's published mainnet tip accounts; refreshed from getTipAccounts when it answers
@@ -46,6 +48,7 @@ export async function accounts(keys) {
 
 /* ---------- the transactions ---------- */
 export const githubPda = id => pump.socialFeePda(String(id), pump.Platform.GitHub);
+export const curveAddress = m => pump.bondingCurvePda(new PublicKey(m)).toBase58();
 export const holderKey = h => (h.kind === 'github' ? githubPda(h.id) : new PublicKey(h.address));
 
 async function tipAccount() {
@@ -62,7 +65,7 @@ async function tipAccount() {
  *   { mint, txs: [base64…], hashes: [sha256(message)…], missing: n }
  * holders: the plan's split; github ids become pump.fun GitHub fee accounts.
  */
-export async function build({ wallet, name, symbol, uri, holders, tipSol }) {
+export async function build({ wallet, name, symbol, uri, holders, tipSol, devBuyLamports = 0 }) {
   const user = new PublicKey(wallet), mint = Keypair.generate();
   const shareholders = holders.map(h => ({ address: holderKey(h), shareBps: h.bps }));
   const github = holders.filter(h => h.kind === 'github');
@@ -86,20 +89,36 @@ export async function build({ wallet, name, symbol, uri, holders, tipSol }) {
     await pump.PUMP_SDK.createFeeSharingConfig({ creator: user, mint: mint.publicKey, pool: null })
   ]);
   txs.push(create); // the mint co-signs at submit, after the wallet
-  txs.push(compile([
-    ...cb(300000),
-    await pump.PUMP_SDK.updateFeeSharesV2({
-      authority: user, mint: mint.publicKey, currentShareholders: [user], newShareholders: shareholders,
-      quoteMint: spl.NATIVE_MINT, quoteTokenProgram: spl.TOKEN_PROGRAM_ID, bondingCurveComplete: false
-    }),
-    SystemProgram.transfer({ fromPubkey: user, toPubkey: await tipAccount(), lamports: Math.round(tipSol * 1e9) })
-  ]));
+  const tip = SystemProgram.transfer({ fromPubkey: user, toPubkey: await tipAccount(), lamports: Math.round(tipSol * 1e9) });
+  const update = await pump.PUMP_SDK.updateFeeSharesV2({
+    authority: user, mint: mint.publicKey, currentShareholders: [user], newShareholders: shareholders,
+    quoteMint: spl.NATIVE_MINT, quoteTokenProgram: spl.TOKEN_PROGRAM_ID, bondingCurveComplete: false
+  });
+  let bought = null;
+  if (devBuyLamports > 0) {
+    // the first buy, after the split is locked: the curve's creator is then the sharing config, so the buy's
+    // creator vault is the config's, exactly as the program will check it
+    txs.push(compile([...cb(300000), update]));
+    const { global, feeConfig } = await pumpState();
+    const sol = new BN(String(devBuyLamports));
+    const fresh = { ...pump.newBondingCurve(global, spl.NATIVE_MINT), creator: pump.feeSharingConfigPda(mint.publicKey), isMayhemMode: false };
+    const amount = pump.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: null, amount: sol, quoteMint: spl.NATIVE_MINT });
+    const ixs = await pump.PUMP_SDK.buyInstructions({
+      global, bondingCurveAccountInfo: null, bondingCurve: fresh, associatedUserAccountInfo: null,
+      mint: mint.publicKey, user, amount, solAmount: sol, slippage: 1, tokenProgram: spl.TOKEN_2022_PROGRAM_ID
+    });
+    txs.push(compile([...cb(250000), ...ixs, tip]));
+    bought = amount.toString();
+  } else {
+    txs.push(compile([...cb(300000), update, tip]));
+  }
   for (const t of txs) if (t.serialize().length > 1232) throw Object.assign(new Error('tx_too_large'), { code: 'tx_too_large' });
   return {
     mint: mint.publicKey.toBase58(),
     txs: txs.map(t => Buffer.from(t.serialize()).toString('base64')),
     hashes: txs.map(t => sha(t.message.serialize())),
     missing: missing.length,
+    bought,
     secret: Buffer.from(mint.secretKey)
   };
 }
@@ -171,6 +190,147 @@ export async function landed(mintStr, holders) {
   if (want !== got) return { state: 'mismatch', why: 'split' };
   if (!sc.adminRevoked) return { state: 'mismatch', why: 'unlocked' };
   return { state: 'live' };
+}
+
+/* ---------- pump.fun's own state: Global and the fee schedule (cached a minute) ---------- */
+let stateCache = null;
+export async function pumpState() {
+  if (stateCache && Date.now() - stateCache.at < 60e3) return stateCache.v;
+  const [g, f] = await accounts([pump.GLOBAL_PDA, pump.PUMP_FEE_CONFIG_PDA]);
+  if (!g) throw Object.assign(new Error('no pump global'), { code: 'rpc' });
+  const v = { global: pump.PUMP_SDK.decodeGlobal(g), feeConfig: f ? pump.PUMP_SDK.decodeFeeConfig(f) : null };
+  stateCache = { at: Date.now(), v };
+  return v;
+}
+
+/* ---------- a mint and its curve, as the terminal needs them ---------- */
+const WSOL = spl.NATIVE_MINT.toBase58();
+/** { decimals, supply (raw string), program ('spl'|'token-2022'), curve: null | { complete, solCurve, progress, ... } } */
+export async function coinState(mintStr) {
+  const mint = new PublicKey(mintStr);
+  const [m, bc] = await accounts([mint, pump.bondingCurvePda(mint)]);
+  if (!m) return null;
+  const program = m.owner.equals(spl.TOKEN_2022_PROGRAM_ID) ? 'token-2022' : m.owner.equals(spl.TOKEN_PROGRAM_ID) ? 'spl' : null;
+  if (!program) return null;
+  const decimals = m.data[44], supply = m.data.readBigUInt64LE(36).toString(); // SPL mint layout (Token-2022 shares it)
+  let curve = null;
+  if (bc && bc.owner.equals(pump.PUMP_PROGRAM_ID)) {
+    const c = pump.PUMP_SDK.decodeBondingCurve(bc);
+    const solCurve = c.quoteMint.equals(PublicKey.default) || c.quoteMint.equals(spl.NATIVE_MINT);
+    let progress = null;
+    try {
+      const { global } = await pumpState();
+      const init = BigInt(global.initialRealTokenReserves.toString()), left = BigInt(c.realTokenReserves.toString());
+      progress = c.complete ? 100 : init > 0n ? Math.max(0, Math.min(100, Number((init - left) * 10000n / init) / 100)) : null;
+    } catch (_) { }
+    curve = {
+      complete: !!c.complete, solCurve, progress,
+      virtualSol: c.virtualQuoteReserves.toString(), virtualToken: c.virtualTokenReserves.toString(),
+      realSol: c.realQuoteReserves.toString(), creator: c.creator.toBase58(),
+      mcapLamports: pump.bondingCurveMarketCap({ mintSupply: c.tokenTotalSupply, virtualQuoteReserves: c.virtualQuoteReserves, virtualTokenReserves: c.virtualTokenReserves }).toString()
+    };
+  }
+  return { decimals, supply, program, curve };
+}
+
+/** Curve progress for many mints in one call: { mint: { complete, progress, mcapLamports } | null }. */
+export async function curvesOf(mints) {
+  if (!mints.length) return {};
+  const infos = await accounts(mints.map(m => pump.bondingCurvePda(new PublicKey(m))));
+  let init = null;
+  try { init = BigInt((await pumpState()).global.initialRealTokenReserves.toString()); } catch (_) { }
+  const out = {};
+  mints.forEach((m, i) => {
+    const bc = infos[i];
+    if (!bc || !bc.owner.equals(pump.PUMP_PROGRAM_ID)) { out[m] = null; return; }
+    const c = pump.PUMP_SDK.decodeBondingCurve(bc), left = BigInt(c.realTokenReserves.toString());
+    out[m] = {
+      complete: !!c.complete,
+      progress: c.complete ? 100 : init ? Math.max(0, Math.min(100, Number((init - left) * 10000n / init) / 100)) : null,
+      mcapLamports: pump.bondingCurveMarketCap({ mintSupply: c.tokenTotalSupply, virtualQuoteReserves: c.virtualQuoteReserves, virtualTokenReserves: c.virtualTokenReserves }).toString()
+    };
+  });
+  return out;
+}
+
+/** A trade straight on a live SOL curve: quote only (no user) or the transaction to sign. */
+export async function curveTrade({ mint: mintStr, side, amount, slippageBps, user: userStr }) {
+  const mint = new PublicKey(mintStr);
+  const [m, bcInfo] = await accounts([mint, pump.bondingCurvePda(mint)]);
+  if (!m || !bcInfo) return null;
+  const bc = pump.PUMP_SDK.decodeBondingCurve(bcInfo);
+  const solCurve = bc.quoteMint.equals(PublicKey.default) || bc.quoteMint.equals(spl.NATIVE_MINT);
+  if (bc.complete || !solCurve) return null;
+  const tokenProgram = m.owner;
+  const { global, feeConfig } = await pumpState();
+  const amt = new BN(String(amount)), slip = Math.max(0.1, Number(slippageBps || 500) / 100);
+  let out;
+  if (side === 'buy') out = pump.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: bc.tokenTotalSupply, bondingCurve: bc, amount: amt, quoteMint: spl.NATIVE_MINT });
+  else out = pump.getSellSolAmountFromTokenAmount({ global, feeConfig, mintSupply: bc.tokenTotalSupply, bondingCurve: bc, amount: amt });
+  if (out.lten(0)) throw Object.assign(new Error('nothing out'), { code: 'too_small' });
+  // spot price (lamports per raw token) for the impact
+  const vs = BigInt(bc.virtualQuoteReserves.toString()), vt = BigInt(bc.virtualTokenReserves.toString());
+  const spot = Number(vs) / Number(vt);
+  const exec = side === 'buy' ? Number(amount) / Number(out.toString()) : Number(out.toString()) / Number(amount);
+  const impact = Math.abs(exec / spot - 1) * 100;
+  const minOut = side === 'buy' ? out.toString() : out.sub(out.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString();
+  const q = { route: 'pump', inAmount: String(amount), outAmount: out.toString(), minOut, maxIn: side === 'buy' ? amt.add(amt.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString() : String(amount), impact };
+  if (!userStr) return q;
+  const user = new PublicKey(userStr);
+  const ixs = side === 'buy'
+    ? await pump.PUMP_SDK.buyInstructions({ global, bondingCurveAccountInfo: bcInfo, bondingCurve: bc, associatedUserAccountInfo: null, mint, user, amount: out, solAmount: amt, slippage: slip, tokenProgram })
+    : await pump.PUMP_SDK.sellInstructions({ global, bondingCurveAccountInfo: bcInfo, bondingCurve: bc, mint, user, amount: amt, solAmount: out, slippage: slip, tokenProgram, mayhemMode: bc.isMayhemMode, cashback: bc.isCashbackCoin });
+  const { blockhash } = (await rpc('getLatestBlockhash', [{ commitment: 'confirmed' }])).value;
+  const tx = new VersionedTransaction(new TransactionMessage({ payerKey: user, recentBlockhash: blockhash, instructions: [
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 300000 }), ...ixs
+  ] }).compileToV0Message());
+  return { ...q, tx: Buffer.from(tx.serialize()).toString('base64'), hash: sha(tx.message.serialize()) };
+}
+
+/** Send a signed transaction through our RPC; the signature back. */
+export async function sendRaw(b64) {
+  return rpc('sendTransaction', [String(b64), { encoding: 'base64', skipPreflight: false, preflightCommitment: 'confirmed', maxRetries: 3 }], 15000);
+}
+/** 'pending' | 'confirmed' | 'failed' (+ err) for a signature. */
+export async function sigStatus(sig) {
+  const r = await rpc('getSignatureStatuses', [[sig], { searchTransactionHistory: false }]);
+  const v = r.value && r.value[0];
+  if (!v) return { state: 'pending' };
+  if (v.err) return { state: 'failed', err: v.err };
+  return { state: v.confirmationStatus === 'confirmed' || v.confirmationStatus === 'finalized' ? 'confirmed' : 'pending' };
+}
+
+/** SOL and one token's balance for a wallet (raw units). */
+export async function balances(ownerStr, mintStr) {
+  const owner = new PublicKey(ownerStr);
+  const [lamports, toks] = await Promise.all([
+    rpc('getBalance', [owner.toBase58(), { commitment: 'confirmed' }]).then(r => r.value),
+    mintStr && mintStr !== WSOL ? rpc('getTokenAccountsByOwner', [owner.toBase58(), { mint: mintStr }, { encoding: 'jsonParsed', commitment: 'confirmed' }]).then(r => r.value) : Promise.resolve([])
+  ]);
+  let raw = 0n, decimals = null;
+  for (const a of toks || []) { const t = a.account.data.parsed.info.tokenAmount; raw += BigInt(t.amount); decimals = t.decimals; }
+  return { lamports: String(lamports), token: raw.toString(), decimals };
+}
+
+/** The largest holders of a mint, their owners, and which of them is the curve. */
+export async function holders(mintStr) {
+  const mint = new PublicKey(mintStr);
+  const [largest, supply] = await Promise.all([
+    rpc('getTokenLargestAccounts', [mintStr, { commitment: 'confirmed' }]).then(r => r.value),
+    rpc('getTokenSupply', [mintStr, { commitment: 'confirmed' }]).then(r => r.value)
+  ]);
+  const accs = (largest || []).slice(0, 20);
+  const info = accs.length ? (await rpc('getMultipleAccounts', [accs.map(a => a.address), { encoding: 'jsonParsed', commitment: 'confirmed' }])).value : [];
+  const curve = pump.bondingCurvePda(mint).toBase58();
+  const total = BigInt(supply.amount || '0');
+  return {
+    supply: supply.amount, decimals: supply.decimals,
+    holders: accs.map((a, i) => {
+      const owner = info[i] && info[i].data && info[i].data.parsed ? info[i].data.parsed.info.owner : null;
+      const amt = BigInt(a.amount);
+      return { account: a.address, owner, amount: a.amount, pct: total > 0n ? Number(amt * 1000000n / total) / 10000 : 0, label: owner === curve ? 'bonding curve' : null };
+    })
+  };
 }
 
 /* ---------- metadata on pump.fun's IPFS ---------- */

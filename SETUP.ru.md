@@ -1,4 +1,4 @@
-# forks — настройка X, Supabase, Netlify и монет
+# forks — настройка X, Supabase, Netlify, монет и терминала
 
 Без этой настройки сайт уже работает: архив, модель (если есть `FORKS_LLM_KEY`) и `/freeforks` в демо-режиме вне forks.wiki. Ниже — как включить настоящий вход через X и задания с записью в базу.
 
@@ -59,12 +59,12 @@
 1. Как заливать. **Не перетаскивай zip в Netlify**: так загрузится только страница, без функций, и деревья не построятся (`/api/trace` будет 404). Два рабочих способа:
    - **Netlify CLI с компьютера** (нужен Node 20+). Из распакованной папки проекта:
      ```bash
-     npm install                    # с 3.5: библиотеки pump.fun и Solana для функции launch
+     npm install                    # с 3.5: библиотеки pump.fun и Solana для функций launch и market
      npx netlify-cli login          # один раз
      npx netlify-cli link           # один раз: выбрать сайт forks.wiki
      npx netlify-cli deploy --prod  # каждый раз, когда заливаешь новую версию
      ```
-     Без `npm install` функция `launch` не соберётся (CLI берёт библиотеки из локальной `node_modules`).
+     Без `npm install` функции `launch` и `market` не соберутся (CLI берёт библиотеки из локальной `node_modules`).
    - **Из GitHub**: Netlify → Site configuration → Build & deploy → Link repository → `forkwiki/fork`. Тогда каждый пуш в репозиторий сам обновляет сайт, а `npm install` Netlify делает сам.
 2. Site configuration → Environment variables (Scope: Functions, «Contains secret values»):
 
@@ -83,6 +83,8 @@
 | `JITO_URL` | block engine Jito, например `https://ny.mainnet.block-engine.jito.wtf` | нет (`https://mainnet.block-engine.jito.wtf`) |
 | `PUMP_IPFS_URL` | куда грузить лого и метаданные | нет (`https://pump.fun/api/ipfs`) |
 | `LAUNCH_BUILDS_PER_MIN` | сборок запуска с одного IP в минуту | нет (6) |
+| `JUP_API_KEY` | бесплатный ключ Jupiter (developers.jup.ag/portal) — для сделок через Jupiter | рекомендуется: без ключа 0,5 запроса в секунду на весь сайт |
+| `JUP_URL` | адрес Swap API | нет (`https://api.jup.ag/swap/v2`) |
 
 3. **После изменения env заново задеплой** (`npx netlify-cli deploy --prod` или Deploys → Trigger deploy). Без этого функции не видят новые значения.
 4. Открыть `https://forks.wiki/api/health`. Ждём `"ok": true`; `missing` и `config` пустые, `db.ok: true`, `db.schema: "4"`, `github: true`, `model: true`; для монет — `launch.ready: true`. Поле `callback_url` скопировать в X Portal символ в символ.
@@ -128,6 +130,13 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | «your wallet changed the transactions» | Кошелёк дописал свои инструкции в транзакции; такой бандл не несёт закреплённый сплит, сервер его не отправляет. Другой кошелёк |
 | «this wallet started coins on 3 repositories today» | Лимит на кошелёк в сутки (`launch.per_day` в `app_config`) |
 | «a coin landed, but not with this split» | На цепи монета с другим сплитом (не через forks); в список не попадёт |
+| Терминал: «Trading opens once the site is connected to Solana» | Нет `SOLANA_RPC_URL` или не было редеплоя |
+| Терминал: котировка «busy, retrying…» / «The router is busy» | Jupiter отвечает 429: нет `JUP_API_KEY` (лимит 0,5 запроса в секунду на весь сайт) |
+| Терминал: «no route» | Jupiter не нашёл маршрут (у токена нет ликвидности) — для монет на кривой pump.fun маршрут идёт напрямую, это не про них |
+| Терминал: «The network refused it: …» | RPC отклонил транзакцию при симуляции: чаще всего проскальзывание (цена ушла) или мало SOL на комиссию |
+| Терминал: нет графика / «No candles yet» | GeckoTerminal ещё не проиндексировал пул (обычно минуты после первых сделок) или упёрся в свой бесплатный лимит (30 запросов в минуту) |
+| `/coin/<адрес>`: «Not a coin on forks» | Терминал открывает только монеты, запущенные через forks, и токены проектов из `config.projects` |
+
 
 
 ## 5.5. X-скан
@@ -213,6 +222,15 @@ on conflict (key) do update set value = excluded.value;
 insert into launch_blocklist (pattern, reason) values ('owner', 'asked by email') on conflict do nothing;      -- весь аккаунт
 insert into launch_blocklist (pattern, reason) values ('owner/name', 'asked') on conflict do nothing;         -- один репо
 ```
+
+## 5.8. Маркет и терминал (4.0)
+
+- **Маркет** `/market`: монеты, запущенные через forks, и токены проектов (`config.projects` в `src/config.js`, по владельцу на GitHub: `pump-fun` → PUMP и т.д.). Добавить проект — новая строка `{ owner, symbol, name, mint }`; mint сверить на DexScreener или Solscan.
+- **Терминал** `/coin/<адрес>`: график (GeckoTerminal), сделки, держатели (наш RPC), сплит, покупка и продажа. Монета на кривой pump.fun торгуется прямо на кривой: сервер собирает транзакцию через SDK pump.fun, кошелёк подписывает, сервер сверяет байты и отправляет через `SOLANA_RPC_URL`. Всё остальное — через Jupiter (`/order` → `/execute`, Jupiter сам доводит транзакцию до блока). Комиссии forks со сделок нет (`trade.feeBps: 0`).
+- **Что нужно**: тот же `SOLANA_RPC_URL`, и желательно `JUP_API_KEY` (бесплатно на developers.jup.ag/portal → Scope: Functions, «Contains secret values»). Проверка: `/api/health` → `trade.rpc: true`, `trade.jupiter_key: true`.
+- **Покупка при запуске** на странице `/launch` и в чате: до 20 SOL (`launch.maxDevBuySol`), четвёртой транзакцией в том же бандле, после закрепления сплита.
+
+⚠️ Не проверено вживую: торговля на кривой через SDK pump.fun 4.3.1 (инструкции `buy`/`sell` — те же, что SDK использует в своих примерах), Jupiter `/order` + `/execute` с настоящим ключом, покупка при запуске, лимиты GeckoTerminal и DexScreener под нагрузкой. На стенде всё прошло с поддельными сервисами и настоящими подписями. Первые сделки — на маленькие суммы.
 
 ## 6. Админ-сниппеты (SQL Editor)
 

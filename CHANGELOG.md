@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.0.0 — 2026-11-06
+
+- **A new look**, borrowed from code hosts without their names or marks: a flat canvas, boxes with a muted header, hairline borders, 6px corners, system type with mono for code and numbers, a green primary button, an underlined tab bar; dark and light. One stylesheet for every page (`css/forks.css`); the header, tabs, search, wallet menu and footer come from `src/shell.js`. The animated canvas is gone.
+- **Five pages**: Graph (`/`), Market (`/market`), a terminal per coin (`/coin/<address>`), Launch (`/launch`), Guide (`/guide`). The header search opens a coin by its address or traces anything else; `/` focuses it.
+- **The site opens on a graph**: where pump.fun's code comes from, on Solana — solana-labs/solana → anza-xyz/agave → jito-foundation/jito-solana, firedancer, otter-sec/anchor → pump-fun/pump-public-docs, orca-so/whirlpools → jup-ag/whirlpools, raydium-io/raydium-cp-swap — with live GitHub data, and the tokens on it.
+- **Project tokens on trees**: a project's own token, by GitHub owner (SOL, PUMP, JTO, JUP, ORCA, RAY to start, in `config.projects`), sits on its repositories in blue with its price; coins launched here stay amber. Repository rows carry both as chips that open the terminal; the point card shows them with *trade →*.
+- **The market**: coins launched here and the project tokens, with price, market cap, 24 h change, volume and bonding-curve progress; filter and sort; refreshes every 30 s. A coin DexScreener hasn't indexed yet is priced from its curve.
+- **The terminal**: a canvas candle chart (1m–1d, GeckoTerminal), trades, the top 20 holders (the curve labelled), the fee split, the repository and the line it came from, the address, and a buy/sell panel. A coin on its pump.fun curve trades on the curve (built by the server with pump.fun's SDK, signed by the wallet, checked and sent); anything else through Jupiter (`/order` → `/execute`); SOL against USDC. Quick amounts, slippage, impact and route before signing; confirmation with a Solscan link. No forks fee on trades. Tiny prices read `0.0₅4194`.
+- **The launch page**: search GitHub or paste a repository, see its card and its split, then the same form as the chat — now with **buy at launch** (up to 20 SOL, bought first in the bundle, after the split is locked) and an optional **X link** for pump.fun. Live coins open their terminal.
+- **The guide** and **`/info`**: what everything is, the split, claiming on pump.fun, the terminal, $FORK, the commands.
+- Wallets reconnect silently to the last one used; the header shows the wallet with a menu (balance, copy, Solscan, disconnect).
+- Server: `netlify/functions/market.mjs` (`/api/market`, `/api/prices`, `/api/coin`, `/api/chart`, `/api/trades`, `/api/holders`, `/api/balance`, `/api/trade/quote`, `/api/trade/build`, `/api/trade/send`, `/api/tx`), `netlify/lib/markets.mjs`; `chain.mjs` gains the dev buy, pump.fun's Global and fee state, curve trades, holders, balances. `/api/health` adds `trade`. New optional env: `JUP_API_KEY`, `JUP_URL`. No new migration.
+
 ## 3.5.0 — 2026-11-05
 
 - **Coins on repositories.** Anyone with a Solana wallet launches a repository's coin on pump.fun from forks.wiki — `/launch owner/name`, *launch a coin* in a point's card, or the chip under a tree; `/coins` for the newest; `?launch=owner/name` links. One coin per repository.

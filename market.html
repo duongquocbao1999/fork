@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Market · forks</title>
+<meta name="description" content="Every coin launched on a GitHub repository through forks, and the project tokens on the graph: live prices, market caps and a terminal to trade from your own wallet.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230d1117'/%3E%3Cg fill='none' stroke='%233fb950' stroke-width='2.1' stroke-linecap='round'%3E%3Cpath d='M9 20V3.6'/%3E%3Cpath d='M9 14.4C9 10 15.4 10.5 15.4 6.8'/%3E%3C/g%3E%3Ccircle cx='9' cy='20' r='2.4' fill='%233fb950'/%3E%3Ccircle cx='15.4' cy='5.1' r='1.8' fill='%230d1117' stroke='%233fb950' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/forks.css">
+<meta property="og:title" content="Market · forks">
+<meta property="og:description" content="Coins on GitHub repositories, and the project tokens on the graph. Live from the chain; trade from your own wallet.">
+<meta property="og:image" content="https://forks.wiki/docs/media/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#010409">
+</head>
+<body class="market-page">
+<main class="page">
+  <div class="page-h">
+    <div>
+      <h1>Market</h1>
+      <p>Coins launched on repositories through forks, and the project tokens on the graph. Prices are live; every trade is signed by your own wallet.</p>
+    </div>
+    <a class="btn primary" href="/launch"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/></svg>Launch a coin</a>
+  </div>
+  <div class="subnav">
+    <div class="seg" role="tablist" aria-label="Which tokens">
+      <button type="button" role="tab" data-k="coins" class="on">Coins <span class="counter" id="nCoins">0</span></button>
+      <button type="button" role="tab" data-k="projects">Project tokens <span class="counter" id="nProjects">0</span></button>
+    </div>
+    <div class="grow"><label class="sr" for="mkQ">Filter</label><input class="input" id="mkQ" type="search" placeholder="Filter by ticker, name or repository" autocomplete="off"></div>
+    <label class="sr" for="mkSort">Sort</label>
+    <select class="select" id="mkSort">
+      <option value="new">Newest</option>
+      <option value="mcap">Market cap</option>
+      <option value="vol">24h volume</option>
+      <option value="change">24h change</option>
+      <option value="curve">Curve progress</option>
+    </select>
+  </div>
+  <div class="box mk" id="mk">
+    <div class="mk-h"><span>Token</span><span>Price</span><span>Market cap</span><span>24h</span><span>Volume 24h</span><span></span></div>
+    <div id="mkRows"><div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading the market…</span></div></div>
+  </div>
+  <p class="src-note">Prices from DexScreener; curve progress and coins not yet on DexScreener read from the chain. Project tokens belong to their projects, not to forks.</p>
+</main>
+<script src="/src/config.js"></script>
+<script src="/src/wallet.js"></script>
+<script src="/src/shell.js"></script>
+<script>ForksShell.mount({ page: 'market', crumb: 'market' });</script>
+<script src="/src/market.js"></script>
+</body>
+</html>

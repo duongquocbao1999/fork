@@ -2,7 +2,7 @@
 // repository; the creator fees split once, for good, between the people behind the code and forks.
 //
 //   GET  /api/launch/plan?repo=owner/name   who gets what (GitHub + the traced line), signed for the next step
-//   POST /api/launch/build   { ticket, wallet, symbol, name, image }   metadata on IPFS, the transactions to sign
+//   POST /api/launch/build   { ticket, wallet, symbol, name, image, devBuy?, x? }   metadata on IPFS, the transactions to sign
 //   POST /api/launch/submit  { ticket, txs }   checks every signature and byte, sends one all-or-nothing bundle
 //   GET  /api/launch/status?mint=…   reads the coin and its locked split back from the chain, then lists it
 //   GET  /api/tokens?repos=a/b,c/d   live coins on these repositories (+ market data when DexScreener has it)
@@ -158,11 +158,18 @@ export default async (req, context) => {
       if (!name || name.length > 32 || /[\u0000-\u001f<>]/.test(name)) return err('bad_name');
       const img = image(body.image);
       if (!img) return err('bad_image');
-      const meta = await uploadMetadata({ name, symbol, description: describe(p), website: `https://github.com/${p.repo}`, image: img });
-      const b = await build({ wallet, name, symbol, uri: meta.uri, holders: p.holders, tipSol: L.tipSol });
+      // buy at launch: the launcher's own SOL, bought first in the same bundle (0 = none)
+      const devSol = body.devBuy == null || body.devBuy === '' ? 0 : Number(body.devBuy);
+      if (!Number.isFinite(devSol) || devSol < 0 || devSol > (L.maxDevBuySol || 20)) return err('bad_dev_buy');
+      const devBuyLamports = Math.round(devSol * 1e9);
+      if (devBuyLamports > 0 && devBuyLamports < 1e6) return err('bad_dev_buy'); // below 0.001 SOL
+      const x = String(body.x || '').trim();
+      if (x && !/^https:\/\/(x|twitter)\.com\/[A-Za-z0-9_]{1,15}(\/status\/\d{1,25})?\/?$/.test(x)) return err('bad_x');
+      const meta = await uploadMetadata({ name, symbol, description: describe(p), website: `https://github.com/${p.repo}`, twitter: x || null, image: img });
+      const b = await build({ wallet, name, symbol, uri: meta.uri, holders: p.holders, tipSol: L.tipSol, devBuyLamports });
       const r = await db('api_launch_reserve', { p_repo: p.repo, p_repo_name: p.repo, p_wallet: wallet, p_mint: b.mint, p_symbol: symbol, p_name: name, p_uri: meta.uri, p_image: meta.image, p_split: p.holders });
       if (!r || !r.ok) return err((r && r.error) || 'reserve', 409);
-      return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret) }, 150) });
+      return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret) }, 150) });
     }
 
     if (path === '/api/launch/submit') {

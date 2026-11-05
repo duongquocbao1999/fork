@@ -40,3 +40,14 @@ Non-obvious choices, one line of why each.
 - **One coin per repository, a few repositories per wallet** — the repository is held for 10 minutes for the wallet that built it; retries on it don't use up the day.
 - **No third-party marks** — the default logo is drawn from the coin's own line and ticker; avatars come from GitHub for the split only.
 - **Wallet Standard, no adapter libraries** — the page hands the wallet bytes and reads back signatures; inside the X app it offers to reopen the page in a wallet's browser.
+
+## 4.0 — the redesign, the market, the terminal
+
+- **A code host's look, not a brand's** — boxes, tabs, labels and a green primary button read as "a place for code" at a glance; no names, logos or marks are borrowed. The animated canvas went: it fought with a flat, dense UI and cost battery on phones.
+- **The site opens on a graph** — a prepared one (where pump.fun's code comes from, on Solana) with the project tokens on it and live prices, so a visitor from X understands the product before typing. Its relations were checked by hand: GitHub fork records where they exist (anza-xyz/agave ← solana-labs/solana, jup-ag/whirlpools ← orca-so/whirlpools), "built on" otherwise.
+- **Project tokens by GitHub owner** — `config.projects` maps an organization to its token (pump-fun → PUMP, jup-ag → JUP…), so any trace through their repositories shows it. Mints checked against DexScreener. Blue, never amber: they aren't ours.
+- **Two routes, one panel** — a coin on its pump.fun curve trades on the curve with pump.fun's SDK (the route most coins here will need, built and checked by our server, signed by the wallet); everything else goes through Jupiter's `/order` + `/execute`, which lands the transaction itself. The panel shows the route, so it's never a surprise.
+- **Nothing custodial** — the server never holds a key, never chooses an amount, and sends only what the wallet signed. A Jupiter transaction is Jupiter's; a curve transaction must match the hash the server built.
+- **Market data from public sources** — DexScreener for prices, GeckoTerminal for candles and trades, our RPC for holders, balances and curve progress; cached in memory and on the CDN so a crowd doesn't exhaust the free limits. A coin nobody indexes yet still shows a price and a market cap, computed from its curve.
+- **Buy at launch** — the launcher may buy first, in the same bundle, after the split is locked (so even that first buy's creator fee lands in the split). Capped at 20 SOL.
+- **Multi-page, still no build** — five HTML pages share `css/forks.css` and `src/shell.js`; `/coin/<mint>` is a rewrite to `coin.html`.

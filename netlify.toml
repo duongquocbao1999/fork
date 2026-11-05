@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+# a coin's terminal: forks.wiki/coin/<mint>
+[[redirects]]
+  from = "/coin/*"
+  to = "/coin.html"
+  status = 200
+
 # forks.wiki/r/<handle> — a friend's invite link
 [[redirects]]
   from = "/r/:code"
@@ -13,6 +19,8 @@
 
 # the launch function ships pump.fun's SDK and Solana's libraries as plain node_modules (run npm install before deploying)
 [functions.launch]
+  external_node_modules = ["@pump-fun/pump-sdk", "@solana/web3.js", "@solana/spl-token", "@coral-xyz/anchor", "bn.js"]
+[functions.market]
   external_node_modules = ["@pump-fun/pump-sdk", "@solana/web3.js", "@solana/spl-token", "@coral-xyz/anchor", "bn.js"]
 
 [[headers]]

@@ -10,27 +10,23 @@
   const kfmt = n => (n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'm' : n >= 1e4 ? Math.round(n / 1e3) + 'k' : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k' : String(n));
   const MARK = '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 20V3.6"/><path d="M9 14.4C9 10 15.4 10.5 15.4 6.8"/><circle class="d" cx="9" cy="20" r="2.4"/><circle class="e" cx="15.4" cy="5.1" r="1.8"/></svg>';
 
-  /* ---------- theme ---------- */
-  try { const t = localStorage.getItem('forks-theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (_) { }
-  $('#themeBtn').addEventListener('click', () => {
-    const cur = document.documentElement.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    const next = cur === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('forks-theme', next); } catch (_) { }
-  });
+  const C = window.FORKS_CONFIG, SH = window.ForksShell;
 
-  /* ---------- field ---------- */
-  const field = new window.ForksField($('#field'));
-  const formRect = () => $('#ask').getBoundingClientRect();
-  addEventListener('pointerdown', e => {
-    if (e.target.closest('button, a, input, .card, .msg, form, .full, .top, .chips, .toast, .point')) return;
-    field.tap(e.clientX, e.clientY);
-  });
+  /* ---------- a small burst where something lands (the old canvas field is gone) ---------- */
+  const field = {
+    setFocus() { }, setMode() { }, setDim() { }, light() { }, tap() { },
+    burst(x, y) {
+      if (RM.matches) return;
+      for (let i = 0; i < 10; i++) {
+        const d = document.createElement('i'), a = (i / 10) * Math.PI * 2, r = 26 + Math.random() * 18;
+        d.style.cssText = `position:fixed;z-index:60;left:${x}px;top:${y}px;width:6px;height:6px;margin:-3px;border-radius:50%;background:var(--acc);pointer-events:none`;
+        document.body.appendChild(d);
+        d.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(a) * r}px,${Math.sin(a) * r}px) scale(.4)`, opacity: 0 }], { duration: 650, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => d.remove();
+      }
+    }
+  };
 
-  /* ---------- hero ---------- */
-  const Q = ['where', 'did', 'it', '<em>come</em>', '<em>from?</em>'];
-  $('#q').innerHTML = Q.map((w, i) => `<span class="w" style="animation-delay:${200 + i * 110}ms">${w}</span>`).join(' ');
-  // six starters, fresh on every visit
+  /* ---------- starters ---------- */
   const STARTS = [
     ['who forked bitcoin?', 'what did bitcoin/bitcoin become?'],
     ['the bloodline of llama.cpp', 'where did llama.cpp come from?'],
@@ -40,29 +36,23 @@
     ['who came before bun?', 'where did bun come from?'],
     ['everything vscode forked into', 'what did microsoft/vscode become?'],
     ['where did zed come from?', 'where did zed come from?'],
-    ['the ancestors of tailwind', 'where did tailwindcss come from?'],
-    ['what did stable diffusion become?', 'what did stable diffusion become?'],
     ['how linux forked', 'what did torvalds/linux become?'],
-    ['the roots of solana', 'where did solana come from?']
+    ['the roots of ethereum', 'where did go-ethereum come from?']
   ];
-  const starts = STARTS.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).slice(0, 6).map(x => x[1]);
-  $('#chips').innerHTML = starts.map(([label, q]) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(label)}</button>`).join('');
+  const starts = STARTS.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).slice(0, 4).map(x => x[1]);
+  $('#chips').innerHTML = starts.map(([label, q]) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(label)}</button>`).join('') + '<button class="chip" type="button" data-q="/info">what is this?</button>';
   $('#chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) send(b.dataset.q); });
-  $('#fine').textContent = 'every point is a public github repository · traced live by upstream';
 
   /* ---------- input ---------- */
   const inp = $('#inp'), sendBtn = $('#sendBtn'), form = $('#ask');
   $('#askSlot').appendChild(form);
   const SMALL = () => innerWidth < 640;
-  const PH = [SMALL() ? 'type anything' : 'type anything — a word, a project, a repo', 'llama.cpp', 'bitcoin', 'github.com/neovim/neovim', 'doge', 'why is everything a fork of chromium?'];
+  const PH = [SMALL() ? 'Trace anything' : 'Trace anything — a repo, a project, a word', 'llama.cpp', 'bitcoin', 'github.com/neovim/neovim', 'doge', 'why is everything a fork of chromium?'];
   let phI = 0; inp.placeholder = PH[0];
-  setInterval(() => { if (!inp.value && document.activeElement !== inp && !document.body.classList.contains('chat')) { phI = (phI + 1) % PH.length; inp.placeholder = PH[phI]; } }, 3200);
-  const listen = () => { field.setFocus(formRect()); field.setMode(busy ? 'thinking' : (inp.value || document.activeElement === inp ? 'listening' : 'idle')); };
-  inp.addEventListener('input', () => { sendBtn.disabled = !inp.value.trim(); listen(); });
-  inp.addEventListener('focus', listen); inp.addEventListener('blur', listen);
+  setInterval(() => { if (document.activeElement !== inp && !inp.value && !document.body.classList.contains('chat')) { phI = (phI + 1) % PH.length; inp.placeholder = PH[phI]; } }, 3200);
+  inp.addEventListener('input', () => { sendBtn.disabled = !inp.value.trim(); });
   form.addEventListener('submit', e => { e.preventDefault(); const v = inp.value.trim(); if (v) send(v); });
   addEventListener('keydown', e => {
-    if (e.key === '/' && document.activeElement !== inp && !e.metaKey && !e.ctrlKey) { e.preventDefault(); inp.focus(); inp.value = '/'; sendBtn.disabled = false; }
     if (e.key === 'Escape') { if (!$('#full').hidden) closeFull(); else if (busy && ctl) ctl.abort(); }
   });
 
@@ -73,22 +63,22 @@
     if (document.body.classList.contains('chat')) return;
     document.body.classList.add('chat');
     $('#dock').appendChild(form);
-    field.setDim(SMALL() ? .9 : .8); inp.placeholder = SMALL() ? 'trace something else' : 'trace something else — a word, a project, a repo';
+    inp.placeholder = SMALL() ? 'Trace something else' : 'Trace something else — a repo, a project, a word';
   }
   function reset() {
     if (ctl) ctl.abort();
-    thread.innerHTML = ''; history = []; busy = false;
+    [...thread.children].forEach(li => { if (!li.classList.contains('showcase')) li.remove(); });
+    history = []; busy = false;
     document.body.classList.remove('chat');
     $('#askSlot').appendChild(form);
-    field.setDim(0); field.setMode('idle'); inp.placeholder = PH[0];
-    inp.value = ''; sendBtn.disabled = true; inp.focus();
+    inp.placeholder = PH[0]; inp.value = ''; sendBtn.disabled = true;
+    scrollTo({ top: 0, behavior: RM.matches ? 'auto' : 'smooth' });
   }
-  $('#home').addEventListener('click', e => { e.preventDefault(); reset(); });
-  $('#newBtn').addEventListener('click', reset);
 
   /* ---------- messages ---------- */
   function addYou(text) {
-    const li = document.createElement('li'); li.className = 'msg you'; li.textContent = text;
+    const li = document.createElement('li'); li.className = 'msg you';
+    li.innerHTML = `<span>you asked <b>${esc(text)}</b></span>`;
     thread.appendChild(li); scrollDown();
   }
   function addUp() {
@@ -97,7 +87,8 @@
     thread.appendChild(li); scrollDown();
     return { li, txt: li.querySelector('.txt'), cards: li.querySelector('.cards'), src: li.querySelector('.src'), body: li.querySelector('.body') };
   }
-  function scrollDown() { requestAnimationFrame(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: RM.matches ? 'auto' : 'smooth' })); }
+  let quiet = true; // the showcase grows where it is: no scrolling until someone asks something
+  function scrollDown() { if (quiet) return; requestAnimationFrame(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: RM.matches ? 'auto' : 'smooth' })); }
   function type(el, text) {
     return new Promise(res => {
       if (RM.matches) { el.textContent = text; return res(); }
@@ -114,8 +105,8 @@
   function follow(m, list) {
     if (!list || !list.length) return;
     const d = document.createElement('div'); d.className = 'follow';
-    d.innerHTML = list.slice(0, 4).map(f => `<button class="chip" type="button">${esc(f)}</button>`).join('');
-    d.addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) send(b.textContent); });
+    d.innerHTML = list.slice(0, 5).map(f => (typeof f === 'object' ? `<a class="chip" href="${esc(f.href)}">${esc(f.label)}</a>` : `<button class="chip" type="button">${esc(f)}</button>`)).join('');
+    d.addEventListener('click', e => { const b = e.target.closest('button.chip'); if (b) send(b.textContent); });
     m.body.appendChild(d);
   }
 
@@ -129,26 +120,53 @@
   const nodeMeta = x => [x.data ? B.year(x.data.created) : '', x.data ? '★ ' + kfmt(x.data.stars) : '', x.note || x.rel].filter(Boolean).join(' · ');
   function addTrace() {
     const li = document.createElement('li'); li.className = 'msg trace';
-    li.innerHTML = '<div class="stage-host"></div><div class="result"><div class="r-head" hidden></div><div class="r-sub" hidden></div><div class="txt"></div><div class="cards"></div></div>';
+    li.innerHTML = '<div class="who">upstream <span class="src">graph</span></div><div class="stage-host"></div><div class="result"><div class="r-head" hidden></div><div class="r-sub" hidden></div><div class="txt"></div><div class="cards"></div></div>';
     thread.appendChild(li);
     const m = { li, txt: li.querySelector('.txt'), cards: li.querySelector('.cards'), body: li.querySelector('.result'), head: li.querySelector('.r-head'), sub: li.querySelector('.r-sub') };
     m.stage = window.ForksStage.create(li.querySelector('.stage-host'), {
       onPick: (id, rect) => m.pick && m.pick(id, rect),
       onFull: () => m.full && m.full(),
-      onPoint: (x, y, last) => { if (last) { if (!SMALL()) field.light(Math.max(40, x - 40), y); field.burst(x, y); } }
+      onPoint: () => { }
     });
     scrollDown();
     return m;
   }
   const trees = []; // every tree on the page, so a coin that lands can show up on it
+  // the tokens on a tree: a project's own token (blue, by GitHub owner) and a coin launched here (amber)
+  let prices = {};
+  const usd = n => (n == null ? '' : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}b` : n >= 1e6 ? `$${(n / 1e6).toFixed(1)}m` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}k` : n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(4)}` : n > 0 ? `$${SH.tiny(n)}` : '$0');
+  const pct = c => (c == null ? '' : `${c >= 0 ? '+' : ''}${Number(c).toFixed(1)}%`);
+  function tokensOf(repo, map) {
+    const out = [], p = C.projectOf(repo), f = map && map.get(String(repo).toLowerCase());
+    if (p) out.push({ kind: 'project', symbol: p.symbol, mint: p.mint, name: p.name });
+    if (f) out.push({ kind: 'forks', symbol: f.symbol, mint: f.mint, name: f.name });
+    return out;
+  }
   function tagCoins(m, map) {
-    m.tree.nodes.forEach((x, i) => { const t = map.get(String(x.repo).toLowerCase()); if (t) m.stage.tag(String(i), '$' + t.symbol); });
+    m.coins = map;
+    m.tree.nodes.forEach((x, i) => tokensOf(x.repo, map).forEach(t => m.stage.tag(String(i), '$' + t.symbol, t.kind)));
     m.body.querySelectorAll('.rp[data-repo]').forEach(a => {
-      const t = map.get(a.dataset.repo.toLowerCase()); if (!t || a.querySelector('.rp-coin')) return;
-      const b = document.createElement('span'); b.className = 'rp-coin'; b.textContent = '$' + t.symbol; b.setAttribute('role', 'button'); b.tabIndex = 0;
-      const open = e => { e.preventDefault(); e.stopPropagation(); send(`/launch ${a.dataset.repo}`); };
-      b.addEventListener('click', open); b.addEventListener('keydown', e => { if (e.key === 'Enter') open(e); });
-      a.querySelector('.rp-name').appendChild(b);
+      for (const t of tokensOf(a.dataset.repo, map)) {
+        if (a.querySelector(`.rp-coin[data-mint="${t.mint}"]`)) continue;
+        const b = document.createElement('a'); b.className = 'rp-coin' + (t.kind === 'project' ? ' project' : ''); b.dataset.mint = t.mint;
+        b.href = '/coin/' + t.mint; b.title = t.kind === 'project' ? `${t.name}: the project's token — open the terminal` : `${t.name}: a coin launched on forks — open the terminal`;
+        const mk = prices[t.mint];
+        b.innerHTML = `$${esc(t.symbol)}${mk && mk.price != null ? `<small>${usd(mk.price)}${mk.change24 != null ? ' ' + pct(mk.change24) : ''}</small>` : ''}`;
+        b.addEventListener('click', e => e.stopPropagation());
+        a.querySelector('.rp-name').appendChild(b);
+      }
+    });
+  }
+  async function priceTree(m) {
+    const mints = [];
+    m.tree.nodes.forEach(x => tokensOf(x.repo, m.coins).forEach(t => mints.push(t.mint)));
+    const todo = [...new Set(mints)].filter(x => !(x in prices));
+    if (todo.length) {
+      try { const j = await fetch('/api/prices?mints=' + todo.join(',')).then(r => r.json()); if (j.ok) Object.assign(prices, j.prices); } catch (_) { }
+    }
+    m.body.querySelectorAll('.rp-coin[data-mint]').forEach(b => {
+      const mk = prices[b.dataset.mint]; if (!mk || mk.price == null || b.querySelector('small')) return;
+      b.insertAdjacentHTML('beforeend', `<small>${usd(mk.price)}${mk.change24 != null ? ' ' + pct(mk.change24) : ''}</small>`);
     });
   }
   function growRepos(m, c) {
@@ -160,7 +178,7 @@
       nodes: c.nodes.map((x, i) => ({ id: String(i), name: x.repo, when: x.data ? B.year(x.data.created) : '', meta: nodeMeta(x), parent: x.parent == null ? null : String(x.parent), size: x.data ? Math.min(1, Math.log10(x.data.stars + 1) / 5.2) : null }))
     }).then(r => {
       const root = c.nodes[0], focus = c.nodes[c.focus];
-      m.head.hidden = false; m.head.textContent = focus.repo;
+      m.head.hidden = false; m.head.innerHTML = `<span class="o">${esc(focus.repo.split('/')[0])} / </span>${esc(focus.repo.split('/').slice(1).join('/'))}`;
       m.sub.hidden = false;
       const y = root.data ? ' · ' + B.year(root.data.created) : '';
       m.sub.innerHTML = (r.forks ? `${r.forks} fork${r.forks > 1 ? 's' : ''} from <b>${esc(root.repo)}</b>${y}` : `the origin${y}`) +
@@ -216,14 +234,16 @@
   /* ---------- send ---------- */
   async function send(raw) {
     raw = String(raw || '').trim(); if (!raw) return;
+    quiet = false;
     if (busy) { queued = raw; inp.value = ''; sendBtn.disabled = true; return; } // goes out as soon as this answer lands
     const r = B.route(raw);
     if (r.clear) { reset(); return; }
     toChat(); inp.value = ''; sendBtn.disabled = true; addYou(raw);
-    busy = true; field.setFocus(formRect()); field.setMode('thinking');
+    busy = true;
     try {
       if (r.quest) { await QUEST.run(r.quest); return; } // /freeforks and /logout run in the page, never through the model
       if (r.launch != null) { await LAUNCH.run(r.launch); return; } // coins on repositories: /launch owner/name, /coins
+      if (r.info) { const m = addUp(); m.src.hidden = false; m.src.textContent = 'info'; await wait(300); await type(m.txt, r.info.text); follow(m, r.info.follow); return; }
       if (r.text) { const m = addUp(); await wait(420); await type(m.txt, r.text.text); follow(m, r.text.follow); return; }
 
       history.push({ role: 'user', content: r.trace });
@@ -252,11 +272,13 @@
       }
       if (m.growP) {
         const g = await m.growP;
+        const tokP = LAUNCH.tokens(m.tree.nodes.map(x => x.repo)).catch(() => new Map());
+        tokP.then(map => tagCoins(m, map));
         const t = String(note || text || streamed || '').trim();
         if (t) await type(m.txt, t);
         renderLine(m, m.tree);
         const root = g.root.name, focus = g.focus.name;
-        LAUNCH.tokens(m.tree.nodes.map(x => x.repo)).then(map => tagCoins(m, map)).catch(() => {});
+        tokP.then(map => { tagCoins(m, map); priceTree(m); });
         follow(m, [g.forks ? `where did ${root} come from?` : `what did ${focus} become?`, g.forks ? `what did ${focus} become?` : `where did ${focus} come from?`].concat(C.launch.treasury && LAUNCH.repoOf(focus) ? [`/launch ${focus}`] : []));
         QUEST.noteTrace(m.tree.nodes.length); // your fork card: trees grown, repositories seen; and the chat trial
         history.push({ role: 'assistant', content: t || `${focus}: ${g.forks} forks from ${root}` });
@@ -267,7 +289,7 @@
       await type(m.txt, why);
       history.push({ role: 'assistant', content: why });
     } finally {
-      busy = false; ctl = null; field.setMode('idle'); scrollDown();
+      busy = false; ctl = null; scrollDown();
       if (queued) { const q = queued; queued = null; setTimeout(() => send(q), 0); }
       if (matchMedia('(pointer: fine)').matches) inp.focus();
     }
@@ -379,13 +401,14 @@
     const links = [['open on github', url], [`forks${d ? ' · ' + fmt(d.forks) : ''}`, url + '/forks'], ['network graph', url + '/network']];
     if (d && d.home && /^https?:\/\//.test(d.home)) links.push(['homepage', d.home]);
     if (!d) links.push(['search on github', `https://github.com/search?q=${enc(x.repo.split('/')[1] || x.repo)}&type=repositories`]);
-    const coin = LAUNCH.known(x.repo), canCoin = !!LAUNCH.repoOf(x.repo) && (x.data || coin);
+    const coin = LAUNCH.known(x.repo), proj = C.projectOf(x.repo), canCoin = !!LAUNCH.repoOf(x.repo) && (x.data || coin);
+    const tokBlock = t => { const mk = prices[t.mint]; return `<div class="pt-coin${t.kind === 'project' ? ' project' : ''}"><span class="pt-k">${t.kind === 'project' ? 'project token' : 'coin on forks'}</span><b>$${esc(t.symbol)}</b>${mk && mk.price != null ? `<span class="mono">${usd(mk.price)}</span>${mk.change24 != null ? `<span class="mono ${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}` : ''}<a href="/coin/${esc(t.mint)}">trade →</a></div>`; };
     openPoint({
-      name: x.repo, coin: LAUNCH.pointBlock(x.repo),
+      name: x.repo, coin: (proj ? tokBlock({ kind: 'project', ...proj }) : '') + (coin ? tokBlock({ kind: 'forks', ...coin }) : ''),
       meta: d ? [`★ ${fmt(d.stars)}`, d.lang, `since ${B.year(d.created)}`, d.archived ? 'archived' : '', d.fork && d.fork !== '?' ? `github fork of ${d.fork}` : ''].filter(Boolean).join(' · ') : '',
       how, desc: d ? d.desc : '', links,
       acts: [['trace from here', () => send(`where did ${x.repo} come from?`)], ['what did it become?', () => send(`what did ${x.repo} become?`)]]
-        .concat(canCoin ? [[coin ? `$${coin.symbol} · the coin` : 'launch a coin', () => send(`/launch ${x.repo}`)]] : [])
+        .concat(coin ? [[`trade $${coin.symbol}`, () => { location.href = '/coin/' + coin.mint; }]] : canCoin ? [['launch a coin', () => { location.href = '/launch?repo=' + x.repo; }]] : [])
     }, rect);
   }
 
@@ -400,16 +423,10 @@
   bindTree($('#fullB'), (id, rect) => fullPick(id, rect));
 
   /* ---------- toast ---------- */
-  let toastT = 0;
-  function toast(msg) {
-    const t = $('#toast'); t.textContent = msg; t.hidden = false; t.classList.remove('out');
-    clearTimeout(toastT); toastT = setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.hidden = true; }, 300); }, 3200);
-  }
+  const toast = msg => SH.toast(msg);
 
   /* ---------- $FORK: /freeforks ---------- */
-  const C = window.FORKS_CONFIG;
   const meBtn = $('#meBtn');
-  if (C.links.x) $('#xLink').href = C.links.x; else $('#xLink').remove();
   const QUEST = window.ForksQuest.mount({
     addUp, type, send, scrollDown, toast, esc, burst: (x, y) => field.burst(x, y),
     meEl: () => meBtn,
@@ -432,7 +449,6 @@
     }
   }
   $('#questBtn').addEventListener('click', () => send(C.quest.command));
-  $('#invBtn').addEventListener('click', () => send('/invite'));
   meBtn.addEventListener('click', () => send(C.quest.command));
   QUEST.onChange(({ mode, me, shown }) => {
     const qb = $('#questBtn'), T = C.token.ticker;
@@ -450,6 +466,53 @@
     meBtn.setAttribute('aria-label', me ? `@${me.user.username}: ${fmt(shown)} ${T} pending` : 'Sign in with X for /freeforks');
   });
 
-  setTimeout(() => { if (matchMedia('(pointer: fine)').matches) inp.focus({ preventScroll: true }); }, 900);
+  /* ---------- the showcase: the graph the page opens with ---------- */
+  async function showcase() {
+    const S = window.ForksShowcase; if (!S) return;
+    const m = addTrace(); m.li.classList.add('showcase');
+    m.li.querySelector('.who .src').textContent = 'showcase';
+    let data = {};
+    try {
+      const j = await fetch('/api/repos?r=' + S.nodes.map(x => x.repo).join(',')).then(r => r.json().then(j => (r.ok ? j : null), () => null));
+      if (j && j.repos) data = j.repos;
+    } catch (_) { }
+    const c = { title: S.title, focus: S.focus, nodes: S.nodes.map(x => ({ ...x, data: data[x.repo] || null })) };
+    m.growP = growRepos(m, c);
+    const g = await m.growP;
+    // the tokens go on the tree as soon as it has grown, while the caption types
+    const tokP = LAUNCH.tokens(c.nodes.map(x => x.repo)).catch(() => new Map());
+    tokP.then(map => tagCoins(m, map));
+    await type(m.txt, S.lines);
+    renderLine(m, m.tree);
+    tokP.then(map => { tagCoins(m, map); priceTree(m).then(sidebar); });
+    const pumpTok = C.projectOf(c.nodes[c.focus].repo);
+    follow(m, (pumpTok ? [{ label: `trade $${pumpTok.symbol}`, href: '/coin/' + pumpTok.mint }] : []).concat(S.follow));
+    return g;
+  }
+
+  /* ---------- the sidebar: tokens on this graph, newest coins ---------- */
+  function sidebar() {
+    const st = $('#sideTokens'); if (!st) return;
+    const S = window.ForksShowcase, seen = new Set(), rows = [];
+    S.nodes.forEach(x => { const p = C.projectOf(x.repo); if (p && !seen.has(p.mint)) { seen.add(p.mint); rows.push({ ...p, repo: x.repo }); } });
+    st.innerHTML = rows.map(t => { const mk = prices[t.mint]; return `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${esc(t.symbol[0])}</span><span class="trow-n"><span class="trow-s" style="color:var(--link)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${mk && mk.price != null ? usd(mk.price) : '—'}${mk && mk.change24 != null ? `<span class="${mk.change24 >= 0 ? 'up' : 'dn'}">${pct(mk.change24)}</span>` : ''}</span></a>`; }).join('');
+  }
+  SH.market().then(j => {
+    const sc = $('#sideCoins'); if (!sc) return;
+    const list = j && j.coins ? j.coins.slice(0, 5) : [];
+    sc.innerHTML = list.length
+      ? list.map(t => `<a class="trow" href="/coin/${esc(t.mint)}"><span class="trow-i">${t.image ? `<img src="${esc(t.image)}" alt="" loading="lazy">` : esc(t.symbol[0])}</span><span class="trow-n"><span class="trow-s" style="color:var(--warn)">$${esc(t.symbol)}</span><span class="trow-r">${esc(t.repo)}</span></span><span class="trow-p">${t.market && t.market.mcap ? usd(t.market.mcap) : ''}${t.curve && t.curve.progress != null ? `<span class="muted">${Math.round(t.curve.progress)}% curve</span>` : ''}</span></a>`).join('') + '<p style="margin:8px 0 0;font-size:13px"><a href="/market">All coins in the market →</a></p>'
+      : '<p class="muted" style="font-size:13px;margin:0">No coins yet. <a href="/launch">Launch the first one →</a></p>';
+  });
+
+  // ?q=… traces, ?run=freeforks|invite|info|coins runs a command (links from the other pages)
+  {
+    const p = new URLSearchParams(location.search), qq = p.get('q'), run = p.get('run');
+    if (qq || run) { p.delete('q'); p.delete('run'); window.history.replaceState(null, '', location.pathname + (p.toString() ? `?${p}` : '') + location.hash); }
+    const after = showcase();
+    if (qq) after.then(() => send(qq));
+    else if (run && /^(freeforks|invite|info|coins|help)$/.test(run)) after.then(() => send('/' + run));
+  }
+  $('#invBtn').addEventListener('click', () => send('/invite'));
   window.ForksApp = { send, reset, field, toast };
 })();

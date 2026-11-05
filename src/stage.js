@@ -170,15 +170,22 @@
     }
 
     function remove() { stopLooking(); grown = true; el.remove(); }
-    // a coin on a point: its $TICKER in amber, after the name when it fits, else at the head of the meta line
-    function tag(id, text) {
-      const g = svg.querySelector(`.st-n[data-id="${CSS.escape(String(id))}"]`); if (!g || g.querySelector('text.tk')) return;
+    // a token on a point: its $TICKER after the name when it fits, else at the head of the meta line;
+    // kind 'project' (blue, the project's own token) or 'forks' (amber, a coin launched here)
+    function tag(id, text, kind) {
+      const g = svg.querySelector(`.st-n[data-id="${CSS.escape(String(id))}"]`); if (!g) return;
+      const have = [...g.querySelectorAll('text.tk')];
+      if (have.some(t => t.textContent === text)) return;
       const nm = g.querySelector('text.nm'), mt = g.querySelector('text.mt');
       const avail = Number(g.dataset.ch || 16) * CH * (g.classList.contains('focus') ? 1.12 : 1);
       const tw = text.length * 6.8, lx = Number(nm.getAttribute('x'));
       let w; try { w = nm.getBBox().width; } catch (_) { w = nm.textContent.length * CH; }
-      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text'); t.setAttribute('class', 'tk'); t.textContent = text;
-      if (w + 9 + tw <= avail + 4) { t.setAttribute('x', (lx + w + 9).toFixed(1)); t.setAttribute('y', nm.getAttribute('y')); }
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text'); t.setAttribute('class', 'tk' + (kind === 'project' ? ' project' : '')); t.textContent = text;
+      const prev = have[have.length - 1];
+      if (prev) { // next to the first token, wherever that went
+        let pw; try { pw = prev.getBBox().width; } catch (_) { pw = prev.textContent.length * 6.8; }
+        t.setAttribute('x', (Number(prev.getAttribute('x')) + pw + 8).toFixed(1)); t.setAttribute('y', prev.getAttribute('y'));
+      } else if (!el.classList.contains('rows') && w + 9 + tw <= avail + 4) { t.setAttribute('x', (lx + w + 9).toFixed(1)); t.setAttribute('y', nm.getAttribute('y')); }
       else if (mt) {
         t.setAttribute('x', lx); t.setAttribute('y', mt.getAttribute('y'));
         const room = Math.floor((avail * 1.18 - tw - 8) / (CH * .84)), meta = g.dataset.meta || mt.textContent;

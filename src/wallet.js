@@ -40,15 +40,16 @@
     return state().wallets;
   }
 
-  async function connect(name) {
+  async function connect(name, opts) {
     const w = found.find(x => x.name === name) || found[0];
     if (!w) throw fail('no_wallet');
     let r;
-    try { r = await w.features['standard:connect'].connect(); } catch (e) { throw fail(rejected(e) ? 'rejected' : 'connect', e); }
+    try { r = await w.features['standard:connect'].connect(opts && opts.silent ? { silent: true } : undefined); } catch (e) { throw fail(rejected(e) ? 'rejected' : 'connect', e); }
     const accs = (r && r.accounts && r.accounts.length ? r.accounts : w.accounts) || [];
     const a = accs.find(x => !x.chains || x.chains.includes(CHAIN)) || accs[0];
     if (!a) throw fail('no_account');
     current = w; account = a;
+    try { localStorage.setItem('forks-wallet', w.name); } catch (_) { }
     const ev = w.features['standard:events'];
     if (ev && !w.__forksOn) {
       w.__forksOn = true;
@@ -63,6 +64,7 @@
   }
   async function disconnect() {
     const w = current; current = null; account = null; emit();
+    try { localStorage.removeItem('forks-wallet'); } catch (_) { }
     try { if (w && w.features['standard:disconnect']) await w.features['standard:disconnect'].disconnect(); } catch (_) { }
   }
 
@@ -96,5 +98,14 @@
   }
   const install = [['Phantom', 'https://phantom.com/download'], ['Solflare', 'https://solflare.com/download'], ['Backpack', 'https://backpack.app/download']];
 
-  window.ForksWallet = { list, connect, disconnect, sign, state, short, mobile, openIn, install, onChange: f => { listeners.push(f); } };
+  // the wallet used last time, reconnected without a prompt when the wallet allows it
+  async function resume() {
+    let name = null; try { name = localStorage.getItem('forks-wallet'); } catch (_) { }
+    if (!name || account) return null;
+    for (let i = 0; i < 6 && !found.some(w => w.name === name); i++) await new Promise(r => setTimeout(r, 250));
+    if (!found.some(w => w.name === name)) return null;
+    try { return await connect(name, { silent: true }); } catch (_) { return null; }
+  }
+
+  window.ForksWallet = { list, connect, disconnect, sign, state, short, mobile, openIn, install, resume, onChange: f => { listeners.push(f); } };
 })();

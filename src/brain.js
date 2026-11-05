@@ -21,6 +21,7 @@
       if (k) return { text: R[k]() };
       if (cmd[1] === 'trace' && cmd[2]) return { trace: raw.replace(/^\/trace\s+/i, '') };
       if (cmd[1] === 'coins') return { launch: 'coins' };
+      if (cmd[1] === 'info' || cmd[1] === 'guide') return { info: R.info() };
       if (cmd[1] === 'launch' || cmd[1] === 'coin') return { launch: raw.replace(/^\/\w+\s*/, '') };
     }
     if (/^\/?free ?forks\b|^get \+?\d+[ ,.]?000 \$?forks?\b/.test(t)) return { quest: 'quest' };
@@ -28,14 +29,15 @@
     return { trace: raw };
   }
   const R = {
+    info: () => ({ text: `forks is the family tree of open-source code, and the tokens on it.\n\n· graph — type anything; upstream traces the github repositories it forked from, ported or was built on. every point is a real repo.\n· tokens — a project's own token sits on its repos in blue (SOL, PUMP, JUP…); a coin launched here sits in amber.\n· launch — anyone with a solana wallet can launch a repository's coin on pump.fun. one coin per repo. its creator fees are split once and locked: 70% to the owner, 5% to top contributors, 15% up the fork line, 10% to forks. people claim theirs on pump.fun with their github.\n· market — every coin and project token, with a terminal: chart, trades, holders, buy and sell from your own wallet.\n· ${C.token.ticker} — sign in with x for a pending allocation and six trials (${C.quest.command}).\n\nnothing here is financial advice. the authors of the code didn't make these coins.`, follow: [{ label: 'the guide', href: '/guide' }, { label: 'market', href: '/market' }, { label: 'launch a coin', href: '/launch' }, C.quest.command] }),
     persona: () => ({ text: `i'm upstream. i keep the family tree of open-source code.\nevery repo on github came from something older — a fork, a port, a rewrite, a project it was built on.\ntype anything — a word, a project, a link — and i'll grow the line of repos it came from.${C.x.handle ? `\nnews of the line: @${C.x.handle} on x.` : ''}`, follow: ['where did llama.cpp come from?', 'what did bitcoin/bitcoin become?', C.quest.command] }),
-    help: () => ({ text: `type anything: a word, an idea, a project, owner/name or a github link.\nevery point on the tree is a real repo — tap it for github, its forks and the network graph.\n\n/trace <thing>    same as typing it\n${C.quest.command}        sign in with x for ${C.token.ticker}, pending · then six trials, +${C.quest.total.toLocaleString('en-US')}\n/invite           your invite link · +2,000 ${C.token.ticker} a friend\n/launch <repo>    the coin on a repository, or launch it on pump.fun\n/coins            the newest coins on repositories\n/clear            start over${C.x.handle ? `\n\nforks on x: @${C.x.handle}` : ''}`, follow: ['where did neovim come from?', C.quest.command] })
+    help: () => ({ text: `type anything: a word, an idea, a project, owner/name or a github link.\nevery point on the tree is a real repo — tap it for github, its forks and the network graph.\n\n/trace <thing>    same as typing it\n${C.quest.command}        sign in with x for ${C.token.ticker}, pending · then six trials, +${C.quest.total.toLocaleString('en-US')}\n/invite           your invite link · +2,000 ${C.token.ticker} a friend\n/launch <repo>    the coin on a repository, or launch it on pump.fun\n/coins            the newest coins on repositories\n/info             what forks is, in short\n/clear            start over${C.x.handle ? `\n\nforks on x: @${C.x.handle}` : ''}`, follow: ['where did neovim come from?', C.quest.command] })
   };
 
   async function api(path, signal) {
     const r = await fetch(path, { signal });
     if (r.status === 429) throw { code: 'rate_limited' };
-    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) throw { code: 'upstream_error', status: r.status };
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) { r.text().catch(() => { }); throw { code: 'upstream_error', status: r.status }; }
     return r.json();
   }
 

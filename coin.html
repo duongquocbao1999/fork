@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coin · forks</title>
+<meta name="description" content="A coin's terminal on forks: chart, trades, holders, its repository and fee split, and buy or sell from your own wallet.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230d1117'/%3E%3Cg fill='none' stroke='%233fb950' stroke-width='2.1' stroke-linecap='round'%3E%3Cpath d='M9 20V3.6'/%3E%3Cpath d='M9 14.4C9 10 15.4 10.5 15.4 6.8'/%3E%3C/g%3E%3Ccircle cx='9' cy='20' r='2.4' fill='%233fb950'/%3E%3Ccircle cx='15.4' cy='5.1' r='1.8' fill='%230d1117' stroke='%233fb950' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/forks.css">
+<meta property="og:title" content="A coin on forks">
+<meta property="og:description" content="Chart, trades, holders and the fee split of a coin on a GitHub repository. Trade from your own wallet.">
+<meta property="og:image" content="https://forks.wiki/docs/media/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#010409">
+</head>
+<body class="coin-page">
+<main class="page" id="cn">
+  <div class="cn-h" id="cnH"><span class="thinking"><i></i><i></i><i></i> Reading the coin…</span></div>
+  <dl class="box stats" id="stats" hidden></dl>
+  <div class="term" id="term" hidden>
+    <div class="term-main">
+      <section class="box chart-box" aria-label="Price chart">
+        <div class="box-h"><div class="tfs" id="tfs" role="tablist" aria-label="Timeframe"></div><span class="muted" style="font-size:12px" id="chMeta"></span></div>
+        <div class="chart" id="chart"><canvas id="cv"></canvas><div class="ch-tip" id="chTip"></div><div class="ch-empty" id="chEmpty" hidden></div></div>
+        <div class="chart-foot"><span id="chPool"></span><span>Candles: GeckoTerminal · prices: DexScreener</span></div>
+      </section>
+      <section class="box" style="margin-top:16px" aria-label="Activity">
+        <div class="tabbar" id="actTabs" role="tablist"></div>
+        <div id="actPanel"></div>
+      </section>
+    </div>
+    <aside class="term-side">
+      <section class="box trade" id="trade" aria-label="Trade"></section>
+      <section class="box about" id="about" aria-label="About this coin"></section>
+    </aside>
+  </div>
+</main>
+<div class="buybar" id="buybar" hidden><button class="btn primary" type="button" data-s="buy">Buy</button><button class="btn danger" type="button" data-s="sell">Sell</button></div>
+<script src="/src/config.js"></script>
+<script src="/src/wallet.js"></script>
+<script src="/src/shell.js"></script>
+<script>ForksShell.mount({ page: 'market', crumb: 'coin' });</script>
+<script src="/src/launch.js"></script>
+<script src="/src/coin.js"></script>
+</body>
+</html>

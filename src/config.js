@@ -19,7 +19,7 @@
     // Coins on repositories (pump.fun, Solana mainnet). Creator fees are split once, for good, between
     // the people behind the code (paid to their GitHub accounts, claimed on pump.fun) and forks.
     launch: {
-      treasury: '',               // forks' Solana wallet for its share; empty = launches closed
+      treasury: '61468ik7HhYNg8ixQYeF9caMNVm57PqTy3tyQ28F6Y5e', // forks' Solana wallet for its share (public address); empty = launches closed
       split: {                    // basis points, 10,000 = 100%
         owner: 7000,              // the repo's owner (a person) — or, for an organization, its top contributors
         contributors: 500,        // the top contributors besides the owner
@@ -29,9 +29,35 @@
       orgContributors: 5,         // how many people share an organization's part
       contributors: 2,            // how many share the contributors' part
       perDay: 3,                  // repositories a wallet may launch on per day, as shown on the page (enforced by app_config 'launch.per_day')
-      tipSol: 0.0005              // Jito tip for the all-or-nothing bundle
+      tipSol: 0.0005,             // Jito tip for the all-or-nothing bundle
+      maxDevBuySol: 20            // the most a launcher may buy in the launch bundle ("buy at launch")
+    },
+    // Project tokens: the official tokens of the organizations behind some repositories, keyed by GitHub
+    // owner. Shown on trees and in the market, tradable in the terminal. Third-party tokens: not ours, not
+    // endorsed; mints checked against DexScreener (Nov 2026).
+    projects: [
+      { owner: 'solana-labs', symbol: 'SOL', name: 'Solana', mint: 'So11111111111111111111111111111111111111112' },
+      { owner: 'pump-fun', symbol: 'PUMP', name: 'Pump', mint: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn' },
+      { owner: 'jito-foundation', symbol: 'JTO', name: 'Jito', mint: 'jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL' },
+      { owner: 'jup-ag', symbol: 'JUP', name: 'Jupiter', mint: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN' },
+      { owner: 'orca-so', symbol: 'ORCA', name: 'Orca', mint: 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE' },
+      { owner: 'raydium-io', symbol: 'RAY', name: 'Raydium', mint: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R' }
+    ],
+    // The terminal. Trades on a pump.fun curve go straight to the curve (built by the server, signed by the
+    // wallet); everything else goes through Jupiter. No forks fee on trades (feeBps 0; a Jupiter referral
+    // account would be needed to take one).
+    trade: {
+      slippageBps: 500,           // default slippage, 5%
+      quickBuy: [0.1, 0.5, 1],    // SOL buttons on the buy tab
+      feeBps: 0
     }
   };
+  // the project token of a repository, by its GitHub owner
+  CONFIG.projectOf = repo => {
+    const o = String(repo || '').split('/')[0].toLowerCase();
+    return CONFIG.projects.find(p => p.owner === o) || null;
+  };
+  CONFIG.projectByMint = mint => CONFIG.projects.find(p => p.mint === mint) || null;
 
   // Where each trial sends the user. The comment trial opens the post itself: in the X app
   // intent/tweet?in_reply_to= turns into a quote post.

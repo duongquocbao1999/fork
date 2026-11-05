@@ -23,7 +23,7 @@
   const usd = n => (n == null ? '' : n >= 1e9 ? `$${(n / 1e9).toFixed(2)}b` : n >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e7 ? 1 : 2)}m` : n >= 1e3 ? `$${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1)}k` : `$${Math.round(n)}`);
   const short = a => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : '');
   const links = mint => [['pump.fun', `https://pump.fun/coin/${mint}`], ['dexscreener', `https://dexscreener.com/solana/${mint}`], ['solscan', `https://solscan.io/token/${mint}`]];
-  const shareUrl = repo => `${C.site.url}/?launch=${repo}`;
+  const shareUrl = repo => `${C.site.url}/launch?repo=${repo}`;
 
   function repoOf(s) {
     const m = String(s || '').trim().match(/(?:^|github\.com\/)([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9._-]{1,100})/i);
@@ -219,31 +219,51 @@
   }
 
   async function launchCard(m, repo, j) {
-    let plan = j.plan, ticket = j.ticket, ticketAt = Date.now();
+    const plan = j.plan;
     const who = plan.holders.some(h => h.kind === 'github' && h.roles.includes('owner')) ? 'the people who wrote it' : 'the people who keep it';
     const line = (plan.line || []).filter(x => x.repo);
     await ctx.type(m.txt, `the coin for ${repo}, on pump.fun. its creator fees are split once and locked: ${who}, ${line.length ? 'the line it came from, ' : ''}and ${pct(L.split.forks)} to forks. they claim on pump.fun with their github.`);
+    const el = card(m, 'ln', `<span>// launch · <b>${esc(repo)}</b></span>${plan.stars != null ? `<span class="mono">★ ${fmt(plan.stars)}</span>` : ''}`, '');
+    form(el.querySelector('.card-b'), repo, j, {
+      box: el,
+      onLive: async coin => { const m2 = await say(`$${coin.symbol} is live: the coin for ${repo}. its creator fees go where the split says, for good.`); coinCard(m2, coin, true); }
+    });
+  }
+
+  /**
+   * The launch form, wherever it sits (a card in the chat, the launch page): the split, the line, the coin
+   * (logo, ticker, name, X link, buy at launch), the box to tick, the wallet, the steps.
+   * o: { box (the element to mark done), onLive(coin), split: false to leave the split out }
+   */
+  function form(host, repo, j, o = {}) {
+    let plan = j.plan, ticket = j.ticket, ticketAt = Date.now();
+    const line = (plan.line || []).filter(x => x.repo);
     const sym0 = tickerOf(repo), name0 = repo.split('/')[1].slice(0, 32);
-    const el = card(m, 'ln', `<span>// launch · <b>${esc(repo)}</b></span>${plan.stars != null ? `<span class="mono">★ ${fmt(plan.stars)}</span>` : ''}`, `
-      <div class="ln-k">creator fees · locked at launch</div>
-      ${splitRows(plan.holders)}
+    host.classList.add('ln-launch');
+    host.innerHTML = `
+      ${o.split === false ? '' : `<div class="ln-k">Creator fees · locked at launch</div>${splitRows(plan.holders)}
       ${line.length ? `<div class="ln-line">up the line: ${line.map(x => `<b>${esc(x.repo)}</b>${x.via === 'github fork' ? ' <span>(github fork)</span>' : ''}`).join(' → ')}</div>` : ''}
-      <div class="ln-k">the coin</div>
+      <div class="ln-k">The coin</div>`}
       <div class="ln-form">
         <div class="ln-logo"><canvas width="512" height="512" role="img" aria-label="The coin's logo"></canvas>
           <div class="ln-la"><button type="button" data-a="re">another</button><label>upload<input type="file" accept="image/png,image/jpeg,image/webp" hidden></label></div></div>
         <div class="ln-fields">
-          <label class="ln-f"><span>ticker</span><span class="ln-tk"><i>$</i><input class="q-in" name="symbol" value="${esc(sym0)}" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false"></span></label>
-          <label class="ln-f"><span>name</span><input class="q-in" name="name" value="${esc(name0)}" maxlength="32" autocomplete="off" spellcheck="false"></label>
+          <label class="ln-f"><span>Ticker</span><span class="ln-tk"><i>$</i><input class="q-in" name="symbol" value="${esc(sym0)}" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false"></span></label>
+          <label class="ln-f"><span>Name</span><input class="q-in" name="name" value="${esc(name0)}" maxlength="32" autocomplete="off" spellcheck="false"></label>
         </div>
       </div>
-      <label class="ln-ok"><input type="checkbox" name="ok"><span>i get it: the split is locked forever, nobody can change it. the authors didn't make or endorse this coin. not financial advice.</span></label>
-      <div class="ln-go"><button class="q-btn" type="button" data-a="go">connect a wallet</button><span class="ln-w"></span></div>
+      <label class="ln-f"><span>Buy at launch <small class="muted">optional · you buy first, in the same bundle</small></span>
+        <span class="fld-sol"><input class="q-in" name="dev" inputmode="decimal" placeholder="0" autocomplete="off" style="width:100%"><span class="u">SOL</span></span>
+        <span class="hint muted" data-est style="font-size:12px"></span></label>
+      <label class="ln-f"><span>X link <small class="muted">optional · shown on pump.fun</small></span><input class="q-in" name="x" placeholder="https://x.com/…" autocomplete="off" spellcheck="false" style="width:100%"></label>
+      <label class="ln-ok"><input type="checkbox" name="ok"><span>I get it: the split is locked forever, nobody can change it. The authors didn't make or endorse this coin. Not financial advice.</span></label>
+      <div class="ln-go"><button class="q-btn" type="button" data-a="go">Connect a wallet</button><span class="ln-w"></span></div>
       <div class="ln-ws" hidden></div>
-      <p class="q-note ln-cost">your wallet pays pump.fun's account rent, ${plan.holders.filter(h => h.kind === 'github').length > 0 ? 'any missing github fee accounts, ' : ''}and a ${L.tipSol} SOL tip, and shows the total before you sign. one coin per repository · ${L.perDay} a day per wallet.</p>
-      <ol class="ln-steps" hidden></ol>`);
-    const $ = s => el.querySelector(s);
-    const cv = $('canvas'), symIn = $('[name="symbol"]'), nameIn = $('[name="name"]'), okIn = $('[name="ok"]'), go = $('[data-a="go"]');
+      <p class="q-note ln-cost">Your wallet pays pump.fun's account rent, ${plan.holders.filter(h => h.kind === 'github').length > 0 ? 'any missing GitHub fee accounts, ' : ''}a ${L.tipSol} SOL tip and anything you buy, and shows the total before you sign. One coin per repository · ${L.perDay} a day per wallet.</p>
+      <ol class="ln-steps" hidden></ol>`;
+    const el = o.box || host;
+    const $ = s => host.querySelector(s);
+    const cv = $('canvas'), symIn = $('[name="symbol"]'), nameIn = $('[name="name"]'), okIn = $('[name="ok"]'), go = $('[data-a="go"]'), devIn = $('[name="dev"]'), xIn = $('[name="x"]');
     let seed = 0, uploaded = false, busy = false, drawT = 0;
     const redraw = () => { if (!uploaded) drawLogo(cv, repo, symIn.value.toUpperCase(), seed); };
     redraw();
@@ -258,12 +278,24 @@
       try { await drawUpload(cv, f); uploaded = true; } catch (_) { ctx.toast('That image won’t load. PNG or JPEG, please.'); }
       e.target.value = '';
     });
+    // buy at launch: what a fresh pump.fun curve gives for it (the same curve every coin starts on)
+    const devSol = () => { const v = Number(String(devIn.value || '0').replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };
+    devIn.addEventListener('input', () => {
+      devIn.value = devIn.value.replace(/[^0-9.,]/g, '').slice(0, 8);
+      const v = devSol(), est = $('[data-est]');
+      if (!v) { est.textContent = ''; paint(); return; }
+      if (v > L.maxDevBuySol) { est.textContent = `at most ${L.maxDevBuySol} SOL`; paint(); return; }
+      // a fresh curve: 30 SOL and 1,073,000,000 tokens virtual; ~1% fees off the top
+      const net = v * 0.99, tokens = 1073000000 - (30 * 1073000000) / (30 + net);
+      est.textContent = `≈ ${Math.round(tokens).toLocaleString('en-US')} tokens, ${(tokens / 1e7).toFixed(2)}% of the supply`;
+      paint();
+    });
 
     // the wallet: connect, pick, or open the page inside one
     const wEl = $('.ln-w'), wsEl = $('.ln-ws');
     function paint() {
-      const s = W.state().connected;
-      go.textContent = s ? `launch $${symIn.value || '…'}` : 'connect a wallet';
+      const s = W.state().connected, v = devSol();
+      go.textContent = s ? `Launch $${symIn.value || '…'}${v ? ` · buy ${v} SOL` : ''}` : 'Connect a wallet';
       wEl.innerHTML = s ? `${s.icon ? `<img src="${esc(s.icon)}" alt="" width="16" height="16">` : ''}<span class="mono">${esc(s.short)}</span><button type="button" data-a="off">switch</button>` : '';
       const off = wEl.querySelector('[data-a="off"]'); if (off) off.onclick = () => W.disconnect();
     }
@@ -274,14 +306,14 @@
         const here = shareUrl(repo);
         wsEl.hidden = false;
         wsEl.innerHTML = W.mobile()
-          ? `<p class="q-note">no solana wallet in this browser. open this page inside your wallet's app, then launch from there:</p><div class="ln-wb">${W.openIn(here).map(([n, u]) => `<a class="q-btn ghost" href="${esc(u)}" rel="noopener">open in ${esc(n)} ↗</a>`).join('')}</div>`
-          : `<p class="q-note">no solana wallet in this browser. install one, reload, and come back:</p><div class="ln-wb">${W.install.map(([n, u]) => `<a class="q-btn ghost" href="${esc(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join('')}</div>`;
+          ? `<p class="q-note">No Solana wallet in this browser. Open this page inside your wallet's app, then launch from there:</p><div class="ln-wb">${W.openIn(here).map(([n, u]) => `<a class="q-btn ghost" href="${esc(u)}" rel="noopener">Open in ${esc(n)} ↗</a>`).join('')}</div>`
+          : `<p class="q-note">No Solana wallet in this browser. Install one, reload, and come back:</p><div class="ln-wb">${W.install.map(([n, u]) => `<a class="q-btn ghost" href="${esc(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join('')}</div>`;
         ctx.scrollDown(); return null;
       }
       let name = ws[0].name;
       if (ws.length > 1) {
         wsEl.hidden = false;
-        wsEl.innerHTML = `<p class="q-note">which wallet?</p><div class="ln-wb">${ws.map(w => `<button class="q-btn ghost" type="button" data-w="${esc(w.name)}">${w.icon ? `<img src="${esc(w.icon)}" alt="" width="18" height="18">` : ''}${esc(w.name)}</button>`).join('')}</div>`;
+        wsEl.innerHTML = `<p class="q-note">Which wallet?</p><div class="ln-wb">${ws.map(w => `<button class="q-btn ghost" type="button" data-w="${esc(w.name)}">${w.icon ? `<img src="${esc(w.icon)}" alt="" width="18" height="18">` : ''}${esc(w.name)}</button>`).join('')}</div>`;
         ctx.scrollDown();
         name = await new Promise(res => wsEl.querySelectorAll('[data-w]').forEach(b => { b.onclick = () => res(b.dataset.w); }));
       }
@@ -292,7 +324,7 @@
 
     // the steps, shown as they happen
     const stepsEl = $('.ln-steps');
-    const STEPS = [['build', 'logo and metadata to ipfs · transactions built'], ['sign', 'sign in your wallet'], ['send', 'to solana as one bundle: all of it lands, or none'], ['land', 'reading the coin and its split back from the chain']];
+    const STEPS = [['build', 'Logo and metadata to IPFS · transactions built'], ['sign', 'Sign in your wallet'], ['send', 'To Solana as one bundle: all of it lands, or none'], ['land', 'Reading the coin and its split back from the chain']];
     function steps() {
       stepsEl.hidden = false;
       stepsEl.innerHTML = STEPS.map(([k, t]) => `<li data-s="${k}"><i></i><span>${esc(t)}</span><em></em></li>`).join('');
@@ -305,21 +337,23 @@
     }
     function lock(on) {
       busy = on;
-      [symIn, nameIn, okIn].forEach(x => { x.disabled = on; });
-      el.querySelectorAll('.ln-la button, .ln-la input, .ln-w button').forEach(x => { x.disabled = on; });
+      [symIn, nameIn, okIn, devIn, xIn].forEach(x => { x.disabled = on; });
+      host.querySelectorAll('.ln-la button, .ln-la input, .ln-w button').forEach(x => { x.disabled = on; });
       go.classList.toggle('busy', on);
     }
     function failAt(k, msg) {
       step(k, 'err', null, msg); lock(false);
-      go.textContent = 'try again'; go.dataset.retry = '1';
+      go.textContent = 'Try again'; go.dataset.retry = '1';
     }
 
     go.addEventListener('click', async () => {
       if (busy) return;
       if (!W.state().connected) { await connect(); return; } // connecting is its own tap; launching is the next
-      const symbol = symIn.value.toUpperCase(), name = nameIn.value.trim();
+      const symbol = symIn.value.toUpperCase(), name = nameIn.value.trim(), dev = devSol(), x = xIn.value.trim();
       if (!SYMBOL.test(symbol)) { symIn.focus(); return ctx.toast('Ticker: 2–10 letters or digits.'); }
       if (!name) { nameIn.focus(); return ctx.toast('Give the coin a name.'); }
+      if (dev > L.maxDevBuySol) { devIn.focus(); return ctx.toast(`Buy at launch: at most ${L.maxDevBuySol} SOL.`); }
+      if (x && !/^https:\/\/(x|twitter)\.com\/[A-Za-z0-9_]{1,15}(\/status\/\d{1,25})?\/?$/.test(x)) { xIn.focus(); return ctx.toast('X link: https://x.com/handle'); }
       if (!okIn.checked) { const l = $('.ln-ok'); l.classList.remove('shake'); void l.offsetWidth; l.classList.add('shake'); return ctx.toast('Tick the box first: the split can never change.'); }
       lock(true); steps(); delete go.dataset.retry;
       const wallet = W.state().connected;
@@ -328,40 +362,41 @@
       step('build', 'run');
       if (Date.now() - ticketAt > 13 * 60e3) {
         const p = await api('/api/launch/plan?repo=' + encodeURIComponent(repo));
-        if (!p.ok) return failAt('build', p.error === 'taken' ? 'someone launched it a moment ago.' : 'couldn’t refresh the split. try again.');
+        if (!p.ok) return failAt('build', p.error === 'taken' ? 'Someone launched it a moment ago.' : 'Couldn’t refresh the split. Try again.');
         plan = p.plan; ticket = p.ticket; ticketAt = Date.now();
       }
       if (!uploaded) { clearTimeout(drawT); await drawLogo(cv, repo, symbol, seed); }
       const img = uploaded ? cv.toDataURL('image/jpeg', .9) : cv.toDataURL('image/png');
-      const b = await api('/api/launch/build', { ticket, wallet: wallet.address, symbol, name, image: img });
+      const b = await api('/api/launch/build', { ticket, wallet: wallet.address, symbol, name, image: img, devBuy: dev || 0, x: x || null });
       if (!b.ok) {
         return failAt('build', {
-          daily_limit: `this wallet started coins on ${L.perDay} repositories today. tomorrow.`,
-          in_flight: 'someone else is launching this repository right now.',
-          taken: 'someone launched it a moment ago.',
-          blocked: 'the owner asked for no coins on this code.',
-          bad_image: 'that logo is too big. try another.',
-          bad_symbol: 'ticker: 2–10 letters or digits.', bad_name: 'the name can’t have < > or control characters.',
-          ipfs: 'pump.fun’s ipfs didn’t answer. try again.', rate_limited: 'too many at once. give it a minute.', expired: 'the split expired. try again.'
-        }[b.error] || 'couldn’t build it just now. try again.');
+          daily_limit: `This wallet started coins on ${L.perDay} repositories today. Tomorrow.`,
+          in_flight: 'Someone else is launching this repository right now.',
+          taken: 'Someone launched it a moment ago.',
+          blocked: 'The owner asked for no coins on this code.',
+          bad_image: 'That logo is too big. Try another.',
+          bad_dev_buy: `Buy at launch: 0.001 to ${L.maxDevBuySol} SOL.`, bad_x: 'X link: https://x.com/handle',
+          bad_symbol: 'Ticker: 2–10 letters or digits.', bad_name: 'The name can’t have < > or control characters.',
+          ipfs: 'pump.fun’s IPFS didn’t answer. Try again.', rate_limited: 'Too many at once. Give it a minute.', expired: 'The split expired. Try again.'
+        }[b.error] || 'Couldn’t build it just now. Try again.');
       }
-      step('build', 'ok', null, b.created ? `${b.created} github fee account${b.created > 1 ? 's' : ''} to open` : '');
+      step('build', 'ok', null, [b.created ? `${b.created} GitHub fee account${b.created > 1 ? 's' : ''} to open` : '', b.bought ? `you buy ≈ ${Math.round(Number(b.bought) / 1e6).toLocaleString('en-US')} ${symbol}` : ''].filter(Boolean).join(' · '));
 
       // 2 · sign
-      step('sign', 'run', `sign in ${wallet.name} · ${b.txs.length} transactions`);
+      step('sign', 'run', `Sign in ${wallet.name} · ${b.txs.length} transactions`);
       let signed;
       try { signed = await W.sign(b.txs); }
-      catch (e) { return failAt('sign', e.code === 'rejected' ? 'cancelled in the wallet. nothing was sent.' : e.code === 'no_v0' ? 'this wallet can’t sign these. try phantom or solflare.' : 'the wallet couldn’t sign. nothing was sent.'); }
+      catch (e) { return failAt('sign', e.code === 'rejected' ? 'Cancelled in the wallet. Nothing was sent.' : e.code === 'no_v0' ? 'This wallet can’t sign these. Try Phantom or Solflare.' : 'The wallet couldn’t sign. Nothing was sent.'); }
       step('sign', 'ok');
 
       // 3 · one bundle
       step('send', 'run');
       const s = await api('/api/launch/submit', { ticket: b.ticket, txs: signed });
       if (!s.ok) {
-        return failAt('send', s.error === 'bad_signed' && s.why === 'changed' ? 'your wallet changed the transactions, so they no longer carry the locked split. nothing was sent. try another wallet.'
-          : s.error === 'expired' ? 'that took too long to sign. try again.'
-          : s.error === 'jito' || s.error === 'jito_busy' ? 'the bundle relay is busy. nothing was sent. try again.'
-          : 'couldn’t send it. nothing was sent. try again.');
+        return failAt('send', s.error === 'bad_signed' && s.why === 'changed' ? 'Your wallet changed the transactions, so they no longer carry the locked split. Nothing was sent. Try another wallet.'
+          : s.error === 'expired' ? 'That took too long to sign. Try again.'
+          : s.error === 'jito' || s.error === 'jito_busy' ? 'The bundle relay is busy. Nothing was sent. Try again.'
+          : 'Couldn’t send it. Nothing was sent. Try again.');
       }
       step('send', 'ok');
 
@@ -372,26 +407,27 @@
         await new Promise(r => setTimeout(r, 2500));
         const st = await api('/api/launch/status?mint=' + encodeURIComponent(b.mint));
         if (st.ok && st.state === 'live') {
-          step('land', 'ok', 'live: the coin and its locked split are on the chain');
+          step('land', 'ok', 'Live: the coin and its locked split are on the chain');
           lock(true); go.textContent = `$${symbol} is live`; el.classList.add('done');
           walletViews.delete(paint);
           const coin = { repo, mint: b.mint, symbol, name, image: st.coin && st.coin.image, split: plan.holders, live_at: new Date().toISOString(), market: null };
           landed(coin);
           const box = el.getBoundingClientRect(); ctx.burst(box.left + 60, box.top + 60);
-          const m2 = await say(`$${symbol} is live: the coin for ${repo}. its creator fees go where the split says, for good.`);
-          return coinCard(m2, coin, true);
+          if (o.onLive) o.onLive(coin);
+          return;
         }
-        if (st.ok && st.state === 'mismatch') return failAt('land', 'a coin landed, but not with this split. it won’t be listed here.');
-        if ((st.ok && st.state === 'expired') || Date.now() - t0 > 210e3) return failAt('land', 'it didn’t land: the network was busy. a bundle is all or nothing, so nothing was charged. try again.');
+        if (st.ok && st.state === 'mismatch') return failAt('land', 'A coin landed, but not with this split. It won’t be listed here.');
+        if ((st.ok && st.state === 'expired') || Date.now() - t0 > 210e3) return failAt('land', 'It didn’t land: the network was busy. A bundle is all or nothing, so nothing was charged. Try again.');
       }
     });
+    return { el: host };
   }
 
   /* ---------- a coin ---------- */
   function coinCard(m, coin, justNow) {
     const [owner, name] = coin.repo.split('/'), mk = coin.market;
     const ch = mk && mk.change24 != null ? `<span class="${mk.change24 >= 0 ? 'up' : 'dn'}">${mk.change24 >= 0 ? '+' : ''}${Number(mk.change24).toFixed(1)}%</span>` : '';
-    const text = `$${coin.symbol} — the coin for github.com/${coin.repo}. its creator fees go to the people who wrote it, locked for good.\n\n${shareUrl(coin.repo)}`;
+    const text = `$${coin.symbol} — the coin for github.com/${coin.repo}. its creator fees go to the people who wrote it, locked for good.\n\n${C.site.url}/coin/${coin.mint}`;
     const el = card(m, 'tkn' + (justNow ? ' new' : ''), `<span>// coin · <b>${esc(coin.repo)}</b></span><span class="tkn-live">on pump.fun</span>`, `
       <div class="tkn-top">
         <span class="tkn-img">${coin.image ? `<img src="${esc(coin.image)}" alt="" width="56" height="56">` : `<b>${esc(coin.symbol[0])}</b>`}</span>
@@ -401,7 +437,7 @@
       <button class="tkn-ca" type="button" data-a="ca" aria-label="Copy the contract address"><span class="k">ca</span><span class="mono v">${esc(coin.mint)}</span><b>copy</b></button>
       <div class="tkn-links">${links(coin.mint).map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>`).join('')}</div>
       ${Array.isArray(coin.split) && coin.split.length ? `<details class="tkn-split"${justNow ? ' open' : ''}><summary>creator fees · locked · ${coin.split.length} ${coin.split.length > 1 ? 'parts' : 'part'}</summary>${splitRows(coin.split)}</details>` : ''}
-      <div class="q-acts"><a class="q-btn ghost" href="https://x.com/intent/tweet?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">share on x ↗</a><a class="q-link" href="https://pump.fun/coin/${esc(coin.mint)}" target="_blank" rel="noopener">trade on pump.fun</a></div>`);
+      <div class="q-acts"><a class="q-btn" href="/coin/${esc(coin.mint)}">Open the terminal</a><a class="q-btn ghost" href="https://x.com/intent/tweet?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Share on X ↗</a></div>`);
     el.querySelector('[data-a="ca"]').addEventListener('click', async e => {
       const b = e.currentTarget;
       try { await navigator.clipboard.writeText(coin.mint); ctx.toast(`$${coin.symbol} address copied.`); } catch (_) { ctx.toast(coin.mint); }
@@ -435,6 +471,9 @@
   }
 
   function mount(c) { ctx = c; esc = c.esc; return api_; }
-  const api_ = { mount, run, tokens, known, pointBlock, repoOf, onCoin: f => coinListeners.push(f) };
+  // pages without a chat (the launch page) get the shell's toast and nothing else
+  ctx = { toast: m => window.ForksShell && window.ForksShell.toast(m), esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])), scrollDown() { }, burst() { }, type: async (el, t) => { el.textContent = t; } };
+  esc = ctx.esc;
+  const api_ = { mount, run, form, api, tokens, known, pointBlock, repoOf, splitRows, drawLogo, onCoin: f => coinListeners.push(f) };
   window.ForksLaunch = api_;
 })();

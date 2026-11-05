@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Launch a repository's coin · forks</title>
+<meta name="description" content="Launch a GitHub repository's coin on pump.fun. One coin per repository; its creator fees are split once, for good, between the people who wrote the code and forks.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230d1117'/%3E%3Cg fill='none' stroke='%233fb950' stroke-width='2.1' stroke-linecap='round'%3E%3Cpath d='M9 20V3.6'/%3E%3Cpath d='M9 14.4C9 10 15.4 10.5 15.4 6.8'/%3E%3C/g%3E%3Ccircle cx='9' cy='20' r='2.4' fill='%233fb950'/%3E%3Ccircle cx='15.4' cy='5.1' r='1.8' fill='%230d1117' stroke='%233fb950' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/forks.css">
+<meta property="og:title" content="Launch a repository's coin · forks">
+<meta property="og:description" content="One coin per GitHub repository, on pump.fun. Creator fees split once, for good: the owner, the contributors, the repos it forked from, and forks.">
+<meta property="og:image" content="https://forks.wiki/docs/media/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#010409">
+</head>
+<body class="launch-page">
+<main class="page">
+  <div class="page-h">
+    <div>
+      <h1>Launch a repository's coin</h1>
+      <p>One coin per repository, on pump.fun, from your own wallet. Its creator fees are split once and locked: the people who wrote the code, the repositories it forked from, and forks.</p>
+    </div>
+  </div>
+  <div class="lp">
+    <div>
+      <section class="lp-step">
+        <h2><span class="n">1</span>Pick a repository</h2>
+        <div class="pick">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/></svg>
+          <label class="sr" for="repoIn">Repository</label>
+          <input class="input" id="repoIn" placeholder="owner/name, a GitHub link, or search" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sugg">
+          <div class="sugg" id="sugg" role="listbox" hidden></div>
+        </div>
+        <div class="chips" id="lpChips" style="margin:0"></div>
+        <div id="repoBox"></div>
+      </section>
+      <section class="lp-step" id="splitStep" hidden>
+        <h2><span class="n">2</span>Who gets the creator fees</h2>
+        <div class="box"><div class="box-b" id="splitBox"></div></div>
+      </section>
+      <section class="lp-step" id="coinStep" hidden>
+        <h2><span class="n">3</span>The coin</h2>
+        <div class="box"><div class="box-b" id="formBox"></div></div>
+      </section>
+    </div>
+    <aside class="side lp-side" aria-label="How launching works">
+      <div class="box">
+        <div class="box-h"><h3>How it works</h3></div>
+        <div class="box-b">
+          <ol>
+            <li><b>Pick a public repository.</b> The server reads its owner, top contributors and the repositories it forked from.</li>
+            <li><b>Check the split.</b> It is locked on-chain in the same bundle that creates the coin. Nobody can change it later, forks included.</li>
+            <li><b>Name it, sign once.</b> Your wallet signs 3–4 transactions; they land together on Solana or not at all.</li>
+            <li><b>People claim on pump.fun</b> by signing in with GitHub. They don't need to do anything first.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-h"><h3>The split</h3></div>
+        <div class="box-b" id="defSplit"></div>
+      </div>
+      <div class="box">
+        <div class="box-h"><h3>Good to know</h3></div>
+        <div class="box-b">
+          <p style="margin:0">One coin per repository, a few repositories a day per wallet. Organizations and bots are never paid: an organization's part goes to its top people. Owners who don't want coins on their code can ask to be left out.</p>
+          <p style="margin:0" class="muted">The authors of the code didn't make or endorse these coins. Not financial advice.</p>
+          <p style="margin:0"><a href="/guide#launch">Read the guide →</a></p>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+<script src="/src/config.js"></script>
+<script src="/src/wallet.js"></script>
+<script src="/src/shell.js"></script>
+<script>ForksShell.mount({ page: 'launch', crumb: 'launch' });</script>
+<script src="/src/launch.js"></script>
+<script src="/src/launchpage.js"></script>
+</body>
+</html>
