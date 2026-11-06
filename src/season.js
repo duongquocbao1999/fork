@@ -21,7 +21,7 @@
   const launchReward = d => { const t = d && d.tiers && d.tiers.find(x => x.id === 'launch'); return t ? t.reward : D.launch || 0; };
   const maxReward = d => (d && d.tiers ? d.tiers.reduce((a, t) => a + t.reward, 0) : D.max || 0);
   const signIn = ret => `/auth/x/start?return=${encodeURIComponent(ret || location.pathname + location.hash)}`;
-  const tierName = t => (t.id === 'launch' ? 'Launch' : t.id === 'grad' ? 'Graduate' : cap(Number(t.mcap)));
+  const tierName = t => (t.id === 'launch' ? 'Dev buy' : t.id === 'grad' ? 'Migrate' : cap(Number(t.mcap)));
 
   /* ---------- the launch page: the whole season ---------- */
   function section(host) {
@@ -37,8 +37,8 @@
     else {
       const coins = (me && me.coins) || [];
       mine = `<div class="s1-earned"><b>${fmt(me && me.earned)}</b><span>${T} pending · ${coins.length} ${coins.length === 1 ? 'coin' : 'coins'}</span></div>
-        ${coins.length ? `<ul class="s1-coins">${coins.map(c => `<li><a href="/coin/${esc(c.mint)}"><span class="mk-img">${SH.logo(c.image, c.symbol)}</span><span class="s1-cn"><b>$${esc(c.symbol)}</b><small>${esc(c.repo)}</small></span><span class="s1-ct">${tiers.filter(t => (c.tiers || []).includes(t.id)).map(t => `<i title="${esc(t.label)}">${esc(tierName(t))}</i>`).join('')}</span><span class="s1-ce">+${fmt(c.earned)}</span></a></li>`).join('')}</ul>`
-          : `<p class="muted">No coins yet. <a href="#" data-s1="top">Pick a repository</a> and launch one — +${fmt(launchReward(d))} ${T} when it's live.</p>`}
+        ${coins.length ? `<ul class="s1-coins">${coins.map(c => `<li><a href="/coin/${esc(c.mint)}"><span class="mk-img">${SH.logo(c.image, c.symbol)}</span><span class="s1-cn"><b>$${esc(c.symbol)}</b><small>${esc(c.repo)}</small></span><span class="s1-ct">${tiers.filter(t => (c.tiers || []).includes(t.id)).map(t => `<i title="${esc(t.label)}">${esc(tierName(t))}</i>`).join('')}</span><span class="s1-ce">${c.devBuy === false && !c.earned ? '<small class="s1-nb">no dev buy</small>' : ''}+${fmt(c.earned)}</span></a></li>`).join('')}</ul>`
+          : `<p class="muted">No coins yet. <a href="#" data-s1="top">Pick a repository</a> and launch one — +${fmt(launchReward(d))} ${T} when it's live with a buy at launch.</p>`}
         <div class="s1-link"><span>Launched from another wallet?</span><button class="btn sm" type="button" data-s1="link">Link a wallet</button></div>
         ${me && me.wallets && me.wallets.length ? `<p class="s1-ws muted">Linked: ${me.wallets.map(w => `<span class="mono">${esc(w.slice(0, 4))}…${esc(w.slice(-4))}</span>`).join(', ')}</p>` : ''}`;
     }
@@ -50,7 +50,7 @@
       <div class="s1-head">
         <div><p class="s1-k"><span class="s1-dot"></span>${esc(name)}${S && !S.open ? ' · closed' : ' · live'}</p>
           <h2>Launch coins. Earn ${T}.</h2>
-          <p class="s1-sub">Every coin you launch on a repository earns you ${T} the moment it's live — and more as it grows. Up to <b>${fmt(maxReward(d))} ${T}</b> a coin.</p></div>
+          <p class="s1-sub">Launch a coin on a repository with a buy at launch and it earns you ${T} the moment it's live — then far more as it grows and migrates. Up to <b>${fmt(maxReward(d))} ${T}</b> a coin.</p></div>
         <div class="s1-stats"><div><b>${fmt(d && d.coins)}</b><span>coins this season</span></div><div><b>${fmt(d && d.devs)}</b><span>devs</span></div></div>
       </div>
       <ol class="s1-ladder" aria-label="What a coin earns its dev">${ladder}</ol>
@@ -58,7 +58,7 @@
         <div class="box s1-me"><div class="box-h"><h3>Your season</h3></div><div class="box-b">${mine}</div></div>
         <div class="box s1-top"><div class="box-h"><h3>Top devs</h3><span class="muted">${T} earned</span></div><div class="box-b">${board}</div></div>
       </div>
-      <p class="s1-fine">How it counts: the launch reward lands when the coin is live (up to ${R.perDay} launches a day per X account). Market-cap milestones count once each, when forks sees the cap there twice, ${R.confirmMinutes}+ minutes apart — measured every 10 minutes from the curve on the chain, or from DexScreener with real liquidity behind it. Graduating is read from the chain. X accounts younger than ${R.minAgeDays} days and forks' own coins don't earn. ${esc(name)} runs until it's announced over. A pending allocation — not a balance, not a promise of value. Not financial advice.</p>`;
+      <p class="s1-fine">How it counts: a coin created alone earns nothing; with a buy at launch${R.minDevBuySol > 0 ? ` of at least ${R.minDevBuySol} SOL` : ''}, the launch reward lands when it's live (up to ${R.perDay} launches a day per X account). Market-cap milestones count once each, when forks sees the cap there twice, ${R.confirmMinutes}+ minutes apart — measured every 10 minutes from the curve on the chain, or from DexScreener with real liquidity behind it. Migrating from the curve is read from the chain. X accounts younger than ${R.minAgeDays} days and forks' own coins don't earn. ${esc(name)} runs until it's announced over. A pending allocation — not a balance, not a promise of value. Not financial advice.</p>`;
     host.querySelectorAll('[data-s1="link"]').forEach(b => b.addEventListener('click', () => link(b)));
     host.querySelectorAll('[data-s1="top"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const i = document.getElementById('repoIn'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }));
   }
@@ -97,26 +97,31 @@
     } finally { busy(''); }
   }
 
-  /* ---------- one line under the launch button ---------- */
-  function note(el) {
-    if (!el) return;
-    const paint = d => {
+  /* ---------- one line under the launch button: what this launch earns, given its buy at launch ---------- */
+  function note(el, devSol) {
+    if (!el) return () => { };
+    const paint = () => {
+      const d = data;
       if (d && d.season && !d.season.open) { el.hidden = true; return; }
       const r = launchReward(d), max = maxReward(d), name = (d && d.season && d.season.name) || D.name || 'Season 1';
+      const min = (d && d.rules && d.rules.minDevBuySol) || 0, buy = devSol ? devSol() : 0, bought = buy > 0 && buy >= min;
+      const k = `<span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span>`;
+      const first = d && d.signedIn ? '' : `<a href="${signIn()}">Sign in with X</a> first: `;
       el.hidden = false;
-      el.innerHTML = d && d.signedIn
-        ? `<span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span> This launch earns you <b>+${fmt(r)} ${T}</b> when it's live, up to ${fmt(max)} as it grows.`
-        : `<span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span> <a href="${signIn()}">Sign in with X</a> first and this launch earns you <b>+${fmt(r)} ${T}</b>, up to ${fmt(max)} as it grows.`;
+      el.innerHTML = bought
+        ? `${k} ${first}${first ? 'this' : 'This'} launch earns you <b>+${fmt(r)} ${T}</b> when it's live, up to ${fmt(max)} as it grows.`
+        : `${k} ${first}${first ? 'add' : 'Add'} a buy at launch${min > 0 ? ` (${min} SOL or more)` : ''} to earn <b>+${fmt(r)} ${T}</b> — a coin created alone earns nothing. Up to ${fmt(max)} as it grows.`;
     };
-    paint(data);
+    paint();
     load().then(paint);
+    return paint;
   }
 
   /* ---------- the home page: a strip under the $FORK box ---------- */
   function strip() {
     const d = data, name = (d && d.season && d.season.name) || D.name || 'Season 1';
     if (d && d.season && !d.season.open) return '';
-    return `<a class="s1-strip" href="/launch#season"><span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span><b>Launch a coin: +${fmt(launchReward(d))} ${T}</b><span class="s1-more">up to ${fmt(maxReward(d))} as it grows →</span></a>`;
+    return `<a class="s1-strip" href="/launch#season"><span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span><b>Launch coins, earn up to ${fmt(maxReward(d))} ${T}</b><span class="s1-more">+${fmt(launchReward(d))} with a dev buy, then by market cap →</span></a>`;
   }
 
   window.ForksSeason = { load, section, note, strip, link, get: () => data, onChange: f => listeners.push(f) };

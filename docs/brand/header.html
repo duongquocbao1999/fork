@@ -1,57 +1,65 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
-@font-face { font-family: 'Anybody'; src: url(../../fonts/anybody.woff2) format('woff2'); font-weight: 100 900; font-stretch: 50% 150%; }
+@font-face { font-family: 'Mona'; src: url(mona-sans.woff2) format('woff2'); font-weight: 200 900; font-stretch: 75% 125%; }
 @font-face { font-family: 'JBM'; src: url(../../fonts/jetbrains-mono.woff2) format('woff2'); font-weight: 100 800; }
 * { margin: 0; box-sizing: border-box; }
-html, body { width: 1500px; height: 500px; background: #0d1117; overflow: hidden; color: #f0f6fc; }
-body { position: relative; font-family: Inter, 'DejaVu Sans', sans-serif; }
-.bg { position: absolute; inset: 0; background:
-  radial-gradient(520px 300px at 1240px 170px, rgba(63,185,80,.16), transparent 70%),
-  radial-gradient(360px 220px at 1300px 150px, rgba(210,153,34,.16), transparent 70%),
-  radial-gradient(700px 360px at 0 0, rgba(56,139,253,.07), transparent 70%), #0d1117; }
-.grid { position: absolute; inset: 0; background-image: radial-gradient(rgba(240,246,252,.09) 1.3px, transparent 1.5px); background-size: 28px 28px;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 35%, #000 100%); }
-.txt { position: absolute; left: 84px; top: 96px; width: 600px; }
-.k { font: 600 17px JBM; letter-spacing: .14em; text-transform: uppercase; color: #3fb950; display: flex; align-items: center; gap: 12px; }
-.k i { width: 9px; height: 9px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 0 6px rgba(63,185,80,.18); }
-h1 { margin-top: 20px; font: 800 58px/1.04 Anybody, sans-serif; font-stretch: 100%; letter-spacing: -.02em; white-space: nowrap; }
-h1 .g { color: #3fb950; } h1 .a { color: #d29922; }
-.url { position: absolute; right: 74px; bottom: 58px; font: 500 22px JBM; color: #9198a1; letter-spacing: .02em; }
-.url b { color: #f0f6fc; font-weight: 600; }
-svg { position: absolute; left: 0; top: 0; }
-svg text { font-family: JBM; }
-</style></head><body><div class="bg"></div><div class="grid"></div>
-<div class="txt"><p class="k"><i></i>the family tree of code</p>
-<h1>Every repo<br>has a <span class="g">lineage</span>.<br>Some have <span class="a">coins</span>.</h1></div>
-<svg width="1500" height="500" viewBox="0 0 1500 500">
-  <defs><radialGradient id="gl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f2c46d" stop-opacity=".6"/><stop offset="1" stop-color="#f2c46d" stop-opacity="0"/></radialGradient></defs>
-  <g fill="none" stroke-linecap="round">
-    <!-- side branches -->
-    <path d="M840 300 C 900 300, 900 390, 970 390" stroke="#3d444d" stroke-width="5"/>
-    <path d="M1000 250 C 1060 250, 1050 120, 1110 110" stroke="#3d444d" stroke-width="5"/>
-    <path d="M1110 110 L 1210 96" stroke="#3d444d" stroke-width="5"/>
-    <path d="M1000 250 C 1050 250, 1060 350, 1120 360" stroke="#3d444d" stroke-width="5"/>
-    <!-- the line: git → bitcoin → solana → pump.fun → forks -->
-    <path d="M700 340 C 760 340, 770 300, 840 300 S 940 250, 1000 250 S 1100 205, 1160 205 S 1260 160, 1330 160" stroke="#3fb950" stroke-width="9"/>
-  </g>
-  <circle cx="700" cy="340" r="13" fill="#3fb950"/>
-  <circle cx="840" cy="300" r="11" fill="#3fb950"/><circle cx="1000" cy="250" r="11" fill="#3fb950"/><circle cx="1160" cy="205" r="11" fill="#3fb950"/>
-  <circle cx="970" cy="390" r="8" fill="#0d1117" stroke="#9198a1" stroke-width="4"/>
-  <circle cx="1110" cy="110" r="8" fill="#0d1117" stroke="#9198a1" stroke-width="4"/><circle cx="1210" cy="96" r="8" fill="#0d1117" stroke="#9198a1" stroke-width="4"/>
-  <circle cx="1120" cy="360" r="8" fill="#0d1117" stroke="#9198a1" stroke-width="4"/>
-  <circle cx="1330" cy="160" r="84" fill="url(#gl)"/>
-  <circle cx="1330" cy="160" r="22" fill="#d29922"/><circle cx="1330" cy="160" r="36" fill="none" stroke="#d29922" stroke-width="3" opacity=".55"/>
-  <g font-size="19" font-weight="600" fill="#f0f6fc">
-    <text x="700" y="380" text-anchor="middle">git</text>
-    <text x="840" y="275" text-anchor="middle">bitcoin</text><text x="840" y="338" text-anchor="middle" fill="#4493f8" font-weight="700">$BTC</text>
-    <text x="1000" y="225" text-anchor="middle" dy="-4">solana</text><text x="1000" y="290" text-anchor="middle" fill="#4493f8" font-weight="700">$SOL</text>
-    <text x="1160" y="180" text-anchor="middle" dy="-4">pump.fun</text><text x="1160" y="245" text-anchor="middle" fill="#4493f8" font-weight="700">$PUMP</text>
-    <text x="1330" y="226" text-anchor="middle" font-size="24" font-weight="800">your repo</text><text x="1330" y="254" text-anchor="middle" fill="#d29922" font-weight="700">$COIN</text>
-  </g>
-  <g font-size="16" fill="#9198a1">
-    <text x="990" y="396">ethereum <tspan fill="#4493f8" font-weight="700">$ETH</tspan></text>
-    <text x="1110" y="86" text-anchor="middle">agave</text><text x="1226" y="78" text-anchor="middle">jito <tspan fill="#4493f8" font-weight="700">$JTO</tspan></text>
-    <text x="1138" y="366">anchor</text>
-  </g>
-</svg>
-<p class="url"><b>forks.wiki</b> · trace any repo · launch its coin</p>
+html, body { width: 1500px; height: 500px; background: #0d1117; overflow: hidden; }
+canvas { position: absolute; inset: 0; }
+.t { position: absolute; left: 72px; top: 64px; color: #f0f6fc; }
+.k { font: 600 16px JBM; letter-spacing: .16em; text-transform: uppercase; color: #8b949e; display: flex; gap: 10px; align-items: center; }
+.k b { color: #39d353; font-weight: 700; }
+h1 { margin-top: 16px; font: 800 66px/1.0 Mona, sans-serif; letter-spacing: -.03em; white-space: nowrap; }
+h1 .g { color: #39d353; } h1 .a { color: #e3b341; }
+.url { position: absolute; right: 64px; top: 66px; font: 700 22px JBM; color: #f0f6fc; background: #0d1117; padding: 8px 14px; border-radius: 8px; border: 1px solid #30363d; }
+</style></head><body>
+<canvas id="c" width="1500" height="500"></canvas>
+<div class="t"><p class="k"><b>git log --graph</b> · the family tree of code</p>
+<h1>Every repo has a <span class="g">lineage</span>.<br>Some have <span class="a">coins</span>.</h1></div>
+<p class="url">forks.wiki</p>
+<script>
+// a contribution graph that grows into a wave: GitHub's greens, a few repos (white, with git glyphs) and a few coins (amber)
+const g = document.getElementById('c').getContext('2d');
+let h = 20261106; const rnd = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
+const S = 40, GAP = 6, P = S + GAP, COLS = Math.ceil(1500 / P), ROWS = Math.ceil(500 / P);
+const X0 = 1500 - COLS * P + GAP / 2, Y0 = 500 - ROWS * P + GAP / 2;
+const G = ['#0e4429', '#006d32', '#26a641', '#39d353'];
+// the dotted ground, like an empty calendar
+for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) { g.fillStyle = '#161b22'; g.beginPath(); g.roundRect(X0 + c * P, Y0 + r * P, S, S, 6); g.fill(); }
+// height of the wave per column: low on the left, a rise in the middle, a crest on the right
+const height = c => { const x = c / (COLS - 1); return 1.3 + 2.2 * Math.exp(-((x - .08) ** 2) / .01) + 8.6 * Math.max(0, x - .36) ** 1.15 + Math.sin(c * .9) * .45; };
+const tiles = [];
+for (let c = 0; c < COLS; c++) {
+  const H = height(c);
+  for (let r = 0; r < ROWS; r++) {
+    const fromBottom = ROWS - 1 - r, edge = H - fromBottom;
+    if (edge <= 0 && !(edge > -1.6 && rnd() < .16)) continue; // a few loose squares above the crest
+    const depth = Math.min(1, Math.max(0, (H - fromBottom) / 4));
+    let col = G[Math.min(3, Math.floor(depth * 3.2 + rnd() * 1.4))];
+    if (edge <= 0) col = G[Math.floor(rnd() * 2) + 2];
+    tiles.push({ c, r, col });
+  }
+}
+// keep the words clear: no tiles behind the headline
+const clear = (c, r) => c * P + X0 < 830 && r * P + Y0 < 260;
+const live = tiles.filter(t => !clear(t.c, t.r));
+// repos and coins among them
+const ICON = {
+  fork: 'M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z',
+  branch: 'M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z',
+  commit: 'M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z',
+  merge: 'M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z',
+  star: 'M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z'
+};
+const pick = (n, f) => { const out = []; let guard = 0; while (out.length < n && guard++ < 999) { const t = live[Math.floor(rnd() * live.length)]; if (f(t) && !out.includes(t) && !out.some(o => Math.abs(o.c - t.c) + Math.abs(o.r - t.r) < 3)) out.push(t); } return out; };
+const repos = pick(7, t => t.c > 3), glyphs = ['fork', 'branch', 'commit', 'merge', 'fork', 'star', 'branch'];
+repos.forEach((t, i) => { t.col = '#f0f6fc'; t.icon = glyphs[i % glyphs.length]; });
+const coins = pick(6, t => t.c > COLS * .45 && !t.icon); coins.forEach(t => { t.col = '#e3b341'; t.coin = true; });
+const term = pick(1, t => !t.icon && !t.coin && t.c > 10); term.forEach(t => { t.col = '#f0f6fc'; t.text = '>_'; });
+for (const t of live) {
+  const x = X0 + t.c * P, y = Y0 + t.r * P;
+  g.fillStyle = t.col; g.beginPath(); g.roundRect(x, y, S, S, 6); g.fill();
+  if (t.icon) { g.save(); g.translate(x + 8, y + 8); g.scale(1.5, 1.5); g.fillStyle = '#0d1117'; g.fill(new Path2D(ICON[t.icon])); g.restore(); }
+  if (t.coin) { g.strokeStyle = '#7d4e00'; g.lineWidth = 2.5; g.beginPath(); g.arc(x + S / 2, y + S / 2, 12, 0, 7); g.stroke(); g.fillStyle = '#7d4e00'; g.font = '800 17px JBM'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', x + S / 2, y + S / 2 + 1); }
+  if (t.text) { g.fillStyle = '#0d1117'; g.font = '700 17px JBM'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t.text, x + S / 2, y + S / 2 + 1); }
+}
+</script>
 </body></html>

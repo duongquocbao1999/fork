@@ -1371,3 +1371,4 @@ body.chat .dock { display: flex; }
   .s1-strip { padding: 5px 14px; font-size: 12.5px; line-height: 1.25; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; } .s1-strip b { overflow: hidden; text-overflow: ellipsis; } .s1-more { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .s1-dot, .s1-t.wait { animation: none; } }
+.s1-nb { margin-right: 6px; font: 500 10px var(--mono); color: var(--ink-3); }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.3.1 — 2026-11-06
+
+- **Season 1's ladder, final**: a coin created alone earns nothing; **+1,000** when it's live with a buy at launch, **+10,000** at $10K market cap, **+20,000** at $30K, **+50,000** when it migrates from the curve, **+100,000** at $100K, **+250,000** at $500K, **+500,000** at $1M — up to 931,000 $FORK a coin. `supabase/migrations/0007_season1_rewards.sql`: `launches.dev_buy_lamports` (recorded at submit from the bundle the server built and the wallet signed — Jito bundles land whole or not at all), the new `season_tiers`, `season_pay` that needs the buy, `api_launch_sent`, `app_config 's1.min_dev_buy_sol'` (0 = any buy). Rewards already credited don't change.
+- **The launch form says what the buy at launch is worth**: with no buy — *add a buy at launch to earn +1,000 $FORK, a coin created alone earns nothing*; with one — *this launch earns you +1,000 $FORK*. Your coins on `/launch#season` say *no dev buy* where there wasn't one. The ladder reads *Dev buy · $10K · $30K · Migrate · $100K · $500K · $1M*.
+- **New X brand**: the header is a contribution graph that grows into a wave — GitHub's greens, repositories as white tiles with git glyphs, coins as amber tiles — under *Every repo has a lineage. Some have coins.* in Mona Sans (OFL); the avatar is the fork mark with its coin on solid green (a dark one too). `docs/brand/`.
+
 ## 4.3.0 — 2026-11-06
 
 - **Season 1: launch coins, earn $FORK.** The dev of every coin launched here earns a pending $FORK allocation: +5,000 when it's live, +5,000 at $10K market cap, +10,000 at $30K, +25,000 when it graduates from the curve, +25,000 at $100K, +75,000 at $500K, +150,000 at $1M — up to 295,000 a coin. `supabase/migrations/0006_season1.sql`: `seasons`, `season_tiers`, `season_seen`, `season_excluded`, `dev_wallets`, `launches.dev_user`; every reward goes through `credit()` with one idempotency key (`s1:launch:<mint>`, `s1:cap:<mint>:<tier>`).

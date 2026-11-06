@@ -279,7 +279,6 @@
     const el = o.box || host;
     const $ = s => host.querySelector(s);
     const cv = $('canvas'), symIn = $('[name="symbol"]'), nameIn = $('[name="name"]'), okIn = $('[name="ok"]'), go = $('[data-a="go"]'), devIn = $('[name="dev"]'), xIn = $('[name="x"]');
-    if (window.ForksSeason) window.ForksSeason.note($('[data-s1]'));
     let seed = 0, uploaded = false, busy = false, drawT = 0;
     const redraw = () => { if (!uploaded) drawLogo(cv, repo, symIn.value.toUpperCase(), seed); };
     redraw();
@@ -296,8 +295,11 @@
     });
     // buy at launch: what a fresh pump.fun curve gives for it (the same curve every coin starts on)
     const devSol = () => { const v = Number(String(devIn.value || '0').replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };
+    // Season 1: what this launch earns depends on the buy at launch
+    const seasonNote = window.ForksSeason ? window.ForksSeason.note($('[data-s1]'), devSol) : () => { };
     devIn.addEventListener('input', () => {
       devIn.value = devIn.value.replace(/[^0-9.,]/g, '').slice(0, 8);
+      seasonNote();
       const v = devSol(), est = $('[data-est]');
       if (!v) { est.textContent = ''; paint(); return; }
       if (v > L.maxDevBuySol) { est.textContent = `at most ${L.maxDevBuySol} SOL`; paint(); return; }
@@ -423,7 +425,7 @@
         await new Promise(r => setTimeout(r, 2500));
         const st = await api('/api/launch/status?mint=' + encodeURIComponent(b.mint));
         if (st.ok && st.state === 'live') {
-          step('land', 'ok', 'Live: the coin and its locked split are on the chain' + (s.season ? ` · ${(C.season && C.season.name) || 'Season 1'}: it earns ${(C.token && C.token.ticker) || '$FORK'} for you` : ''));
+          step('land', 'ok', 'Live: the coin and its locked split are on the chain' + (s.season ? ` · ${(C.season && C.season.name) || 'Season 1'}: ${s.devBuy ? `it earns ${(C.token && C.token.ticker) || '$FORK'} for you` : 'no buy at launch, so only its milestones earn'}` : ''));
           if (window.ForksSeason) window.ForksSeason.load(true);
           lock(true); go.textContent = `$${symbol} is live`; el.classList.add('done');
           walletViews.delete(paint);

@@ -162,9 +162,10 @@ export default async (req, context) => {
         fee: C.trade.feeBps > 0 && L.treasury ? { bps: C.trade.feeBps, to: L.treasury } : null });
       const r = await db('api_launch_reserve', { p_repo: p.repo, p_repo_name: p.repo, p_wallet: wallet, p_mint: b.mint, p_symbol: symbol, p_name: name, p_uri: meta.uri, p_image: meta.image, p_split: p.holders });
       if (!r || !r.ok) return err((r && r.error) || 'reserve', 409);
-      // Season 1: the X account signed in now earns for this coin, once its wallet has signed it (submit)
+      // Season 1: the X account signed in now earns for this coin, and the buy at launch is what makes it
+      // earn the launch reward — both recorded once the wallet has signed exactly this bundle (submit)
       const who = session(req);
-      return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret), u: who ? who.uid : null }, 150) });
+      return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret), u: who ? who.uid : null, d: devBuyLamports }, 150) });
     }
 
     if (path === '/api/launch/submit') {
@@ -175,8 +176,12 @@ export default async (req, context) => {
       const bad = checkSigned(body.txs, t.hashes, t.wallet, t.mint);
       if (bad) return err('bad_signed', 400, { why: bad });
       const bundle = await sendBundle(cosign(body.txs, secret));
-      if (t.u) { try { await db('api_launch_attach', { p_user: t.u, p_mint: t.mint, p_wallet: t.wallet }); } catch (e) { if (!NO_FN(e)) console.error('attach', e.message); } }
-      return json({ ok: true, bundle, mint: t.mint, season: !!t.u });
+      try { await db('api_launch_sent', { p_mint: t.mint, p_wallet: t.wallet, p_user: t.u || null, p_dev_buy: Number(t.d) || 0 }); }
+      catch (e) {
+        if (!NO_FN(e)) console.error('sent', e.message);
+        else if (t.u) { try { await db('api_launch_attach', { p_user: t.u, p_mint: t.mint, p_wallet: t.wallet }); } catch (_) { } } // a database without 0007
+      }
+      return json({ ok: true, bundle, mint: t.mint, season: !!t.u, devBuy: Number(t.d) > 0 });
     }
     return err('not_found', 404);
   } catch (e) {
