@@ -32,7 +32,7 @@ Four pages, one look:
 | | |
 |---|---|
 | **[Graph](https://forks.wiki)** | The $FORK box up top (what there is to earn, and where you stand), then a prepared graph — *from git to forks*: git → bitcoin → ethereum and solana → pump.fun → this repository — then anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
-| **[Market](https://forks.wiki/market)** | A trending strip on top (forks' own coin pinned first, then Jupiter's trending Solana tokens), then one list: every coin launched here, 29 project tokens (each matched to its GitHub organization) and Solana's top tokens by Jupiter's organic score — live price, market cap, 24 h, volume, liquidity, bonding-curve progress. |
+| **[Market](https://forks.wiki/market)** | **On forks** first: what's trending among the coins launched here (by trading over the last hour, then the day; the coin on `forkwiki/fork` pinned first) and every one of them. Then **Solana**: Jupiter's trending tokens, 29 project tokens (each matched to its GitHub organization) and Solana's top tokens by organic score — live price, market cap, 24 h, volume, liquidity, bonding-curve progress. |
 | **[Launch](https://forks.wiki/launch)** | Pick a repository, see who gets its creator fees, name the coin, buy at launch if you want, sign once. One coin per repository. |
 | **[Guide](https://forks.wiki/guide)** | What everything is, the split, claiming, the terminal, $FORK, the commands. `/info` in the box says it in short. |
 
@@ -161,7 +161,7 @@ The logo and the metadata JSON go to public IPFS first, through Pinata, the way 
 |---|---|
 | A coin still on its pump.fun curve | traded **on the curve**: the server builds the transaction with pump.fun's SDK, the wallet signs, the server checks it byte for byte and sends it |
 | Graduated coins, project tokens | traded **through Jupiter** (`/swap/v2/order` → `/execute`); SOL itself against USDC |
-| Prices, market caps | DexScreener; coins it hasn't seen yet are priced from their curve |
+| Prices, market caps | DexScreener — the deepest pool among those priced where the market agrees (pools weighed by trade count, or Jupiter's price), so one broken pool can't skew it; coins it hasn't seen yet are priced from their curve |
 | Logos | Jupiter's token list, then DexScreener, then the project's GitHub avatar; logos on IPFS through `/api/ipfs/<cid>` |
 | Trending, top | Jupiter's Tokens API: trending over 1 h, top by organic score over 24 h (verified or high organic activity, never flagged, with a logo); GeckoTerminal's trending pools if Jupiter doesn't answer |
 | Any other token | any Solana address with a live market opens in the terminal, labelled *not on forks* |

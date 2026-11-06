@@ -32,39 +32,68 @@
   <div class="page-h">
     <div>
       <h1>Market</h1>
-      <p>Coins launched on repositories through forks, the tokens of the projects on the graph, and what’s trending on Solana. Prices are live; every trade is signed by your own wallet.</p>
+      <p>Coins launched on GitHub repositories here come first — their creator fees go to the people who wrote the code. Then Solana: the project tokens on the graph and the top tokens. Every trade is signed by your own wallet.</p>
     </div>
     <a class="btn primary" href="/launch"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/></svg>Launch a coin</a>
   </div>
-  <section class="trend" aria-label="Trending">
-    <div class="trend-h"><h2><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.998 14.5c2.832 0 5-1.98 5-4.5 0-1.463-.68-2.19-1.879-3.383l-.036-.037c-1.013-1.008-2.3-2.29-2.834-4.434-.322.256-.63.579-.864.953-.432.696-.621 1.58-.046 2.73.473.947.67 2.284-.278 3.232-.61.61-1.545.84-2.403.633a2.79 2.79 0 0 1-1.436-.874A3.198 3.198 0 0 0 3 10c0 2.53 2.164 4.5 4.998 4.5ZM9.533.753C9.496.34 9.16.009 8.77.146 7.035.75 4.34 3.187 5.997 6.5c.344.689.285 1.218.003 1.5-.419.419-1.54.487-2.04-.832-.173-.454-.659-.762-1.035-.454C2.036 7.44 1.5 8.702 1.5 10c0 3.512 2.998 6 6.498 6s6.5-2.5 6.5-6c0-2.137-1.128-3.26-2.312-4.438-1.19-1.184-2.436-2.425-2.653-4.81Z"/></svg>Trending on Solana</h2><span class="src" id="trendSrc"></span></div>
-    <div class="trend-row" id="trendRow"><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div></div>
-  </section>
-  <div class="subnav">
-    <div class="seg" role="tablist" aria-label="Which tokens">
-      <button type="button" role="tab" data-k="all" class="on">All <span class="counter" id="nAll">0</span></button>
-      <button type="button" role="tab" data-k="coins">On forks <span class="counter" id="nCoins">0</span></button>
-      <button type="button" role="tab" data-k="projects">Projects <span class="counter" id="nProjects">0</span></button>
-      <button type="button" role="tab" data-k="top">Top Solana <span class="counter" id="nTop">·</span></button>
+  <div class="mk-find"><label class="sr" for="mkQ">Filter</label><input class="input" id="mkQ" type="search" placeholder="Filter by ticker, name, repository or address" autocomplete="off"></div>
+
+  <section class="mk-sec fk" id="onForks" aria-labelledby="fkH">
+    <div class="mk-sec-h">
+      <h2 id="fkH"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg>On forks <span class="counter" id="nForks">0</span></h2>
+      <p>Coins launched on repositories here. The coin on <a href="https://github.com/forkwiki/fork" target="_blank" rel="noopener">forkwiki/fork</a> is pinned first.</p>
     </div>
-    <div class="grow"><label class="sr" for="mkQ">Filter</label><input class="input" id="mkQ" type="search" placeholder="Filter by ticker, name, repository or address" autocomplete="off"></div>
-    <label class="sr" for="mkSort">Sort</label>
-    <select class="select" id="mkSort">
-      <option value="default">Pinned, then forks, then market cap</option>
-      <option value="mcap">Market cap</option>
-      <option value="vol">24h volume</option>
-      <option value="change">24h change</option>
-      <option value="liq">Liquidity</option>
-      <option value="new">Newest</option>
-      <option value="curve">Curve progress</option>
-    </select>
-  </div>
-  <div class="box mk" id="mk">
-    <div class="mk-h"><span>Token</span><span>Price</span><span>Market cap</span><span>24h</span><span>Volume 24h</span><span></span></div>
-    <div id="mkRows"><div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading the market…</span></div></div>
-    <div class="mk-more" id="mkMore" hidden><button class="btn" type="button">Show more</button></div>
-  </div>
-  <p class="src-note">Trending and top tokens: Jupiter's token lists (only tokens Jupiter has verified or sees real activity on). Prices: DexScreener and Jupiter; coins on a pump.fun curve read from the chain. Project tokens belong to their projects, everything else to whoever made it — none of it to forks, none endorsed. Check the address before you trade. Trades here carry forks' 0.5% fee.</p>
+    <div class="trend-h"><h3><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.998 14.5c2.832 0 5-1.98 5-4.5 0-1.463-.68-2.19-1.879-3.383l-.036-.037c-1.013-1.008-2.3-2.29-2.834-4.434-.322.256-.63.579-.864.953-.432.696-.621 1.58-.046 2.73.473.947.67 2.284-.278 3.232-.61.61-1.545.84-2.403.633a2.79 2.79 0 0 1-1.436-.874A3.198 3.198 0 0 0 3 10c0 2.53 2.164 4.5 4.998 4.5ZM9.533.753C9.496.34 9.16.009 8.77.146 7.035.75 4.34 3.187 5.997 6.5c.344.689.285 1.218.003 1.5-.419.419-1.54.487-2.04-.832-.173-.454-.659-.762-1.035-.454C2.036 7.44 1.5 8.702 1.5 10c0 3.512 2.998 6 6.498 6s6.5-2.5 6.5-6c0-2.137-1.128-3.26-2.312-4.438-1.19-1.184-2.436-2.425-2.653-4.81Z"/></svg>Trending on forks</h3><span class="src">by trading in the last hour, then the day</span></div>
+    <div class="trend-row fk-row" id="fkTrend"><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div></div>
+    <div class="subnav">
+      <div class="grow"></div>
+      <label class="sr" for="fkSort">Sort coins on forks</label>
+      <select class="select" id="fkSort">
+        <option value="trending">Trending</option>
+        <option value="mcap">Market cap</option>
+        <option value="vol">24h volume</option>
+        <option value="change">24h change</option>
+        <option value="new">Newest</option>
+        <option value="curve">Curve progress</option>
+      </select>
+    </div>
+    <div class="box mk" id="fk">
+      <div class="mk-h"><span>Token</span><span>Price</span><span>Market cap</span><span>24h</span><span>Volume 24h</span><span></span></div>
+      <div id="fkRows"><div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading the coins…</span></div></div>
+    </div>
+  </section>
+
+  <section class="mk-sec" id="onSolana" aria-labelledby="solH">
+    <div class="mk-sec-h">
+      <h2 id="solH">Solana <span class="counter" id="nSol">0</span></h2>
+      <p>The tokens of the projects on the graph, and Solana’s top tokens by real activity.</p>
+    </div>
+    <div class="trend-h"><h3><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.998 14.5c2.832 0 5-1.98 5-4.5 0-1.463-.68-2.19-1.879-3.383l-.036-.037c-1.013-1.008-2.3-2.29-2.834-4.434-.322.256-.63.579-.864.953-.432.696-.621 1.58-.046 2.73.473.947.67 2.284-.278 3.232-.61.61-1.545.84-2.403.633a2.79 2.79 0 0 1-1.436-.874A3.198 3.198 0 0 0 3 10c0 2.53 2.164 4.5 4.998 4.5ZM9.533.753C9.496.34 9.16.009 8.77.146 7.035.75 4.34 3.187 5.997 6.5c.344.689.285 1.218.003 1.5-.419.419-1.54.487-2.04-.832-.173-.454-.659-.762-1.035-.454C2.036 7.44 1.5 8.702 1.5 10c0 3.512 2.998 6 6.498 6s6.5-2.5 6.5-6c0-2.137-1.128-3.26-2.312-4.438-1.19-1.184-2.436-2.425-2.653-4.81Z"/></svg>Trending on Solana</h3><span class="src" id="trendSrc"></span></div>
+    <div class="trend-row" id="trendRow"><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div><div class="trend-c wait"></div></div>
+    <div class="subnav">
+      <div class="seg" role="tablist" aria-label="Which tokens">
+        <button type="button" role="tab" data-k="all" class="on">All <span class="counter" id="nAll">0</span></button>
+        <button type="button" role="tab" data-k="projects">Projects <span class="counter" id="nProjects">0</span></button>
+        <button type="button" role="tab" data-k="top">Top Solana <span class="counter" id="nTop">·</span></button>
+      </div>
+      <div class="grow"></div>
+      <label class="sr" for="mkSort">Sort</label>
+      <select class="select" id="mkSort">
+        <option value="default">Projects, then market cap</option>
+        <option value="mcap">Market cap</option>
+        <option value="vol">24h volume</option>
+        <option value="change">24h change</option>
+        <option value="liq">Liquidity</option>
+        <option value="new">Newest</option>
+      </select>
+    </div>
+    <div class="box mk" id="mk">
+      <div class="mk-h"><span>Token</span><span>Price</span><span>Market cap</span><span>24h</span><span>Volume 24h</span><span></span></div>
+      <div id="mkRows"><div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading the market…</span></div></div>
+      <div class="mk-more" id="mkMore" hidden><button class="btn" type="button">Show more</button></div>
+    </div>
+  </section>
+  <p class="src-note">Trending on forks: the coins launched here, by trading volume over the last hour, then the day. Trending and top on Solana: Jupiter's token lists (only tokens Jupiter has verified or sees real activity on). Prices: DexScreener, checked against Jupiter; coins on a pump.fun curve read from the chain. Project tokens belong to their projects, everything else to whoever made it — none of it to forks, none endorsed. Check the address before you trade. Trades here carry forks' 0.5% fee.</p>
 </main>
 <script src="/src/config.js"></script>
 <script src="/src/wallet.js"></script>

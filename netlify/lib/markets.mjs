@@ -24,15 +24,29 @@ export const WSOL = 'So11111111111111111111111111111111111111112';
 export const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 /* ---------- DexScreener: the best pair of each mint ---------- */
+// DexScreener sometimes prices a broken or stale pool thousands of times off (MET/JUP at $1,354 while MET
+// trades at $0.27), and its "liquidity" and "volume" are that price times the pool's tokens, so the broken
+// pool looks like the deepest. So: find the price most of the market agrees on — pools within 3× of each
+// other, weighed by their number of trades (a count, which a wrong price can't inflate) — or Jupiter's price
+// when we have it, drop every pool far from it, then take the deepest of the rest.
+const liq = p => (p && p.liquidity && p.liquidity.usd) || 0;
+const trades = p => (p && p.txns && p.txns.h24 ? (p.txns.h24.buys || 0) + (p.txns.h24.sells || 0) : 0);
+const near = (a, b) => a > 0 && b > 0 && a / b < 3 && b / a < 3;
+const refPrice = new Map(); // mint → { price, at }: Jupiter's price, a sanity anchor for six hours
 const pick = (pairs, mint) => {
-  let best = null;
-  for (const p of pairs) {
-    if (!p || p.chainId !== 'solana') continue;
-    const side = p.baseToken && p.baseToken.address === mint ? 'base' : p.quoteToken && p.quoteToken.address === mint ? 'quote' : null;
-    if (side !== 'base') continue; // prices quoted for the base token only
-    if (!best || ((p.liquidity && p.liquidity.usd) || 0) > ((best.liquidity && best.liquidity.usd) || 0)) best = p;
+  const mine = pairs.filter(p => p && p.chainId === 'solana' && p.baseToken && p.baseToken.address === mint && Number(p.priceUsd) > 0); // prices quoted for the base token only
+  if (!mine.length) return null;
+  const ref = refPrice.get(mint);
+  let anchor = ref && Date.now() - ref.at < 6 * 3600e3 && mine.some(p => near(Number(p.priceUsd), ref.price)) ? ref.price : null;
+  if (!anchor) {
+    let best = null;
+    for (const p of mine) {
+      const price = Number(p.priceUsd), score = mine.reduce((s, q) => s + (near(Number(q.priceUsd), price) ? 1 + trades(q) : 0), 0);
+      if (!best || score > best.score || (score === best.score && liq(p) > liq(best.p))) best = { price, score, p };
+    }
+    anchor = best.price;
   }
-  return best;
+  return mine.filter(p => near(Number(p.priceUsd), anchor)).reduce((a, b) => (liq(b) > liq(a) ? b : a));
 };
 const shape = p => p && {
   price: p.priceUsd ? Number(p.priceUsd) : null,
@@ -40,9 +54,11 @@ const shape = p => p && {
   mcap: p.marketCap || p.fdv || null,
   liquidity: p.liquidity ? p.liquidity.usd || null : null,
   volume24: p.volume ? p.volume.h24 || 0 : 0,
+  volume1: p.volume ? p.volume.h1 || 0 : 0,
   change24: p.priceChange && p.priceChange.h24 != null ? p.priceChange.h24 : null,
   change1: p.priceChange && p.priceChange.h1 != null ? p.priceChange.h1 : null,
-  txns24: p.txns && p.txns.h24 ? (p.txns.h24.buys || 0) + (p.txns.h24.sells || 0) : 0,
+  txns24: trades(p),
+  txns1: p.txns && p.txns.h1 ? (p.txns.h1.buys || 0) + (p.txns.h1.sells || 0) : 0,
   pair: p.pairAddress, dex: p.dexId, url: p.url,
   symbol: p.baseToken && p.baseToken.symbol || null, name: p.baseToken && p.baseToken.name || null,
   image: p.info && p.info.imageUrl || null,
@@ -80,7 +96,11 @@ export async function icons(mints) {
       const r = await fetch(`https://api.jup.ag/tokens/v2/search?query=${key}`, { headers: { accept: 'application/json', ...jupHeaders() }, signal: AbortSignal.timeout(6000) });
       if (!r.ok) throw new Error('jupiter tokens ' + r.status);
       const list = await r.json(), out = {};
-      for (const t of Array.isArray(list) ? list : []) if (t && t.id && typeof t.icon === 'string' && /^https:\/\//.test(t.icon)) out[t.id] = t.icon;
+      for (const t of Array.isArray(list) ? list : []) {
+        if (!t || !t.id) continue;
+        if (typeof t.icon === 'string' && /^https:\/\//.test(t.icon)) out[t.id] = t.icon;
+        if (Number(t.usdPrice) > 0) refPrice.set(t.id, { price: Number(t.usdPrice), at: Date.now() });
+      }
       iconMemo.set(key, { v: out, until: Date.now() + 6 * 3600e3 });
       return out;
     } catch (e) {
@@ -198,7 +218,9 @@ export async function jupList(category, interval, limit = 100) {
     const r = await fetch(`https://api.jup.ag/tokens/v2/${category}/${interval}?limit=${limit}`, { headers: { accept: 'application/json', ...jupHeaders() }, signal: AbortSignal.timeout(8000) });
     if (r.status === 429) throw Object.assign(new Error('jupiter tokens busy'), { code: 'upstream_busy' });
     if (!r.ok) throw Object.assign(new Error('jupiter tokens ' + r.status), { code: 'upstream' });
-    const list = await r.json();
+    const list = await r.json(), now = Date.now();
+    for (const t of Array.isArray(list) ? list : []) if (t && t.id && Number(t.usdPrice) > 0) refPrice.set(t.id, { price: Number(t.usdPrice), at: now });
+    if (refPrice.size > 5000) refPrice.clear();
     return (Array.isArray(list) ? list : []).filter(keep).map(shapeJup);
   });
 }

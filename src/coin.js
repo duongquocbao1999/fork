@@ -281,7 +281,7 @@
     // forks' fee, before anything is signed: on the curve a SOL transfer in the same transaction; through Jupiter
     // its referral fee, inside feeBps (Jupiter's own part is shown with it)
     $('#qFee').textContent = j.route === 'pump'
-      ? (Number(j.forksFeeLamports) > 0 ? `${(j.forksFeeBps / 100).toFixed(1)}% · ${big(fromRaw(j.forksFeeLamports, 9))} SOL` : 'none')
+      ? (Number(j.forksFeeLamports) > 0 ? `${(j.forksFeeBps / 100).toFixed(1)}% · ${big(fromRaw(j.forksFeeLamports, 9))} SOL` : j.forksFeeBps > 0 ? 'none · forks’ own wallet' : 'none')
       : j.referral ? `${((info.fee && info.fee.bps) || 50) / 100}% · in Jupiter's ${(j.feeBps || 0) / 100}% total` : j.feeBps ? `none · Jupiter ${j.feeBps / 100}%` : 'none';
     $('#qv').classList.remove('wait');
   }

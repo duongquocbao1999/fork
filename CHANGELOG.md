@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.2.1 — 2026-11-06
+
+- **The market leads with forks.** *On forks* is the first section: its own *Trending on forks* strip — the coins launched here, ranked by trading over the last hour, then the day, then market cap; the coin on `forkwiki/fork` pinned first; a *Launch a coin* card at the end — then every coin launched here, sortable (trending, market cap, volume, change, newest, curve). *Solana* comes second: Jupiter's trending strip, then the project tokens and Solana's top tokens. One filter for both. Old `?tab=` links land on the Solana list they meant.
+- **Right prices when DexScreener has a broken pool.** MET showed $1,354 (the real price: $0.27) because DexScreener had a stale MET/JUP pool priced thousands of times off — and since its "liquidity" is that price times the pool's tokens, the broken pool looked the deepest. A pair is now picked by consensus: the price most of the market agrees on (pools within 3× of each other, weighed by their number of trades) or Jupiter's price when we have it; pools far from it are dropped, the deepest of the rest wins. Fixes the price, market cap, 24 h change and the chart's pool everywhere (market, sidebar, terminal).
+- **A logo without words.** The generated coin logo is now a wordless fork glyph — the line the repository came from, its branches, the repository glowing on top — centred for pump.fun's round crop, in one of eight palettes picked from the repository (*another* cycles them). Upload still replaces it.
+- **No fee from forks' own wallet.** A trade or a launch from the treasury wallet no longer adds a 0.5% transfer to itself; the quote says *none · forks' own wallet*.
+
 ## 4.2.0 — 2026-11-06
 
 - **A 0.5% fee on trades made through forks — and on the buy at launch.** On a pump.fun curve it's a plain SOL transfer to forks' treasury (`launch.treasury`) inside the same transaction: taken off the SOL in on a buy, off the SOL out on a sell; the quote's minimum is net of it. Through Jupiter it's Jupiter's referral fee (`referralAccount` + `referralFee=50` on `/order`; Jupiter keeps 20% of it), on when `JUP_REFERRAL_ACCOUNT` is set — without it Jupiter trades carry no forks fee. The buy at launch pays it out of the amount entered. Every quote shows it before the wallet signs (*forks fee 0.5% · 0.005 SOL*). `config.trade.feeBps` (0 turns it off). `/api/health` → `trade.fee_bps`, `trade.jupiter_fee`.

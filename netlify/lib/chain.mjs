@@ -82,7 +82,8 @@ async function tipAccount() {
  * holders: the plan's split; github ids become pump.fun GitHub fee accounts.
  */
 // forks' fee on a buy or sell: { bps, to } (a SOL transfer in the same transaction); none when bps is 0
-const feeOf = (lamports, fee) => (fee && fee.bps > 0 && fee.to ? (BigInt(lamports) * BigInt(fee.bps)) / 10000n : 0n);
+// none when the wallet trading is forks' own: a transfer to itself would only cost a signature's worth of fuss
+const feeOf = (lamports, fee, who) => (fee && fee.bps > 0 && fee.to && fee.to !== who ? (BigInt(lamports) * BigInt(fee.bps)) / 10000n : 0n);
 const feeIx = (from, fee, lamports) => SystemProgram.transfer({ fromPubkey: from, toPubkey: new PublicKey(fee.to), lamports: Number(lamports) });
 /** A fresh mint key, made first so the coin's links (its forks.wiki page) can go into its metadata. */
 export const newMint = () => { needSdk(); const k = Keypair.generate(); return { address: k.publicKey.toBase58(), secret: Buffer.from(k.secretKey) }; };
@@ -122,7 +123,7 @@ export async function build({ wallet, name, symbol, uri, holders, tipSol, devBuy
     // creator vault is the config's, exactly as the program will check it
     txs.push(compile([...cb(300000), update]));
     const { global, feeConfig } = await pumpState();
-    const cut = feeOf(devBuyLamports, fee); // forks' 0.5% of the buy at launch
+    const cut = feeOf(devBuyLamports, fee, user.toBase58()); // forks' 0.5% of the buy at launch
     const sol = new BN(String(BigInt(devBuyLamports) - cut));
     const fresh = { ...pump.newBondingCurve(global, spl.NATIVE_MINT), creator: pump.feeSharingConfigPda(mint.publicKey), isMayhemMode: false };
     const amount = pump.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: null, amount: sol, quoteMint: spl.NATIVE_MINT });
@@ -288,13 +289,13 @@ export async function curveTrade({ mint: mintStr, side, amount, slippageBps, use
   const { global, feeConfig } = await pumpState();
   const slip = Math.max(0.1, Number(slippageBps || 500) / 100);
   // a buy: forks' fee comes off the SOL going in; a sell: off the SOL coming out
-  const buyCut = side === 'buy' ? feeOf(amount, fee) : 0n;
+  const buyCut = side === 'buy' ? feeOf(amount, fee, userStr) : 0n;
   const amt = new BN(String(side === 'buy' ? BigInt(amount) - buyCut : BigInt(amount)));
   let out;
   if (side === 'buy') out = pump.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: bc.tokenTotalSupply, bondingCurve: bc, amount: amt, quoteMint: spl.NATIVE_MINT });
   else out = pump.getSellSolAmountFromTokenAmount({ global, feeConfig, mintSupply: bc.tokenTotalSupply, bondingCurve: bc, amount: amt });
   if (out.lten(0)) throw Object.assign(new Error('nothing out'), { code: 'too_small' });
-  const sellCut = side === 'sell' ? feeOf(out.toString(), fee) : 0n, cut = buyCut + sellCut;
+  const sellCut = side === 'sell' ? feeOf(out.toString(), fee, userStr) : 0n, cut = buyCut + sellCut;
   // spot price (lamports per raw token) for the impact
   const vs = BigInt(bc.virtualQuoteReserves.toString()), vt = BigInt(bc.virtualTokenReserves.toString());
   const spot = Number(vs) / Number(vt);
@@ -305,7 +306,7 @@ export async function curveTrade({ mint: mintStr, side, amount, slippageBps, use
   const q = {
     route: 'pump', inAmount: String(amount), outAmount: side === 'buy' ? gross : (BigInt(gross) - sellCut).toString(), minOut,
     maxIn: side === 'buy' ? (BigInt(amt.add(amt.mul(new BN(Math.floor(slip * 10))).div(new BN(1000))).toString()) + buyCut).toString() : String(amount), impact,
-    forksFeeBps: cut > 0n ? fee.bps : 0, forksFeeLamports: cut.toString()
+    forksFeeBps: fee && fee.bps > 0 ? fee.bps : 0, forksFeeLamports: cut.toString()
   };
   if (!userStr) return q;
   const user = new PublicKey(userStr);

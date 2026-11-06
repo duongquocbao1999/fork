@@ -115,49 +115,63 @@
     }).join('')}</ul>`;
   }
 
-  /* ---------- a logo in the family style: the line it came from, in the coin's own seed ---------- */
+  /* ---------- a logo in the family style, no words: a fork glyph — the line the repo came from, its branches,
+     the repo itself glowing on top — in one of a few palettes, all from the repo's own seed. Centred, so it
+     reads as well in pump.fun's circle at 32 px as it does big. ---------- */
   function rng(s) {
     let h = 2166136261;
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
   }
-  let fontsP = null;
-  const fonts = () => fontsP || (fontsP = Promise.all([document.fonts.load('900 120px Anybody'), document.fonts.load('500 22px "JetBrains Mono"')]).catch(() => null));
+  // [deep, lift, line, branch, head]
+  const PALETTES = [
+    ['#06140F', '#0F3B2C', '#6EE7B7', '#3E7F68', '#F2C46D'],
+    ['#140D04', '#4A2E0B', '#F2C46D', '#8C6A3A', '#FFF1D6'],
+    ['#050B18', '#12306B', '#7CB4FF', '#41608F', '#FFD27A'],
+    ['#0E0717', '#3B1C63', '#C4A1FF', '#6E5596', '#7DF0C8'],
+    ['#170707', '#5A1A14', '#FF9C7A', '#9A5444', '#FFE3A3'],
+    ['#03141A', '#0B4250', '#5EEAD4', '#3A7F86', '#FFB4A8'],
+    ['#0B0B0C', '#2A2C31', '#E7ECE9', '#7C8681', '#6EE7B7'],
+    ['#0F1405', '#33420C', '#D9F99D', '#7A8F45', '#FDE68A']
+  ];
   async function drawLogo(cv, repo, symbol, seed) {
-    await fonts();
     const S = 512, g = cv.getContext('2d'), rnd = rng(repo.toLowerCase() + '#' + seed);
     cv.width = S; cv.height = S;
-    g.fillStyle = '#0A0D0C'; g.fillRect(0, 0, S, S);
-    g.fillStyle = 'rgba(231,236,233,.07)';
-    for (let x = 16; x < S; x += 32) for (let y = 16; y < 352; y += 32) { g.beginPath(); g.arc(x, y, 1.4, 0, 7); g.fill(); }
-    const n = 4 + Math.floor(rnd() * 2), x0 = 62, x1 = 418, pts = [];
-    let y = 130 + rnd() * 120;
-    for (let i = 0; i < n; i++) { pts.push([x0 + (x1 - x0) * i / (n - 1), y]); y = Math.max(86, Math.min(286, y + (rnd() - .5) * 170)); }
-    const curve = (a, b) => { const dx = b[0] - a[0]; g.moveTo(a[0], a[1]); g.bezierCurveTo(a[0] + dx * .6, a[1], a[0] + dx * .4, b[1], b[0], b[1]); };
-    const dot = (p, r, fill, stroke, w) => { g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke) { g.lineWidth = w; g.strokeStyle = stroke; g.stroke(); } };
-    g.lineCap = 'round';
-    // the repo's glow first, so the line runs into it; side branches peel off away from it
-    const t = pts[n - 1], glow = g.createRadialGradient(t[0], t[1], 0, t[0], t[1], 96);
-    glow.addColorStop(0, 'rgba(232,180,90,.5)'); glow.addColorStop(1, 'rgba(232,180,90,0)');
-    g.fillStyle = glow; g.fillRect(t[0] - 96, t[1] - 96, 192, 192);
-    const ends = [];
-    g.strokeStyle = 'rgba(162,172,167,.42)'; g.lineWidth = 7;
-    for (let i = 0; i < n - 2; i++) if (rnd() < .85) {
-      const a = pts[i], up = a[1] > 190 ? -1 : a[1] < 130 ? 1 : (rnd() < .5 ? -1 : 1);
-      const b = [Math.min(t[0] - 60, a[0] + 80 + rnd() * 90), Math.max(56, Math.min(318, a[1] + up * (52 + rnd() * 66)))];
-      g.beginPath(); curve(a, b); g.stroke(); ends.push(b);
+    const [deep, lift, line, branch, head] = PALETTES[Math.floor(rnd() * PALETTES.length)];
+    // the ground: a soft light from above the head, a dot grid that fades towards the edge
+    const bg = g.createRadialGradient(256, 170, 10, 256, 230, 380);
+    bg.addColorStop(0, lift); bg.addColorStop(1, deep);
+    g.fillStyle = bg; g.fillRect(0, 0, S, S);
+    for (let x = 16; x < S; x += 32) for (let y = 16; y < S; y += 32) {
+      const d = Math.hypot(x - 256, y - 256) / 256; if (d > 1) continue;
+      g.fillStyle = `rgba(255,255,255,${(.09 * (1 - d)).toFixed(3)})`; g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill();
     }
-    g.strokeStyle = '#6EE7B7'; g.lineWidth = 11;
-    g.beginPath(); for (let i = 0; i < n - 1; i++) curve(pts[i], pts[i + 1]); g.stroke();
-    for (const b of ends) dot(b, 9, '#0A0D0C', 'rgba(162,172,167,.75)', 5);
-    pts.slice(0, -1).forEach((p, i) => dot(p, i === 0 ? 16 : 12, '#0A0D0C', '#6EE7B7', 7));
-    dot(t, 23, '#E8B45A');
-    const txt = '$' + (symbol || 'COIN');
-    let size = 150; const font = s => `900 ${s}px Anybody, "Arial Black", sans-serif`;
-    g.font = font(size); while (g.measureText(txt).width > S - 96 && size > 36) { size -= 4; g.font = font(size); }
-    g.fillStyle = '#E7ECE9'; g.textBaseline = 'alphabetic'; g.fillText(txt, 46, 452);
-    g.font = '500 22px "JetBrains Mono", ui-monospace, monospace'; g.fillStyle = '#7C8681';
-    g.fillText(repo.length > 34 ? repo.slice(0, 33) + '…' : repo, 48, 490);
+    // the line: from the root at the bottom to the repo on top, leaning a little to one side
+    const root = [256 + (rnd() - .5) * 50, 398], top = [256 + (rnd() - .5) * 90, 140];
+    const c1 = [root[0], root[1] - 130], c2 = [top[0], top[1] + 130];
+    const at = t => { const u = 1 - t; return [0, 1].map(k => u * u * u * root[k] + 3 * u * u * t * c1[k] + 3 * u * t * t * c2[k] + t * t * t * top[k]); };
+    g.lineCap = 'round';
+    // its branches: one to three, off alternate sides, each ending in a node of its own
+    const n = 1 + Math.floor(rnd() * 3), ends = [];
+    let side = rnd() < .5 ? -1 : 1;
+    g.strokeStyle = branch; g.lineWidth = 21;
+    for (let i = 0; i < n; i++) {
+      const t = .2 + (i + rnd() * .6) * (.55 / n), a = at(t);
+      const b = [Math.max(92, Math.min(420, a[0] + side * (98 + rnd() * 44))), a[1] - (72 + rnd() * 52)];
+      g.beginPath(); g.moveTo(a[0], a[1]); g.bezierCurveTo(a[0], a[1] - 50, b[0], b[1] + 50, b[0], b[1]); g.stroke();
+      ends.push(b); side = -side;
+    }
+    // the repo's glow, then the line through it
+    const glow = g.createRadialGradient(top[0], top[1], 0, top[0], top[1], 140);
+    glow.addColorStop(0, head + '99'); glow.addColorStop(1, head + '00');
+    g.fillStyle = glow; g.fillRect(top[0] - 140, top[1] - 140, 280, 280);
+    g.strokeStyle = line; g.lineWidth = 32;
+    g.beginPath(); g.moveTo(root[0], root[1]); g.bezierCurveTo(c1[0], c1[1], c2[0], c2[1], top[0], top[1]); g.stroke();
+    const dot = (p, r, fill, stroke, w) => { g.beginPath(); g.arc(p[0], p[1], r, 0, 7); g.fillStyle = fill; g.fill(); if (stroke) { g.lineWidth = w; g.strokeStyle = stroke; g.stroke(); } };
+    for (const b of ends) dot(b, 20, deep, branch, 11);
+    dot(root, 28, deep, line, 14);
+    dot(top, 50, head);
+    dot(top, 50, 'rgba(0,0,0,0)', 'rgba(255,255,255,.35)', 3);
   }
   function drawUpload(cv, file) {
     return new Promise((res, rej) => {

@@ -53,7 +53,7 @@
       <ul>
         <li><b>The graph.</b> A search engine for where code came from. Every point is a real public repository; every line is a real relation.</li>
         <li><b>A launchpad.</b> Anyone with a Solana wallet can launch a repository's coin on pump.fun. One coin per repository. Its creator fees are split once, for good, between the people behind the code and forks.</li>
-        <li><b>A market.</b> What's trending on Solana up top (forks' own coin pinned first), then one list: every coin launched here, the project tokens on the graph (29 Solana projects, each matched to its GitHub organization), and Solana's top tokens — each with a terminal: chart, trades, holders, and a buy/sell panel that trades from your own wallet. Paste any Solana token's address in the search box to open its terminal; tokens that aren't from forks or a project are labelled so.</li>
+        <li><b>A market.</b> The coins launched here come first — what's trending among them (by trading over the last hour, then the day; forks' own coin pinned first) and every one of them. Then Solana: what's trending there, the project tokens on the graph (29 Solana projects, each matched to its GitHub organization) and Solana's top tokens — each with a terminal: chart, trades, holders, and a buy/sell panel that trades from your own wallet. Paste any Solana token's address in the search box to open its terminal; tokens that aren't from forks or a project are labelled so.</li>
       </ul>
 
       <h2 id="graph">Reading a graph</h2>
@@ -80,7 +80,7 @@
       <ol>
         <li><b>Pick a repository</b> on the <a href="/launch">launch page</a>, or tap a point on any graph and choose <i>launch a coin</i>. It has to be public and have at least one person to pay.</li>
         <li><b>Check the split</b>. The server reads the owner, the top contributors and the line the repository came from — GitHub's fork record first, then the graph — and shows who gets what.</li>
-        <li><b>Name the coin</b>: a ticker (2–10 letters or digits), a name, a logo (one is drawn for you from the repository's line, or upload your own), an optional X link.</li>
+        <li><b>Name the coin</b>: a ticker (2–10 letters or digits), a name, a logo (a wordless fork glyph is drawn for you from the repository, with a few palettes to pick from, or upload your own), an optional X link.</li>
         <li><b>Buy at launch</b>, if you want: up to 20 SOL, bought first in the same bundle, before anyone else can.</li>
         <li><b>Tick the box, connect, sign once.</b> Your wallet signs three or four transactions. They go to Solana as one Jito bundle: all of them land, or none do and nothing is charged.</li>
       </ol>
@@ -115,7 +115,7 @@
       </ul>
       <p>You see what you'll receive, the minimum after slippage (5% by default, changeable), the price impact and the route before you sign. <b>forks takes 0.5%</b> of every trade made here and of the buy at launch, shown as <i>forks fee</i> in the quote before you sign. On a curve it's a SOL transfer to forks' wallet inside the same transaction (off the SOL you pay on a buy, off the SOL you get on a sell); through Jupiter it's Jupiter's referral fee, inside the fee Jupiter shows. pump.fun's own fee is built into the curve's price.</p>
       <h3 id="trending">Where do trending and top tokens come from?</h3>
-      <p>From Jupiter's token lists: <i>trending</i> is what's traded most on Solana over the last hour, <i>top</i> is the tokens with the most organic (non-bot) activity over the last day. forks keeps only tokens Jupiter verified or rates highly, drops anything flagged and stablecoins, and refreshes every few minutes. Being listed isn't a recommendation: anyone can make a token with any name, so check the address.</p>
+      <p><i>Trending on forks</i> ranks the coins launched here by their trading over the last hour, then the day, then market cap; the coin on forkwiki/fork is pinned first. On Solana, from Jupiter's token lists: <i>trending</i> is what's traded most on Solana over the last hour, <i>top</i> is the tokens with the most organic (non-bot) activity over the last day. forks keeps only tokens Jupiter verified or rates highly, drops anything flagged and stablecoins, and refreshes every few minutes. Being listed isn't a recommendation: anyone can make a token with any name, so check the address.</p>
       <div class="note"><b>Your keys, your trade</b>forks never holds your funds or your keys. Every trade is a transaction your wallet shows you and signs; nothing moves without it.</div>
 
       <h2 id="fork">$FORK</h2>

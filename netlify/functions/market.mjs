@@ -238,7 +238,7 @@ export default async (req, context) => {
       // everything else: Jupiter
       const io = side === 'buy' ? { inputMint: quoteMint(mint), outputMint: mint } : { inputMint: mint, outputMint: quoteMint(mint) };
       try {
-        const j = await jupOrder({ ...io, amount, slippageBps, taker: owner, feeBps: FEE() ? C.trade.feeBps : 0 });
+        const j = await jupOrder({ ...io, amount, slippageBps, taker: owner, feeBps: FEE() && owner !== C.launch.treasury ? C.trade.feeBps : 0 });
         return json({ ok: true, ...j, tx: owner ? j.tx : undefined, requestId: owner ? j.requestId : undefined });
       } catch (e) {
         if (e.code === 'upstream_busy') return err('busy', 429);
