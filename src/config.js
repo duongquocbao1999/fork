@@ -13,10 +13,10 @@
     // x.com/<postBy>/status/<post> (the post to like, retweet, comment on and quote); postBy = its author.
     // For now the post is the first post on Twitter, so the trials can be tested; swap in your own.
     // handle or post empty = the trials stay closed and /api/health lists them as missing.
-    x: { handle: 'forkwikis', post: '20', postBy: 'jack' },
+    x: { handle: 'wikifork', post: '20', postBy: 'jack' },
     // what the page promises before sign-in; the amounts that land come from the database (tasks, app_config)
     quest: { command: '/freeforks', total: 9000, scan: [2000, 20000], invite: 2000, github: 3000 },
-    links: { github: 'https://github.com/forkwiki/fork', x: 'https://x.com/forkwikis' },
+    links: { github: 'https://github.com/forkwiki/fork', x: 'https://x.com/wikifork' },
     // Coins on repositories (pump.fun, Solana mainnet). Creator fees are split once, for good, between
     // the people behind the code (paid to their GitHub accounts, claimed on pump.fun) and forks.
     launch: {

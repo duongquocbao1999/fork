@@ -91,3 +91,4 @@ Non-obvious choices, one line of why each.
 - **The official coin can't be copied here** — forks' own repository is reserved for the treasury's wallet, enforced on the server at both the plan and the build; the market shows $FORK as *not launched yet* until it is.
 - **Suggestions spread out** — fixed example repositories make everyone launch the same few; four random ones from a pool of crypto repositories, different each visit.
 - **One less trial** — "ask upstream anything" counted something people do anyway; five trials, 9,000 together.
+- **One market list, On forks as its first tab (4.4.1)** — a separate amber box for the coins launched here pushed the list down and read like an ad; a tab keeps them first (and the default) at the size of the other lists. *Trending on forks* lists only coins that trade, so the strip says something true even while it is empty; *Trending on Solana* went, Jupiter's top stays under *Top Solana*.

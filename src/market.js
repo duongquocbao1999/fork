@@ -1,6 +1,7 @@
-/* forks — the market. First and foremost, the coins launched on repositories here: what's trending among them
-   (pinned forkwiki/fork coin first), then all of them. Below, Solana: what's trending (Jupiter's list), and the
-   project tokens on the graph with Solana's top tokens. Every row opens the token's terminal. */
+/* forks — the market. On top, what's trending among the coins launched here (by trading). Then one list with four
+   tabs: On forks (the default: the official coin first — "not launched yet" until it is — then every coin launched
+   here), All, Projects (the project tokens on the graph) and Top Solana (Jupiter's list). Every row opens the
+   token's terminal. */
 (function () {
   'use strict';
   const C = window.FORKS_CONFIG, SH = window.ForksShell, esc = SH.esc;
@@ -11,10 +12,9 @@
   const REPO = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8Z"/></svg>';
   const CHECK = '<svg class="vf" viewBox="0 0 16 16" fill="currentColor" aria-label="verified by Jupiter"><path d="m9.585.52.929.68c.153.112.331.186.518.215l1.138.175a2.678 2.678 0 0 1 2.24 2.24l.174 1.139c.029.187.103.365.215.518l.68.928a2.677 2.677 0 0 1 0 3.17l-.68.928a1.174 1.174 0 0 0-.215.518l-.175 1.138a2.678 2.678 0 0 1-2.241 2.241l-1.138.175a1.17 1.17 0 0 0-.518.215l-.928.68a2.677 2.677 0 0 1-3.17 0l-.928-.68a1.174 1.174 0 0 0-.518-.215L3.83 14.41a2.678 2.678 0 0 1-2.24-2.24l-.175-1.138a1.17 1.17 0 0 0-.215-.518l-.68-.928a2.677 2.677 0 0 1 0-3.17l.68-.928c.112-.153.186-.331.215-.518l.175-1.14a2.678 2.678 0 0 1 2.24-2.24l1.139-.175c.187-.029.365-.103.518-.215l.928-.68a2.677 2.677 0 0 1 3.17 0ZM7.303 1.728l-.927.68a2.67 2.67 0 0 1-1.18.489l-1.137.174a1.179 1.179 0 0 0-.987.987l-.174 1.136a2.677 2.677 0 0 1-.489 1.18l-.68.928a1.18 1.18 0 0 0 0 1.394l.68.927c.256.348.424.753.489 1.18l.174 1.137c.078.509.478.909.987.987l1.136.174a2.67 2.67 0 0 1 1.18.489l.928.68c.414.305.979.305 1.394 0l.927-.68a2.67 2.67 0 0 1 1.18-.489l1.137-.174a1.18 1.18 0 0 0 .987-.987l.174-1.136a2.67 2.67 0 0 1 .489-1.18l.68-.928a1.176 1.176 0 0 0 0-1.394l-.68-.927a2.686 2.686 0 0 1-.489-1.18l-.174-1.137a1.179 1.179 0 0 0-.987-.987l-1.136-.174a2.677 2.677 0 0 1-1.18-.489l-.928-.68a1.176 1.176 0 0 0-1.394 0ZM11.28 6.78l-3.75 3.75a.75.75 0 0 1-1.06 0L4.72 8.78a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l1.22 1.22 3.22-3.22a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"/></svg>';
   const PIN = String((C.market && C.market.pinRepo) || '').toLowerCase();
-  const KINDS = ['all', 'projects', 'top'];
-  const legacy = { trending: 'top', projects: 'projects', top: 'top', all: 'all' };
+  const legacy = { forks: 'forks', coins: 'forks', all: 'all', projects: 'projects', top: 'top', trending: 'top' };
   const qs = new URLSearchParams(location.search), asked = qs.get('tab');
-  let data = null, feed = null, kind = legacy[asked] || 'all', shown = 60;
+  let data = null, feed = null, kind = legacy[asked] || 'forks', shown = 60;
 
   const v = t => t.market || {};
   const query = () => $('#mkQ').value.trim().toLowerCase().replace(/^\$/, '');
@@ -37,14 +37,6 @@
   const TK = (C.token && C.token.ticker) || '$FORK', PIN_NAME = (C.market && C.market.pinRepo) || 'forkwiki/fork';
   const official = () => forksCoins().some(t => t.pinned);
   const MARKI = SH.MARK || '';
-  function soonCard() {
-    return `<a class="trend-c fk-c pinned soon" href="https://x.com/${esc(C.x.handle)}" target="_blank" rel="noopener" title="The official ${esc(TK)} isn't launched yet">
-      <span class="tc-top"><span class="mk-img soon-i">${MARKI}</span><span class="tc-n"><b>${esc(TK)}</b><small>official · forks</small></span></span>
-      <span class="tc-repo">${REPO}<span>${esc(PIN_NAME)}</span></span>
-      <span class="tc-p"><span class="label amber">not launched yet</span></span>
-      <span class="tc-c"><small>anything called ${esc(TK)} elsewhere isn't it · follow @${esc(C.x.handle)}</small></span>
-    </a>`;
-  }
   function soonRow() {
     return `<a class="mk-r pinned soon" href="https://x.com/${esc(C.x.handle)}" target="_blank" rel="noopener">
         <span class="mk-id"><span class="mk-img soon-i">${MARKI}</span>
@@ -54,23 +46,15 @@
       </a>`;
   }
 
-  /* ---------- on forks ---------- */
+  /* ---------- the coins launched here ---------- */
   const forksCoins = () => (data ? data.coins : []).map(t => ({ ...t, kind: 'forks', pinned: !!PIN && String(t.repo || '').toLowerCase() === PIN }));
-  const ranked = () => forksCoins().sort(heat).sort(pinFirst);
-  function forksRows() {
-    if (!data) return;
-    const q = query(), all = forksCoins();
-    $('#nForks').textContent = all.length;
-    const list = all.filter(t => matches(t, q)).sort(SORT[$('#fkSort').value] || heat).sort(pinFirst);
-    const host = $('#fkRows');
-    const soon = !official() && (!q || matches({ symbol: TK.replace(/^\$/, ''), name: 'fork', repo: PIN_NAME }, q)) ? soonRow() : '';
-    if (!all.length) { host.innerHTML = soon + '<p class="mk-none muted">No coins launched here yet. <a href="/launch">Create the first one</a>.</p>'; return; }
-    host.innerHTML = soon + (list.length ? list.map(row).join('') : `<p class="mk-none muted">No coin on forks matches. Try a ticker, a name, a repository or an address.</p>`);
-  }
+  const trades = t => (v(t).volume1 || 0) > 0 || (v(t).txns1 || 0) > 0 || (v(t).volume24 || 0) > 0;
+  // trending on forks: only coins that trade, by the last hour, then the day
   function forksStrip() {
     if (!data) return;
-    const list = ranked().slice(0, 12), host = $('#fkTrend');
-    host.innerHTML = (official() ? '' : soonCard()) + list.map((t, i) => {
+    const host = $('#fkTrend'), list = forksCoins().filter(trades).sort(heat).sort(pinFirst).slice(0, 12);
+    if (!list.length) { host.innerHTML = '<p class="muted trend-none fk-none">Nothing is trading on forks yet. Coins launched here show up once they trade. <a href="/launch">Create one</a>.</p>'; return; }
+    host.innerHTML = list.map((t, i) => {
       const m = v(t), cv = t.curve, ch = m.change1 != null ? m.change1 : m.change24, lab = m.change1 != null ? '1h' : '24h';
       return `<a class="trend-c fk-c${t.pinned ? ' pinned' : ''}" href="/coin/${esc(t.mint)}">
         <span class="tc-top"><span class="mk-img">${SH.logo(t.image || m.image, t.symbol)}</span><span class="tc-n"><b>$${esc(t.symbol)}</b><small>${t.pinned ? 'pinned · forks' : `#${i + 1 - (list[0] && list[0].pinned ? 1 : 0)} on forks`}</small></span></span>
@@ -82,31 +66,53 @@
     }).join('');
   }
 
-  /* ---------- Solana: project tokens and Jupiter's top, each once (a coin launched here is listed above) ---------- */
-  function solana() {
+  /* ---------- one list: the coins launched here, the project tokens, Jupiter's top — each once ---------- */
+  function everything() {
     if (!data) return [];
-    const seen = new Set(data.coins.map(t => t.mint)), out = [];
-    const add = (t, k) => { if (!t || !t.mint || seen.has(t.mint)) return; seen.add(t.mint); out.push({ ...t, kind: k }); };
+    const seen = new Set(), out = [];
+    const add = (t, k) => { if (!t || !t.mint || seen.has(t.mint)) return; seen.add(t.mint); out.push(k ? { ...t, kind: k } : t); };
+    forksCoins().forEach(t => add(t));
     data.projects.forEach(t => add(t, 'project'));
     ((feed && feed.top) || []).forEach(t => add(t, 'token'));
     return out;
   }
-  const inKind = (t, k) => k === 'all' || (k === 'projects' && t.kind === 'project') || (k === 'top' && t.kind === 'token');
+  const inKind = (t, k) => k === 'all' || (k === 'forks' && t.kind === 'forks') || (k === 'projects' && t.kind === 'project') || (k === 'top' && t.kind === 'token');
+  const RANK = { forks: 0, project: 1, token: 2 };
+  // what "default" means on each tab, and which sorts make sense there
+  const DEFAULT = { forks: 'Trending', all: 'On forks, then projects', projects: 'Market cap', top: 'Market cap' };
+  function sorts() {
+    const sel = $('#mkSort');
+    sel.querySelector('[value="default"]').textContent = DEFAULT[kind];
+    sel.querySelector('[value="curve"]').hidden = kind !== 'forks' && kind !== 'all';
+    sel.querySelector('[value="mcap"]').hidden = kind === 'projects' || kind === 'top';
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = 'default';
+  }
+  const order = () => {
+    const s = $('#mkSort').value;
+    if (s !== 'default') return SORT[s] || SORT.mcap;
+    if (kind === 'forks') return heat;
+    if (kind === 'all') return (a, b) => RANK[a.kind] - RANK[b.kind] || (a.kind === 'forks' ? heat(a, b) : SORT.mcap(a, b));
+    return SORT.mcap;
+  };
   function rows() {
     if (!data) return;
-    const q = query(), sort = $('#mkSort').value, all = solana();
-    $('#nSol').textContent = $('#nAll').textContent = all.length;
+    const q = query(), all = everything(), fk = all.filter(t => t.kind === 'forks');
+    $('#nForks').textContent = fk.length;
+    $('#nAll').textContent = all.length;
     $('#nProjects').textContent = all.filter(t => t.kind === 'project').length;
     $('#nTop').textContent = feed ? all.filter(t => t.kind === 'token').length : '·';
-    const list = all.filter(t => inKind(t, kind) && matches(t, q));
-    list.sort(sort === 'default' ? (a, b) => (a.kind === 'project' ? 0 : 1) - (b.kind === 'project' ? 0 : 1) || SORT.mcap(a, b) : SORT[sort] || SORT.mcap);
+    const list = all.filter(t => inKind(t, kind) && matches(t, q)).sort(order()).sort(pinFirst);
     const host = $('#mkRows'), more = $('#mkMore');
+    // On forks: the official coin comes first, and says it isn't launched yet — so nobody buys a copy
+    const soon = kind === 'forks' && !official() && (!q || matches({ symbol: TK.replace(/^\$/, ''), name: 'fork', repo: PIN_NAME }, q)) ? soonRow() : '';
     if (!list.length) {
-      host.innerHTML = kind === 'top' && !feed ? '<div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading Solana’s top tokens…</span></div>'
-        : `<div class="blank"><h3>Nothing matches</h3><p>Try a ticker, a name, a repository or an address.</p></div>`;
+      host.innerHTML = kind === 'forks'
+        ? soon + (fk.length ? '<p class="mk-none muted">No coin on forks matches. Try a ticker, a name, a repository or an address.</p>' : '<p class="mk-none muted">No coins launched here yet. <a href="/launch">Create the first one</a>.</p>')
+        : kind === 'top' && !feed ? '<div class="blank"><span class="thinking"><i></i><i></i><i></i> Reading Solana’s top tokens…</span></div>'
+          : '<div class="blank"><h3>Nothing matches</h3><p>Try a ticker, a name, a repository or an address.</p></div>';
       more.hidden = true; return;
     }
-    host.innerHTML = list.slice(0, shown).map(row).join('');
+    host.innerHTML = soon + list.slice(0, shown).map(row).join('');
     more.hidden = list.length <= shown;
     more.querySelector('button').textContent = `Show ${Math.min(60, list.length - shown)} more`;
   }
@@ -128,53 +134,32 @@
       </a>`;
   }
 
-  /* ---------- trending on Solana: Jupiter's list (coins launched here are trending above) ---------- */
-  function strip() {
-    const mine = new Set(data ? data.coins.map(t => t.mint) : []);
-    const list = ((feed && feed.trending) || []).filter(t => !mine.has(t.mint)).slice(0, 16);
-    const host = $('#trendRow');
-    if (!list.length) { if (feed) host.innerHTML = '<p class="muted trend-none">Nothing trending right now.</p>'; return; }
-    host.innerHTML = list.map((t, i) => {
-      const m = t.market || {}, ch = m.change1 != null ? m.change1 : m.change24, lab = m.change1 != null ? '1h' : '24h';
-      return `<a class="trend-c" href="/coin/${esc(t.mint)}">
-        <span class="tc-top"><span class="mk-img">${SH.logo(t.image || m.image, t.symbol)}</span><span class="tc-n"><b>$${esc(t.symbol)}</b><small>#${i + 1} trending</small></span></span>
-        <span class="tc-p">${m.price != null ? usd(m.price) : '—'}</span>
-        <span class="tc-c ${ch == null ? '' : ch >= 0 ? 'up' : 'dn'}">${pct(ch)} <small>${lab}</small></span>
-      </a>`;
-    }).join('');
-    $('#trendSrc').textContent = feed && feed.source === 'jupiter' ? 'Jupiter · last hour' : feed && feed.source ? 'GeckoTerminal' : '';
-  }
-
   function tabs() {
     document.querySelectorAll('.seg [data-k]').forEach(b => { b.classList.toggle('on', b.dataset.k === kind); b.setAttribute('aria-selected', String(b.dataset.k === kind)); });
-    shown = 60; rows();
+    shown = 60; sorts(); rows();
   }
   document.querySelectorAll('.seg [data-k]').forEach(b => b.addEventListener('click', () => {
-    kind = b.dataset.k; const u = new URL(location.href); if (kind !== 'all') u.searchParams.set('tab', kind); else u.searchParams.delete('tab'); history.replaceState(null, '', u); tabs();
+    kind = b.dataset.k; const u = new URL(location.href); if (kind !== 'forks') u.searchParams.set('tab', kind); else u.searchParams.delete('tab'); history.replaceState(null, '', u); tabs();
   }));
-  $('#mkQ').addEventListener('input', () => { shown = 60; forksRows(); rows(); });
-  $('#fkSort').addEventListener('change', forksRows);
-  $('#mkSort').addEventListener('change', rows);
+  $('#mkQ').addEventListener('input', () => { shown = 60; rows(); });
+  $('#mkSort').addEventListener('change', () => { shown = 60; rows(); });
   $('#mkMore button').addEventListener('click', () => { shown += 60; rows(); });
 
-  let first = true;
   async function load(fresh) {
     const j = await SH.market(fresh);
     if (!j) {
-      if (!data) { const no = '<div class="blank"><h3>The market isn’t answering</h3><p>Try again in a minute.</p></div>'; $('#fkRows').innerHTML = $('#mkRows').innerHTML = no; $('#fkTrend').innerHTML = ''; }
+      if (!data) { $('#mkRows').innerHTML = '<div class="blank"><h3>The market isn’t answering</h3><p>Try again in a minute.</p></div>'; $('#fkTrend').innerHTML = ''; }
       return;
     }
-    data = j; forksStrip(); forksRows(); tabs(); strip();
-    // an old link to a Solana list (?tab=top, ?tab=projects…) lands on that list
-    if (first && asked && asked !== 'coins' && legacy[asked]) { first = false; requestAnimationFrame(() => $('#onSolana').scrollIntoView({ block: 'start' })); }
-    first = false;
+    data = j; forksStrip(); rows();
   }
   async function loadFeed() {
     try { const j = await fetch('/api/trending').then(r => r.json()); if (j && j.ok) feed = { trending: j.trending || j.tokens || [], top: j.top || [], source: j.source }; }
     catch (_) { }
     if (!feed) feed = { trending: [], top: [], source: null };
-    rows(); strip();
+    rows();
   }
+  tabs();
   load();
   loadFeed();
   setInterval(() => { if (document.hidden) return; load(true); }, 30000);

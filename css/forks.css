@@ -1417,3 +1417,24 @@ body.chat .dock { display: flex; }
   .pick#pickForm .btn { padding: 0 16px; }
   .lp-try .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* 4.4.1 — market: trending on forks on top, then one list whose first tab, On forks, is amber */
+.trend { margin: 0 0 20px; }
+.trend-h h2 { font-size: 16px; }
+.page-h .mk-create { align-self: flex-end; margin-left: 0; }
+.seg button.fk-tab { color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--btn)); }
+.seg button.fk-tab:hover { background: color-mix(in srgb, var(--warn) 16%, var(--btn)); }
+.seg button.fk-tab.on { background: color-mix(in srgb, var(--warn) 20%, var(--bg-3)); box-shadow: inset 0 -2px 0 var(--warn); }
+.seg button.fk-tab svg { width: 14px; height: 14px; flex: none; }
+.seg button.fk-tab .counter { background: color-mix(in srgb, var(--warn) 24%, transparent); color: var(--warn); }
+.trend-none.fk-none { flex: 1; margin: 0; padding: 14px 16px; border: 1px dashed var(--rule-2); border-radius: var(--r); color: var(--ink-3); }
+@media (max-width: 640px) {
+  .page-h .mk-create { align-self: flex-start; }
+  .trend .trend-h .src { display: none; }
+  /* four tabs on one phone row: only On forks keeps its counter */
+  .subnav .seg:has(.fk-tab) { width: 100%; }
+  .subnav .seg:has(.fk-tab) button { flex: 1 1 auto; justify-content: center; padding: 0 8px; gap: 5px; }
+  .subnav .seg:has(.fk-tab) button:not(.fk-tab) .counter { display: none; }
+  .subnav:has(.fk-tab) .select { margin-left: auto; }
+}
+@media (max-width: 640px) { .mk-r.soon .mk-v { display: none; } }

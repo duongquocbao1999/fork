@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.4.1 — 2026-11-06
+
+- **The market is one list again.** The big amber *On forks* box is gone. On top, by the title, a small green **Create new token** button; under the filter, **Trending on forks** — the coins launched here that trade, by volume over the last hour, then the day (*Nothing is trading on forks yet* until one does). It replaces *Trending on Solana*.
+- **On forks is the first tab, in amber**, and the one the market opens on: the official **$FORK · not launched yet** first, then every coin launched here. Then *All* (the coins launched here first, then the project tokens, then Solana's top), *Projects*, *Top Solana*. One sort menu, one filter. Old links still work: `?tab=coins` opens On forks, `?tab=trending` opens Top Solana. On phones the four tabs fit one row.
+- **X: @wikifork** — the follow trial, the header and footer links, `twitter:site` on every page, `/help` and the $FORK placeholder.
+- **X header, clearer**: *Launch a coin on any GitHub repo. Its fees go to the devs who wrote it.* — *The split is written on-chain at launch. Nobody can change it, not even us.* (`docs/brand/`).
+
 ## 4.4.0 — 2026-11-06
 
 - **Season 0.** The season is now *Season 0*, with a pool of **200,000,000 $FORK**: rewards stop when it's empty, and `/launch` shows what's left. The $1M milestone pays **+569,000**, so a coin can earn exactly **1,000,000 $FORK** (1,000 + 10,000 + 20,000 + 50,000 + 100,000 + 250,000 + 569,000) — "up to 1,000,000" everywhere. `supabase/migrations/0008_season0.sql` (`seasons.pool`, a lock around payments, `api_season` with `pool` and `paid`).

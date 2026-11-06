@@ -14,7 +14,7 @@ Type anything and watch the GitHub repositories it forked from grow into a graph
 [![pump.fun](https://img.shields.io/badge/coins-pump.fun-d29922?style=flat-square&labelColor=0d1117)](#coins-on-repositories)
 [![$FORK](https://img.shields.io/badge/%24FORK-up%20to%2033%2C000-d29922?style=flat-square&labelColor=0d1117)](#fork)
 [![Tokens](https://img.shields.io/badge/project%20tokens-29-4493f8?style=flat-square&labelColor=0d1117)](#the-terminal)
-[![X](https://img.shields.io/badge/x-%40forkwikis-21262d?style=flat-square&labelColor=0d1117&logo=x)](https://x.com/forkwikis)
+[![X](https://img.shields.io/badge/x-%40wikifork-21262d?style=flat-square&labelColor=0d1117&logo=x)](https://x.com/wikifork)
 
 </div>
 
@@ -32,7 +32,7 @@ Four pages, one look:
 | | |
 |---|---|
 | **[Graph](https://forks.wiki)** | The $FORK box up top (what there is to earn, and where you stand), then a prepared graph — *from git to forks*: git → bitcoin → ethereum and solana → pump.fun → this repository — then anything you type. Every point is a real repository; project tokens sit on their repos in blue, coins launched here in amber. |
-| **[Market](https://forks.wiki/market)** | **On forks** first: what's trending among the coins launched here (by trading over the last hour, then the day; the coin on `forkwiki/fork` pinned first) and every one of them. Then **Solana**: Jupiter's trending tokens, 29 project tokens (each matched to its GitHub organization) and Solana's top tokens by organic score — live price, market cap, 24 h, volume, liquidity, bonding-curve progress. |
+| **[Market](https://forks.wiki/market)** | **Trending on forks** on top: the coins launched here that trade, by volume over the last hour, then the day. Then one list with four tabs — **On forks** (first, in amber: the official $FORK, *not launched yet* until it is, then every coin launched here), **All**, **Projects** (29 project tokens, each matched to its GitHub organization) and **Top Solana** (Jupiter's top tokens by organic score) — live price, market cap, 24 h, volume, liquidity, bonding-curve progress. A small *Create new token* button by the title. |
 | **[Launch](https://forks.wiki/launch)** | Pick a repository, see who gets its creator fees, name the coin, buy at launch if you want, sign once. One coin per repository. |
 | **[Guide](https://forks.wiki/guide)** | What everything is, the split, claiming, the terminal, $FORK, the commands. `/info` in the box says it in short. |
 
@@ -140,7 +140,7 @@ A trial's link opens in a new tab or the X app. If the page reloads meanwhile, i
 
 **The official $FORK** will live on this repository, `forkwiki/fork`: nobody but forks' treasury can launch a coin on it (`config.launch.reserved`), and until it's launched the market shows it as *not launched yet* — anything called $FORK elsewhere isn't it.
 
-Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and the `scan.*` / `ref.*` knobs in `app_config`. Follow along: [@forkwikis](https://x.com/forkwikis).
+Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and the `scan.*` / `ref.*` knobs in `app_config`. Follow along: [@wikifork](https://x.com/wikifork).
 
 ## Coins on repositories
 
