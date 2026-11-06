@@ -18,6 +18,7 @@ import { plan } from '../lib/split.mjs';
 import { BASE58, build, checkSigned, cosign, ipfsReady, landed, newMint, sdkStatus, sendBundle, uploadMetadata } from '../lib/chain.mjs';
 
 const L = C.launch;
+const reserved = repo => (L.reserved || []).includes(String(repo || '').toLowerCase());
 const SYMBOL = /^[A-Z0-9]{2,10}$/;
 const plans = new Map(), hits = new Map();
 const err = (code, status = 400, extra = {}) => json({ ok: false, error: code, ...extra }, status);
@@ -109,6 +110,8 @@ export default async (req, context) => {
       const repo = (url.searchParams.get('repo') || '').trim();
       if (!NAME.test(repo)) return err('bad_repo');
       if (limited('plan:' + ipOf(req, context), 20)) return err('rate_limited', 429);
+      // forks' own repository: reserved for the official $FORK, which only the treasury launches
+      if (reserved(repo) && url.searchParams.get('as') !== L.treasury) return err('reserved', 409, { ticker: C.token.ticker });
       const state = await db('api_launch_state', { p_repo: repo });
       if (state.blocked) return err('blocked', 409);
       if (state.coin && state.coin.status === 'live') return err('taken', 409, { coin: state.coin });
@@ -143,6 +146,7 @@ export default async (req, context) => {
       if (!t || t.k !== 'plan') return err('expired', 409);
       const p = t.p, wallet = String(body.wallet || ''), symbol = String(body.symbol || '').toUpperCase(), name = String(body.name || '').trim();
       if (!BASE58.test(wallet)) return err('bad_wallet');
+      if (reserved(p.repo) && wallet !== L.treasury) return err('reserved', 409, { ticker: C.token.ticker });
       if (!SYMBOL.test(symbol)) return err('bad_symbol');
       if (!name || name.length > 32 || /[\u0000-\u001f<>]/.test(name)) return err('bad_name');
       const img = image(body.image);
@@ -162,7 +166,7 @@ export default async (req, context) => {
         fee: C.trade.feeBps > 0 && L.treasury ? { bps: C.trade.feeBps, to: L.treasury } : null });
       const r = await db('api_launch_reserve', { p_repo: p.repo, p_repo_name: p.repo, p_wallet: wallet, p_mint: b.mint, p_symbol: symbol, p_name: name, p_uri: meta.uri, p_image: meta.image, p_split: p.holders });
       if (!r || !r.ok) return err((r && r.error) || 'reserve', 409);
-      // Season 1: the X account signed in now earns for this coin, and the buy at launch is what makes it
+      // Season 0: the X account signed in now earns for this coin, and the buy at launch is what makes it
       // earn the launch reward — both recorded once the wallet has signed exactly this bundle (submit)
       const who = session(req);
       return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret), u: who ? who.uid : null, d: devBuyLamports }, 150) });

@@ -1,4 +1,4 @@
-// Season 1: the server measures every coin still counting this season and tells the database what it saw.
+// Season 0: the server measures every coin still counting this season and tells the database what it saw.
 // A coin on its pump.fun curve: the curve on the chain (market cap and whether it graduated). After the
 // curve: DexScreener's consensus price, and only with real liquidity behind it. The page never sends a
 // market cap; milestones count once seen twice, 10+ minutes apart (supabase/migrations/0006_season1.sql).

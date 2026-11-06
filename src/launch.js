@@ -214,6 +214,7 @@
     const why = {
       in_flight: `someone is launching ${repo}'s coin right now. give it a few minutes, then /launch ${repo} again.`,
       blocked: `${repo}'s owner asked for no coins on their code, so there won't be one here.`,
+      reserved: `${repo} is forks' own repository, reserved for the official ${C.token.ticker}. it isn't launched yet, and nobody else can launch on it. anything called ${C.token.ticker} elsewhere isn't it.`,
       not_found: `github doesn't know ${repo}. check the spelling, or trace it first.`,
       no_people: `no people to pay on ${repo}: only bots and organizations. no coin for it.`,
       bad_repo: `that isn't a repository name. try /launch owner/name.`,
@@ -295,7 +296,7 @@
     });
     // buy at launch: what a fresh pump.fun curve gives for it (the same curve every coin starts on)
     const devSol = () => { const v = Number(String(devIn.value || '0').replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : 0; };
-    // Season 1: what this launch earns depends on the buy at launch
+    // Season 0: what this launch earns depends on the buy at launch
     const seasonNote = window.ForksSeason ? window.ForksSeason.note($('[data-s1]'), devSol) : () => { };
     devIn.addEventListener('input', () => {
       devIn.value = devIn.value.replace(/[^0-9.,]/g, '').slice(0, 8);
@@ -392,6 +393,7 @@
           in_flight: 'Someone else is launching this repository right now.',
           taken: 'Someone launched it a moment ago.',
           blocked: 'The owner asked for no coins on this code.',
+          reserved: `Reserved for the official ${C.token.ticker}: only forks’ own wallet can launch on this repository.`,
           bad_image: 'That logo is too big. Try another.',
           bad_dev_buy: `Buy at launch: 0.001 to ${L.maxDevBuySol} SOL.`, bad_x: 'X link: https://x.com/handle',
           bad_symbol: 'Ticker: 2–10 letters or digits.', bad_name: 'The name can’t have < > or control characters.',
@@ -425,7 +427,7 @@
         await new Promise(r => setTimeout(r, 2500));
         const st = await api('/api/launch/status?mint=' + encodeURIComponent(b.mint));
         if (st.ok && st.state === 'live') {
-          step('land', 'ok', 'Live: the coin and its locked split are on the chain' + (s.season ? ` · ${(C.season && C.season.name) || 'Season 1'}: ${s.devBuy ? `it earns ${(C.token && C.token.ticker) || '$FORK'} for you` : 'no buy at launch, so only its milestones earn'}` : ''));
+          step('land', 'ok', 'Live: the coin and its locked split are on the chain' + (s.season ? ` · ${(C.season && C.season.name) || 'Season 0'}: ${s.devBuy ? `it earns ${(C.token && C.token.ticker) || '$FORK'} for you` : 'no buy at launch, so only its milestones earn'}` : ''));
           if (window.ForksSeason) window.ForksSeason.load(true);
           lock(true); go.textContent = `$${symbol} is live`; el.classList.add('done');
           walletViews.delete(paint);

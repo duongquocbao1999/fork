@@ -17,7 +17,7 @@ export default async req => {
         try { db = await rpc('api_health'); } catch (e) { db = { ok: false, error: String(e.message).slice(0, 200) }; }
       }
       // schema '3' = 0001 + 0002 + 0003; anything older still needs migrations run in the SQL editor
-      const MIGRATIONS = ['supabase/migrations/0002_scan.sql', 'supabase/migrations/0003_refs.sql', 'supabase/migrations/0004_launch.sql', 'supabase/migrations/0005_github.sql', 'supabase/migrations/0006_season1.sql', 'supabase/migrations/0007_season1_rewards.sql'];
+      const MIGRATIONS = ['supabase/migrations/0002_scan.sql', 'supabase/migrations/0003_refs.sql', 'supabase/migrations/0004_launch.sql', 'supabase/migrations/0005_github.sql', 'supabase/migrations/0006_season1.sql', 'supabase/migrations/0007_season1_rewards.sql', 'supabase/migrations/0008_season0.sql'];
       const migrations = db && db.ok ? MIGRATIONS.slice(Math.max(0, Number(db.schema) - 1)) : [];
       return json({
         ok: !missing.length && !config.length && !!(db && db.ok) && !migrations.length && !!process.env.GITHUB_TOKEN,
@@ -32,8 +32,8 @@ export default async req => {
         launch: { rpc: !!process.env.SOLANA_RPC_URL, treasury: C.launch.treasury || null, ipfs: process.env.PINATA_JWT ? 'pinata' : process.env.PUMP_IPFS_URL ? 'custom' : null, ready: !!(process.env.SOLANA_RPC_URL && C.launch.treasury && process.env.SUPABASE_URL && process.env.GITHUB_TOKEN && process.env.SESSION_SECRET && (process.env.PINATA_JWT || process.env.PUMP_IPFS_URL)), missing: [!C.launch.treasury && 'src/config.js launch.treasury', !process.env.SOLANA_RPC_URL && 'SOLANA_RPC_URL', !(process.env.PINATA_JWT || process.env.PUMP_IPFS_URL) && 'PINATA_JWT'].filter(Boolean) },
         // connect GitHub (optional trial): a GitHub OAuth App with exactly this callback URL, and 0005_github.sql
         github_connect: { ready: !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) && !!(db && db.ok && Number(db.schema) >= 5), missing: [!process.env.GITHUB_CLIENT_ID && 'GITHUB_CLIENT_ID', !process.env.GITHUB_CLIENT_SECRET && 'GITHUB_CLIENT_SECRET', !(db && db.ok && Number(db.schema) >= 5) && 'supabase/migrations/0005_github.sql'].filter(Boolean), callback_url: `${siteOrigin(req)}${GH_CALLBACK_PATH}` },
-        // Season 1: $FORK for launching coins (0006_season1.sql); milestones measured by season-tick every 10 minutes
-        season: { ready: !!(db && db.ok && Number(db.schema) >= 7), missing: db && db.ok && Number(db.schema) >= 7 ? [] : Number(db && db.schema) >= 6 ? ['supabase/migrations/0007_season1_rewards.sql'] : ['supabase/migrations/0006_season1.sql', 'supabase/migrations/0007_season1_rewards.sql'], tick: 'season-tick, every 10 minutes', check: '/api/season' },
+        // Season 0: $FORK for launching coins (0006–0008); milestones measured by season-tick every 10 minutes
+        season: { ready: !!(db && db.ok && Number(db.schema) >= 8), missing: db && db.ok ? MIGRATIONS.slice(Math.max(4, Number(db.schema) - 1)) : ['supabase/migrations/0006_season1.sql', 'supabase/migrations/0007_season1_rewards.sql', 'supabase/migrations/0008_season0.sql'], tick: 'season-tick, every 10 minutes', check: '/api/season' },
         callback_url: `${siteOrigin(req)}${CALLBACK_PATH}`
       });
     }

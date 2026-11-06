@@ -4,6 +4,7 @@
   'use strict';
   const C = window.FORKS_CONFIG, L = C.launch, F = window.ForksLaunch, SH = window.ForksShell;
   const $ = s => document.querySelector(s), esc = SH.esc;
+  const AS = new URLSearchParams(location.search).get('as') || ''; // forks' treasury, for its own repository
   const fmt = n => Number(n || 0).toLocaleString('en-US');
   const kfmt = n => (n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'm' : n >= 1e3 ? (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k' : String(n || 0));
   const pct = bps => `${(bps / 100).toFixed(bps % 100 ? 1 : 0)}%`;
@@ -21,9 +22,19 @@
     <dt>forks</dt><dd>${pct(S.forks)}</dd></dl>
     <p class="muted" style="margin:8px 0 0;font-size:12px">An empty part goes to the owner. The same person in two parts gets both.</p>`;
 
-  // suggestions to start from: the showcase family
-  const starts = ['pump-fun/pump-public-docs', 'otter-sec/anchor', 'anza-xyz/agave', 'ggml-org/llama.cpp', 'neovim/neovim'];
-  $('#lpChips').innerHTML = starts.map(r => `<button class="chip" type="button" data-r="${esc(r)}">${esc(r)}</button>`).join('');
+  // a few crypto repositories to try, different on every visit (so not everyone starts from the same one)
+  const POOL = ['bitcoin/bitcoin', 'ethereum/go-ethereum', 'anza-xyz/agave', 'jito-foundation/jito-solana', 'solana-foundation/anchor',
+    'litecoin-project/litecoin', 'dogecoin/dogecoin', 'monero-project/monero', 'ethereum/solidity', 'foundry-rs/foundry', 'paradigmxyz/reth',
+    'OpenZeppelin/openzeppelin-contracts', 'Uniswap/v4-core', 'aave/aave-v3-core', 'MetaMask/metamask-extension', 'wevm/viem', 'ethers-io/ethers.js',
+    'metaplex-foundation/mpl-core', 'pyth-network/pyth-crosschain', 'wormhole-foundation/wormhole', 'drift-labs/protocol-v2', 'orca-so/whirlpools',
+    'raydium-io/raydium-amm', 'firedancer-io/firedancer', 'MystenLabs/sui', 'aptos-labs/aptos-core', 'near/nearcore', 'cosmos/cosmos-sdk',
+    'paritytech/polkadot-sdk', 'starkware-libs/cairo', 'ton-blockchain/ton', 'zcash/zcash', 'lightningnetwork/lnd', 'ElementsProject/lightning',
+    'bitcoinjs/bitcoinjs-lib', 'ethereum-optimism/optimism', 'OffchainLabs/nitro', 'matter-labs/zksync-era', 'celestiaorg/celestia-node',
+    'solana-labs/solana-program-library', 'helium/helium-program-library', 'jup-ag/jupiter-quote-api-node', 'tensor-foundation/marketplace',
+    'magicblock-labs/bolt', 'kamino-finance/klend', 'meteoraAg/dlmm-sdk', 'marinade-finance/liquid-staking-program', 'solana-developers/program-examples',
+    'blockworks-foundation/mango-v4', 'sigp/lighthouse', 'prysmaticlabs/prysm', 'ethereum/consensus-specs', 'bitcoin/bips', 'ethereum/EIPs', 'smartcontractkit/chainlink'];
+  const starts = POOL.map(r => [Math.random(), r]).sort((a, b) => a[0] - b[0]).slice(0, 4).map(x => x[1]);
+  $('#lpChips').innerHTML = '<span class="lp-try-k">Try</span>' + starts.map(r => `<button class="chip" type="button" data-r="${esc(r)}">${esc(r)}</button>`).join('');
   $('#lpChips').addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b) choose(b.dataset.r); });
 
   /* ---------- the picker ---------- */
@@ -60,6 +71,16 @@
     } else if (e.key === 'Escape') showSugg([]);
   });
   addEventListener('pointerdown', e => { if (!e.target.closest('.pick')) showSugg([]); });
+  $('#pickForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const r = F.repoOf(inp.value);
+    if (r) choose(r); else if (items[0]) choose(items[0].name); else { inp.focus(); SH.toast('Paste a repository: owner/name or a github.com link.'); }
+  });
+  // the season, in one line under the picker (the whole of it is further down)
+  if (window.ForksSeason) {
+    const paintS = () => { const h = window.ForksSeason.strip().replace('href="/launch#season"', 'href="#season"'); $('#lpSeason').innerHTML = h; };
+    paintS(); window.ForksSeason.onChange(paintS);
+  }
 
   /* ---------- a repository chosen ---------- */
   async function choose(repo) {
@@ -69,7 +90,7 @@
     $('#splitStep').hidden = true; $('#coinStep').hidden = true;
     box.innerHTML = `<div class="box"><div class="box-b muted"><span class="thinking"><i></i><i></i><i></i> Reading ${esc(repo)} from GitHub…</span></div></div>`;
     const [j, info] = await Promise.all([
-      F.api('/api/launch/plan?repo=' + encodeURIComponent(repo)),
+      F.api('/api/launch/plan?repo=' + encodeURIComponent(repo) + (AS ? '&as=' + encodeURIComponent(AS) : '')),
       fetch('/api/repos?r=' + encodeURIComponent(repo)).then(r => r.json().then(j => (r.ok ? j : null), () => null)).catch(() => null)
     ]);
     if (current !== repo) return;
@@ -92,6 +113,7 @@
       return say('', `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="tok forks">$${esc(coin.symbol || '')}</span><span>This repository already has its coin. One per repository.</span><a class="btn primary sm" href="/coin/${esc(coin.mint)}" style="margin-left:auto">Open the terminal</a></div>`);
     }
     if (j.error === 'not_configured' || j.error === 'offline') return say('flash warn', 'Launches open soon. The split below is how it will work.') || preview(name);
+    if (j.error === 'reserved') return say('flash warn', `Reserved for the official ${esc(j.ticker || C.token.ticker)} coin, which isn’t launched yet. Nobody else can launch on forks’ own repository — anything called ${esc(j.ticker || C.token.ticker)} elsewhere isn’t it. <a href="https://x.com/${esc(C.x.handle)}" target="_blank" rel="noopener">Follow @${esc(C.x.handle)}</a> for the launch.`);
     const why = {
       in_flight: 'Someone is launching this repository’s coin right now. Try again in a few minutes.',
       blocked: 'The owner asked for no coins on their code.',

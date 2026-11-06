@@ -1,4 +1,4 @@
-// Season 1: $FORK for the people who launch coins on repositories.
+// Season 0: $FORK for the people who launch coins on repositories.
 //
 //   GET  /api/season               the rules, the top devs and (signed in) your coins and what they earned
 //   GET  /api/season/link?wallet=  (signed in) the message to sign with a wallet that launched coins
@@ -32,7 +32,7 @@ function signedBy(wallet, message, signatureB64) {
   } catch (_) { return false; }
 }
 const linkMessage = (handle, wallet, issued) =>
-  `forks.wiki · Season 1\n\nLink this wallet to @${handle} on forks.wiki, so the coins it launches earn $FORK.\n\nWallet: ${wallet}\nIssued: ${issued}\n\nSigning is free and moves no funds.`;
+  `forks.wiki · Season 0\n\nLink this wallet to @${handle} on forks.wiki, so the coins it launches earn $FORK.\n\nWallet: ${wallet}\nIssued: ${issued}\n\nSigning is free and moves no funds.`;
 
 let pub = null; // the public view, for 30 seconds
 export default async req => {

@@ -2,9 +2,9 @@
    1. the x scan. At the first sign-in the server reads the account (age, followers, posts, lists,
       verified) and forks it a one-time allocation. The page plays that reading back line by line,
       then the tokens fly up into the header.
-   2. six trials, one at a time in the chat: follow, like, retweet, comment (GO opens the link; the
-      server's clock counts it after 5 s), grow a tree in the chat (counted when the tree lands),
-      and quote the post with your fork card (counted by the link to your quote).
+   2. five trials, one at a time in the chat: follow, like, retweet, comment (GO opens the link; the
+      server's clock counts it after 5 s), and quote the post with your fork card (counted by the link
+      to your quote). (Until 4.4 there was a sixth, "ask upstream anything"; its card stays for old databases.)
    3. your fork: the card as a picture (copy, save, quote on x), the wallet, the invite link.
    4. optional, any time: connect github (/github) — github's own sign-in; the bonus lands once, on the server.
    Referrals: forks.wiki/r/<handle> → ?ref= → kept here → through the X sign-in → bound to new accounts.
@@ -96,7 +96,7 @@
   };
 
   /* ---------- demo backend (no functions: preview, artifact) ---------- */
-  const DEMO_TASKS = [['follow', 2000, 'timer'], ['like', 1000, 'timer'], ['repost', 1500, 'timer'], ['comment', 1500, 'timer'], ['chat', 1000, 'trees'], ['quote', 3000, 'link'], ['github', 3000, 'github']];
+  const DEMO_TASKS = [['follow', 2000, 'timer'], ['like', 1000, 'timer'], ['repost', 1500, 'timer'], ['comment', 1500, 'timer'], ['quote', 3000, 'link'], ['github', 3000, 'github']];
   // the same lines as scan_lines() in supabase/migrations/0002_scan.sql, for the demo only
   function scanLines(yrs, followers, posts, listed, verified) {
     const r50 = v => Math.round(v / 50) * 50, lg = n => Math.log10(Math.max(0, n) + 1);
@@ -247,7 +247,7 @@
       return githubTrial(true);
     }
     if (!me) {
-      const m = await say(`${TICK} isn't handed out by the click. it's forked from your x.\nsign in and i'll read your account, then six trials for +${fmt(C.quest.total)} more, and an optional github bonus.`);
+      const m = await say(`${TICK} isn't handed out by the click. it's forked from your x.\nsign in and i'll read your account, then five trials for +${fmt(C.quest.total)} more, and an optional github bonus.`);
       return signInCard(m);
     }
     return next(true);

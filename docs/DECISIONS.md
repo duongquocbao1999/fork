@@ -83,3 +83,11 @@ Non-obvious choices, one line of why each.
 - **The dev is an X account, proven twice over** — signed in when the wallet signed the launch, or a wallet that signs a message for the account later. One wallet, one account, for good; five wallets at most. Three launch rewards a day and an account-age floor make farming with fresh accounts and dust coins cost more than it earns.
 - **4.3.1: a coin alone earns nothing** — creating a coin costs cents; buying it at launch puts the dev's own SOL behind it. So the launch reward needs a dev buy (recorded from the bundle the server built and the wallet signed — it lands with the coin or not at all), and the ladder leans hard on growth: migration +50,000, $1M +500,000.
 - **Everything is a knob** — amounts in `season_tiers`, rules in `app_config`, the end in `seasons.ends_at`, team wallets in `season_excluded`. Rewards already credited never change.
+
+## 4.4 — Season 0
+
+- **Season 0, with a pool** — the first season is a test run, so it's 0, and it pays out of a fixed pool of 200,000,000 $FORK: rewards stop when it's empty, and the page shows what's left. Payments take a lock so two coins can't both take the last tokens.
+- **"Up to 1,000,000" has to be true** — the $1M milestone pays +569,000 so the ladder adds up to exactly 1,000,000.
+- **The official coin can't be copied here** — forks' own repository is reserved for the treasury's wallet, enforced on the server at both the plan and the build; the market shows $FORK as *not launched yet* until it is.
+- **Suggestions spread out** — fixed example repositories make everyone launch the same few; four random ones from a pool of crypto repositories, different each visit.
+- **One less trial** — "ask upstream anything" counted something people do anyway; five trials, 9,000 together.

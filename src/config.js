@@ -15,12 +15,15 @@
     // handle or post empty = the trials stay closed and /api/health lists them as missing.
     x: { handle: 'forkwikis', post: '20', postBy: 'jack' },
     // what the page promises before sign-in; the amounts that land come from the database (tasks, app_config)
-    quest: { command: '/freeforks', total: 10000, scan: [2000, 20000], invite: 2000, github: 3000 },
+    quest: { command: '/freeforks', total: 9000, scan: [2000, 20000], invite: 2000, github: 3000 },
     links: { github: 'https://github.com/forkwiki/fork', x: 'https://x.com/forkwikis' },
     // Coins on repositories (pump.fun, Solana mainnet). Creator fees are split once, for good, between
     // the people behind the code (paid to their GitHub accounts, claimed on pump.fun) and forks.
     launch: {
       treasury: '61468ik7HhYNg8ixQYeF9caMNVm57PqTy3tyQ28F6Y5e', // forks' Solana wallet for its share (public address); empty = launches closed
+      // repositories nobody but forks' treasury can launch on: the official $FORK will live on forks' own repo.
+      // The treasury launches it from /launch?repo=forkwiki/fork&as=<treasury address>.
+      reserved: ['forkwiki/fork'],
       split: {                    // basis points, 10,000 = 100%
         owner: 7000,              // the repo's owner (a person) — or, for an organization, its top contributors
         contributors: 500,        // the top contributors besides the owner
@@ -82,9 +85,9 @@
     },
     // the market: the coin launched on this repository is pinned first, wherever it would sort
     market: { pinRepo: 'forkwiki/fork' },
-    // Season 1: $FORK for launching coins. What's shown before /api/season answers; the database
-    // (season_tiers, app_config s1.*) decides what is actually paid.
-    season: { id: 1, name: 'Season 1', launch: 1000, max: 931000 }
+    // Season 0: $FORK for launching coins. What's shown before /api/season answers; the database
+    // (seasons.pool, season_tiers, app_config s1.*) decides what is actually paid.
+    season: { id: 1, name: 'Season 0', launch: 1000, max: 1000000, pool: 200000000 }
   };
   // the project token of a repository, by its GitHub owner
   CONFIG.projectOf = repo => {

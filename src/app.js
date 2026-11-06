@@ -474,17 +474,17 @@
     const T = C.token.ticker, Q = C.quest, demo = mode === 'demo';
     const open = demo || (C.questOpen() && mode !== 'down');
     const core = me ? me.tasks.filter(t => !t.optional) : [], gh = me ? me.tasks.find(t => t.type === 'github') : null;
-    const done = core.filter(t => t.completedAt), all = core.length || 6;
+    const done = core.filter(t => t.completedAt), all = core.length || 5;
     const ghReward = gh ? gh.reward : Q.github, refReward = (me && me.ref && me.ref.reward) || Q.invite;
     const tile = (d, b, t, small, ok, opt) => `<button class="earn-s${ok ? ' ok' : ''}" type="button" data-do="${d}">${opt ? '<span class="opt">optional</span>' : ''}<b>${b}</b><span class="t">${t}</span><small>${small}</small></button>`;
     let top, tiles;
     if (!me) {
       top = `<div><p class="earn-k">${MARK} ${T} <span class="label amber">pending allocation</span>${demo ? ' <span class="label">demo</span>' : ''}</p>
         <div class="earn-big"><span class="pre">up to</span>${fmt(Q.scan[1] + Q.total + ghReward)}<span class="tk">${T}</span></div>
-        <p class="earn-sub">${open ? `Sign in with X: upstream reads your account and forks you an allocation. Then six trials, an optional GitHub bonus, and +${fmt(refReward)} for every friend you bring.` : mode === 'down' ? 'The ledger isn’t answering right now. Try again in a minute.' : 'The trials open soon.'}</p></div>
+        <p class="earn-sub">${open ? `Sign in with X: upstream reads your account and forks you an allocation. Then five trials, an optional GitHub bonus, and +${fmt(refReward)} for every friend you bring.` : mode === 'down' ? 'The ledger isn’t answering right now. Try again in a minute.' : 'The trials open soon.'}</p></div>
         <div class="earn-cta"><button class="btn primary" type="button" data-do="quest">${XI}Sign in with X</button><small>read-only · we never post for you</small></div>`;
       tiles = tile('quest', `${fmt(Q.scan[0])}–${fmt(Q.scan[1])}`, 'X scan', 'your account, read once at sign-in')
-        + tile('quest', `+${fmt(Q.total)}`, `${all} trials`, 'follow, like, retweet, comment, ask, quote')
+        + tile('quest', `+${fmt(Q.total)}`, `${all} trials`, 'follow, like, retweet, comment, quote')
         + tile('invite', `+${fmt(refReward)}`, 'per friend', 'who signs in and finishes 3 trials')
         + tile('github', `+${fmt(ghReward)}`, 'GitHub', 'connect your account', false, true);
     } else {
@@ -510,7 +510,7 @@
 
   let lastEarn = null;
   QUEST.onChange(st => { lastEarn = st; paintEarn(st); });
-  // Season 1: the strip under the box shows the season's own numbers once they're in
+  // Season 0: the strip under the box shows the season's own numbers once they're in
   if (window.ForksSeason) { window.ForksSeason.onChange(() => { if (lastEarn) paintEarn(lastEarn); }); window.ForksSeason.load(); }
 
   /* ---------- the showcase: the graph the page opens with ---------- */

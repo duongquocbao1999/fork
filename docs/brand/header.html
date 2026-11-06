@@ -52,13 +52,13 @@ const ICON = {
 const pick = (n, f) => { const out = []; let guard = 0; while (out.length < n && guard++ < 999) { const t = live[Math.floor(rnd() * live.length)]; if (f(t) && !out.includes(t) && !out.some(o => Math.abs(o.c - t.c) + Math.abs(o.r - t.r) < 3)) out.push(t); } return out; };
 const repos = pick(7, t => t.c > 3), glyphs = ['fork', 'branch', 'commit', 'merge', 'fork', 'star', 'branch'];
 repos.forEach((t, i) => { t.col = '#f0f6fc'; t.icon = glyphs[i % glyphs.length]; });
-const coins = pick(6, t => t.c > COLS * .45 && !t.icon); coins.forEach(t => { t.col = '#e3b341'; t.coin = true; });
+const coins = pick(5, t => t.c > COLS * .45 && !t.icon); coins.forEach((t, i) => { t.col = i % 2 ? '#d29922' : '#e3b341'; t.coin = true; });
 const term = pick(1, t => !t.icon && !t.coin && t.c > 10); term.forEach(t => { t.col = '#f0f6fc'; t.text = '>_'; });
 for (const t of live) {
   const x = X0 + t.c * P, y = Y0 + t.r * P;
   g.fillStyle = t.col; g.beginPath(); g.roundRect(x, y, S, S, 6); g.fill();
   if (t.icon) { g.save(); g.translate(x + 8, y + 8); g.scale(1.5, 1.5); g.fillStyle = '#0d1117'; g.fill(new Path2D(ICON[t.icon])); g.restore(); }
-  if (t.coin) { g.strokeStyle = '#7d4e00'; g.lineWidth = 2.5; g.beginPath(); g.arc(x + S / 2, y + S / 2, 12, 0, 7); g.stroke(); g.fillStyle = '#7d4e00'; g.font = '800 17px JBM'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', x + S / 2, y + S / 2 + 1); }
+  if (t.coin) { g.fillStyle = t.col === '#e3b341' ? '#c99a2e' : '#a97a17'; g.beginPath(); g.arc(x + S / 2, y + S / 2, 11, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(x + S / 2 - 3, y + S / 2 - 3, 4, 0, 7); g.fill(); }
   if (t.text) { g.fillStyle = '#0d1117'; g.font = '700 17px JBM'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t.text, x + S / 2, y + S / 2 + 1); }
 }
 </script>

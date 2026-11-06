@@ -87,7 +87,7 @@
     return out.map(o => bytesToB64(o.signedTransaction));
   }
 
-  // sign a plain-text message (Season 1: prove a wallet); free, moves nothing
+  // sign a plain-text message (Season 0: prove a wallet); free, moves nothing
   async function signText(text) {
     if (!current || !account) throw fail('not_connected');
     const f = current.features['solana:signMessage'];

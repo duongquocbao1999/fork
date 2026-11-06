@@ -1,4 +1,4 @@
-// Season 1, every 10 minutes: measure the coins launched here and pay the milestones they reached.
+// Season 0, every 10 minutes: measure the coins launched here and pay the milestones they reached.
 // A scheduled function (no URL); see netlify/lib/season.mjs and supabase/migrations/0006_season1.sql.
 import { tick } from '../lib/season.mjs';
 

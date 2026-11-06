@@ -1372,3 +1372,48 @@ body.chat .dock { display: flex; }
 }
 @media (prefers-reduced-motion: reduce) { .s1-dot, .s1-t.wait { animation: none; } }
 .s1-nb { margin-right: 6px; font: 500 10px var(--mono); color: var(--ink-3); }
+.s1-pool { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin: 16px 0 0; font-size: 13px; }
+.s1-pl { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.s1-pool .bar { height: 8px; border-radius: 999px; background: var(--bg-3); overflow: hidden; border: 1px solid var(--rule); }
+.s1-pool .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--warn), #f2c46d); border-radius: 999px; }
+.s1-pv { color: var(--ink-2); font-variant-numeric: tabular-nums; } .s1-pv b { color: var(--warn); font-family: var(--mono); }
+@media (max-width: 640px) { .s1-pool { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+
+/* 4.4 — market: a plain "create a token" button, the official coin before it's launched */
+.mk-sec-h { position: relative; }
+.mk-create { order: 2; margin-left: auto; align-self: center; }
+.mk-create svg { width: 14px; height: 14px; }
+.mk-sec-h h2 { order: 1; } .mk-sec-h p { order: 3; }
+.trend-c.soon { border-style: dashed; background: linear-gradient(180deg, var(--warn-soft), transparent), var(--bg-2); }
+.trend-c.soon .tc-c small { font-size: 11px; line-height: 1.35; color: var(--ink-3); }
+.mk-img.soon-i { background: var(--bg); border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--rule-2)); display: grid; place-items: center; }
+.mk-img.soon-i .mark { width: 62%; height: 62%; }
+.mk-r.soon { background: linear-gradient(90deg, var(--warn-soft), transparent 60%); }
+.mk-r.soon .mk-v { color: var(--ink-3); }
+.mk-none { margin: 0; padding: 16px; font-size: 13px; }
+
+/* 4.4 — launch: the repository first, unmissable */
+.lp-first { padding: 18px 18px 16px; border: 1px solid color-mix(in srgb, var(--acc) 55%, var(--rule-2)); border-radius: calc(var(--r) * 2); background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 9%, transparent), transparent 160px), var(--bg-2); }
+.lp-first > h2 { font-size: 18px; }
+.lp-first > h2 .n { background: var(--acc); border-color: var(--acc); color: #fff; }
+.lp-hint { margin: -4px 0 0; font-size: 13px; color: var(--ink-2); }
+.lp-hint code { font: 12px var(--mono); padding: 1px 5px; border-radius: 4px; background: var(--bg-3); }
+.pick#pickForm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.pick#pickForm .input { height: 48px; font-size: 16px; padding-left: 40px; border-color: color-mix(in srgb, var(--acc) 45%, var(--rule-2)); }
+.pick#pickForm > svg { top: 16px; left: 14px; }
+.pick#pickForm .btn { height: 48px; padding: 0 22px; font-size: 15px; }
+.pick#pickForm .sugg { grid-column: 1 / -1; }
+.lp-try { margin: 0; align-items: center; }
+.lp-try-k { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin-right: 2px; }
+#lpSeason .s1-strip { border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--rule)); border-radius: var(--r); }
+#season { margin-top: 8px; }
+.pick#pickForm .sugg { top: 54px; }
+.lp-step { grid-template-columns: minmax(0, 1fr); }
+.lp-step > * { min-width: 0; }
+.lp-try { flex-wrap: wrap; overflow: visible; }
+@media (max-width: 640px) {
+  .lp-first { padding: 14px 12px; }
+  .lp-first > h2 { font-size: 16px; }
+  .pick#pickForm .btn { padding: 0 16px; }
+  .lp-try .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+}

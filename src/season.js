@@ -1,4 +1,4 @@
-/* forks — Season 1: $FORK for the people who launch coins on repositories. The rules, the ladder of rewards,
+/* forks — Season 0: $FORK for the people who launch coins on repositories. The rules, the ladder of rewards,
    the top devs and your own coins come from /api/season; the database decides what is paid, the page only
    shows it. Used by the launch page (the full section), the launch form (one line) and the home page (a strip). */
 (function () {
@@ -26,7 +26,7 @@
   /* ---------- the launch page: the whole season ---------- */
   function section(host) {
     const d = data, S = d && d.season, tiers = (d && d.tiers) || [];
-    const name = (S && S.name) || D.name || 'Season 1';
+    const name = (S && S.name) || D.name || 'Season 0';
     const ladder = tiers.length ? tiers.map((t, i) => `<li class="s1-t${t.id === 'launch' ? ' first' : t.id === 'grad' ? ' grad' : ''}"><span class="s1-tn">${esc(tierName(t))}</span><b>+${fmt(t.reward)}</b><small>${esc(t.label)}</small>${i < tiers.length - 1 ? '<i aria-hidden="true"></i>' : ''}</li>`).join('')
       : '<li class="s1-t wait"></li>'.repeat(7);
     const me = d && d.me;
@@ -46,6 +46,7 @@
     const board = top.length ? `<ol class="s1-board">${top.map((r, i) => `<li><span class="s1-r">${i + 1}</span>${r.avatar ? `<img src="${esc(r.avatar)}" alt="" width="24" height="24" loading="lazy">` : '<span class="s1-av"></span>'}<span class="s1-h">@${esc(r.handle)}</span><span class="s1-c">${fmt(r.coins)} ${r.coins === 1 ? 'coin' : 'coins'}</span><b>${fmt(r.earned)}</b></li>`).join('')}</ol>`
       : `<p class="muted s1-empty">${d ? 'Nobody yet. The first coin of the season puts you on top.' : 'Reading…'}</p>`;
     const R = (d && d.rules) || { perDay: 3, minAgeDays: 30, confirmMinutes: 10 };
+    const pool = Number((S && S.pool) || D.pool || 0), paid = Number((S && S.paid) || 0);
     host.innerHTML = `
       <div class="s1-head">
         <div><p class="s1-k"><span class="s1-dot"></span>${esc(name)}${S && !S.open ? ' · closed' : ' · live'}</p>
@@ -53,12 +54,13 @@
           <p class="s1-sub">Launch a coin on a repository with a buy at launch and it earns you ${T} the moment it's live — then far more as it grows and migrates. Up to <b>${fmt(maxReward(d))} ${T}</b> a coin.</p></div>
         <div class="s1-stats"><div><b>${fmt(d && d.coins)}</b><span>coins this season</span></div><div><b>${fmt(d && d.devs)}</b><span>devs</span></div></div>
       </div>
+      ${pool ? `<div class="s1-pool"><span class="s1-pl">Season pool</span><span class="bar"><i style="width:${Math.min(100, Math.max(paid ? 0.6 : 0, paid / pool * 100)).toFixed(2)}%"></i></span><span class="s1-pv"><b>${fmt(pool - paid)}</b> of ${fmt(pool)} ${T} left</span></div>` : ''}
       <ol class="s1-ladder" aria-label="What a coin earns its dev">${ladder}</ol>
       <div class="s1-grid">
         <div class="box s1-me"><div class="box-h"><h3>Your season</h3></div><div class="box-b">${mine}</div></div>
         <div class="box s1-top"><div class="box-h"><h3>Top devs</h3><span class="muted">${T} earned</span></div><div class="box-b">${board}</div></div>
       </div>
-      <p class="s1-fine">How it counts: a coin created alone earns nothing; with a buy at launch${R.minDevBuySol > 0 ? ` of at least ${R.minDevBuySol} SOL` : ''}, the launch reward lands when it's live (up to ${R.perDay} launches a day per X account). Market-cap milestones count once each, when forks sees the cap there twice, ${R.confirmMinutes}+ minutes apart — measured every 10 minutes from the curve on the chain, or from DexScreener with real liquidity behind it. Migrating from the curve is read from the chain. X accounts younger than ${R.minAgeDays} days and forks' own coins don't earn. ${esc(name)} runs until it's announced over. A pending allocation — not a balance, not a promise of value. Not financial advice.</p>`;
+      <p class="s1-fine">How it counts: a coin created alone earns nothing; with a buy at launch${R.minDevBuySol > 0 ? ` of at least ${R.minDevBuySol} SOL` : ''}, the launch reward lands when it's live (up to ${R.perDay} launches a day per X account). Market-cap milestones count once each, when forks sees the cap there twice, ${R.confirmMinutes}+ minutes apart — measured every 10 minutes from the curve on the chain, or from DexScreener with real liquidity behind it. Migrating from the curve is read from the chain. X accounts younger than ${R.minAgeDays} days and forks' own coins don't earn. ${esc(name)} pays out of a pool of ${fmt(pool)} ${T} and ends when the pool does, or when it's announced over. A pending allocation — not a balance, not a promise of value. Not financial advice.</p>`;
     host.querySelectorAll('[data-s1="link"]').forEach(b => b.addEventListener('click', () => link(b)));
     host.querySelectorAll('[data-s1="top"]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const i = document.getElementById('repoIn'); if (i) { i.scrollIntoView({ block: 'center' }); i.focus(); } }));
   }
@@ -103,7 +105,7 @@
     const paint = () => {
       const d = data;
       if (d && d.season && !d.season.open) { el.hidden = true; return; }
-      const r = launchReward(d), max = maxReward(d), name = (d && d.season && d.season.name) || D.name || 'Season 1';
+      const r = launchReward(d), max = maxReward(d), name = (d && d.season && d.season.name) || D.name || 'Season 0';
       const min = (d && d.rules && d.rules.minDevBuySol) || 0, buy = devSol ? devSol() : 0, bought = buy > 0 && buy >= min;
       const k = `<span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span>`;
       const first = d && d.signedIn ? '' : `<a href="${signIn()}">Sign in with X</a> first: `;
@@ -119,9 +121,9 @@
 
   /* ---------- the home page: a strip under the $FORK box ---------- */
   function strip() {
-    const d = data, name = (d && d.season && d.season.name) || D.name || 'Season 1';
+    const d = data, name = (d && d.season && d.season.name) || D.name || 'Season 0';
     if (d && d.season && !d.season.open) return '';
-    return `<a class="s1-strip" href="/launch#season"><span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span><b>Launch coins, earn up to ${fmt(maxReward(d))} ${T}</b><span class="s1-more">+${fmt(launchReward(d))} with a dev buy, then by market cap →</span></a>`;
+    return `<a class="s1-strip" href="/launch#season"><span class="s1-k sm"><span class="s1-dot"></span>${esc(name)}</span><b>Up to ${fmt(maxReward(d))} ${T} a coin</b><span class="s1-more">launch with a dev buy, earn as it grows →</span></a>`;
   }
 
   window.ForksSeason = { load, section, note, strip, link, get: () => data, onChange: f => listeners.push(f) };

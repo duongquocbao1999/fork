@@ -18,14 +18,14 @@ Type anything and watch the GitHub repositories it forked from grow into a graph
 
 </div>
 
-<img src="docs/media/shot-home.png" alt="forks.wiki: the $FORK box (up to 33,000 $FORK: X scan, six trials, invites, GitHub) above the opening graph, from git to forks — git/git to bitcoin/bitcoin ($BTC), then litecoin and dogecoin, ethereum/go-ethereum ($ETH), solana-labs/solana ($SOL) to anza-xyz/agave and jito-solana ($JTO), and solana-foundation/anchor to pump-fun/pump-public-docs ($PUMP) to forkwiki/fork — with the tokens on the graph and their prices in the sidebar" width="100%">
+<img src="docs/media/shot-home.png" alt="forks.wiki: the $FORK box (up to 32,000 $FORK: X scan, five trials, invites, GitHub) above the opening graph, from git to forks — git/git to bitcoin/bitcoin ($BTC), then litecoin and dogecoin, ethereum/go-ethereum ($ETH), solana-labs/solana ($SOL) to anza-xyz/agave and jito-solana ($JTO), and solana-foundation/anchor to pump-fun/pump-public-docs ($PUMP) to forkwiki/fork — with the tokens on the graph and their prices in the sidebar" width="100%">
 
 | | |
 |---|---|
 | **Trace** | type anything — a word, a project, `owner/name` — and get the line of real GitHub repositories it came from |
 | **Trade** | 100+ tokens — coins launched here, 29 project tokens, Solana's top and trending tokens — each with a terminal; you sign every trade in your own wallet |
 | **Launch** | one pump.fun coin per repository; its creator fees go, for good, to the people who wrote the code |
-| **Earn** | **$FORK**, pending: your X account read once, six trials, +2,000 a friend, +3,000 for connecting GitHub — and in **Season 1**, up to 931,000 for every coin you launch |
+| **Earn** | **$FORK**, pending: your X account read once, five trials, +2,000 a friend, +3,000 for connecting GitHub — and in **Season 0**, up to 1,000,000 for every coin you launch |
 
 Four pages, one look:
 
@@ -120,7 +120,7 @@ Set the environment variables in Netlify first, then deploy:
 The $FORK box on the graph page, or `/freeforks`:
 
 1. **Sign in with X.** upstream reads the account first — how long it has been on X, followers, posts, lists, verified — and forks it a one-time pending allocation. The page plays the reading back line by line, then the tokens fly up into the header.
-2. **Six trials**, one at a time, 10,000 together: follow, like, retweet, comment (each counted by the server five seconds after its link opens), **ask upstream anything** (counted when your tree grows), and **quote the post with your fork card** (counted by the link to your quote: your handle, a post newer than your account, never counted twice).
+2. **Five trials**, one at a time, 9,000 together: follow, like, retweet, comment (each counted by the server five seconds after its link opens) and **quote the post with your fork card** (counted by the link to your quote: your handle, a post newer than your account, never counted twice).
 3. **Your fork**: a card drawn like a repository page — the commits that made your allocation, where it came from, your invite link as a clone URL. Copy it as a picture, quote on X, save it; then the Solana wallet.
 
 **Invite**: `forks.wiki/r/<handle>`. +2,000 $FORK, pending, for every friend who signs in through your link and finishes three trials.
@@ -136,7 +136,9 @@ A trial's link opens in a new tab or the X app. If the page reloads meanwhile, i
 </tr>
 </table>
 
-**Season 1 — launch coins, earn $FORK.** Whoever launches a coin earns: nothing for a coin created alone, +1,000 when it's live with a buy at launch, then +10,000 at $10K market cap, +20,000 at $30K, +50,000 when it migrates from the curve, +100,000 at $100K, +250,000 at $500K and +500,000 at $1M — up to 931,000 a coin. The launch counts for the X account signed in when it was sent, or for the one that later proves the launching wallet by signing a message with it; the buy at launch is recorded from the bundle the server built and the wallet signed (it lands with the coin or not at all). Market caps are measured by the server every 10 minutes (a scheduled function: the curve on the chain, or DexScreener's consensus price with $5K+ liquidity) and a milestone counts once seen twice, 10+ minutes apart; migrating is read from the chain. Three launch rewards a day per account, accounts younger than 30 days and forks' own wallet don't earn. The ladder lives in `season_tiers`, the rules in `app_config` (`s1.*`) — `supabase/migrations/0006_season1.sql`, `0007_season1_rewards.sql`. The board: [forks.wiki/launch#season](https://forks.wiki/launch#season).
+**Season 0 — launch coins, earn $FORK.** A pool of 200,000,000 $FORK for the people who launch coins here: nothing for a coin created alone, +1,000 when it's live with a buy at launch, then +10,000 at $10K market cap, +20,000 at $30K, +50,000 when it migrates from the curve, +100,000 at $100K, +250,000 at $500K and +569,000 at $1M — up to 1,000,000 a coin, while the pool lasts. The launch counts for the X account signed in when it was sent, or for the one that later proves the launching wallet by signing a message with it; the buy at launch is recorded from the bundle the server built and the wallet signed (it lands with the coin or not at all). Market caps are measured by the server every 10 minutes (a scheduled function: the curve on the chain, or DexScreener's consensus price with $5K+ liquidity) and a milestone counts once seen twice, 10+ minutes apart; migrating is read from the chain. Three launch rewards a day per account, accounts younger than 30 days and forks' own wallet don't earn. The ladder lives in `season_tiers`, the pool in `seasons.pool`, the rules in `app_config` (`s1.*`) — `supabase/migrations/0006_season1.sql` → `0008_season0.sql`. The board: [forks.wiki/launch#season](https://forks.wiki/launch#season).
+
+**The official $FORK** will live on this repository, `forkwiki/fork`: nobody but forks' treasury can launch a coin on it (`config.launch.reserved`), and until it's launched the market shows it as *not launched yet* — anything called $FORK elsewhere isn't it.
 
 Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and the `scan.*` / `ref.*` knobs in `app_config`. Follow along: [@forkwikis](https://x.com/forkwikis).
 
@@ -188,7 +190,7 @@ src/
   quest.js · config.js   /freeforks, /invite and every public setting
   card.js                your fork as a picture: drawn on a canvas, copied, quoted
   launch.js · wallet.js  coins on repositories: the split, the logo, the launch; Solana wallets (Wallet Standard)
-  season.js              Season 1: the ladder, your coins, the top devs, linking a wallet by its signature
+  season.js              Season 0: the ladder, your coins, the top devs, linking a wallet by its signature
 netlify/
   functions/trace.mjs    one request → one answer: candidates, one model call, the check, the cache
   functions/repos.mjs    GitHub for the fallback
@@ -197,10 +199,10 @@ netlify/
   functions/launch.mjs   the plan, the bundle, the status, the coins on a tree
   functions/market.mjs   the market, one coin, candles, trades, holders, balances, quotes, trades
   functions/ipfs.mjs     IPFS logos through several gateways, images only, cached for good
-  functions/season.mjs · season-tick.mjs · lib/season.mjs    Season 1: the board, wallet links; every 10 minutes the market caps
+  functions/season.mjs · season-tick.mjs · lib/season.mjs    Season 0: the board, wallet links; every 10 minutes the market caps
   lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter (quotes, swaps, token logos, trending and top lists)
   lib/split.mjs · chain.mjs         who gets the fees; IPFS (Pinata), pump.fun transactions, Jito, reading them back
-supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins) → 0005 (GitHub) → 0006, 0007 (Season 1)
+supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, trials) → 0004 (coins) → 0005 (GitHub) → 0006–0008 (Season 0)
 og/                      link-preview cards, one per page (a new file name per version, so chats fetch the new one)
 fonts/                   Anybody and JetBrains Mono, self-hosted (OFL)
 docs/brand/              the X avatar (400, 800; a dark one too) and header (1500×500, 3000×1000), the pages they're drawn from, Mona Sans (OFL)

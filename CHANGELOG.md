@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.4.0 — 2026-11-06
+
+- **Season 0.** The season is now *Season 0*, with a pool of **200,000,000 $FORK**: rewards stop when it's empty, and `/launch` shows what's left. The $1M milestone pays **+569,000**, so a coin can earn exactly **1,000,000 $FORK** (1,000 + 10,000 + 20,000 + 50,000 + 100,000 + 250,000 + 569,000) — "up to 1,000,000" everywhere. `supabase/migrations/0008_season0.sql` (`seasons.pool`, a lock around payments, `api_season` with `pool` and `paid`).
+- **The launch page starts with the repository**: a highlighted first step, *Paste a GitHub repository*, a big input with a *Find* button, and four random crypto repositories to try (from a pool of 55, different on every visit) instead of the same five for everyone. The Season 0 section moved below the steps, with a one-line strip under the input.
+- **The official $FORK can't be copied here.** `forkwiki/fork` is reserved (`config.launch.reserved`): the server refuses a plan or a build on it from anyone but forks' treasury (`/launch?repo=forkwiki/fork&as=<treasury>`). The market shows **$FORK · not launched yet** first, in the strip and the table, until the real one is live.
+- **Market: a *Create a token* button** instead of the big *Launch a coin* card and empty-state block.
+- **Five trials**: "ask upstream anything" is retired (`tasks.active = false`); 9,000 $FORK for the five, up to 32,000 at sign-in. What people already earned from it stays.
+- **X brand**: a darker avatar (the fork mark and its coin on near-black) and calmer coins in the header (plain amber tiles with an embossed coin, no `$`). New home link-preview card (`/og/home-44.png`, Season 0).
+
 ## 4.3.1 — 2026-11-06
 
 - **Season 1's ladder, final**: a coin created alone earns nothing; **+1,000** when it's live with a buy at launch, **+10,000** at $10K market cap, **+20,000** at $30K, **+50,000** when it migrates from the curve, **+100,000** at $100K, **+250,000** at $500K, **+500,000** at $1M — up to 931,000 $FORK a coin. `supabase/migrations/0007_season1_rewards.sql`: `launches.dev_buy_lamports` (recorded at submit from the bundle the server built and the wallet signed — Jito bundles land whole or not at all), the new `season_tiers`, `season_pay` that needs the buy, `api_launch_sent`, `app_config 's1.min_dev_buy_sol'` (0 = any buy). Rewards already credited don't change.

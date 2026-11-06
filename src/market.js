@@ -33,6 +33,27 @@
   };
   const pinFirst = (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
 
+  /* ---------- the official coin ($FORK on forkwiki/fork): until it's launched, say so — so nobody buys a copy ---------- */
+  const TK = (C.token && C.token.ticker) || '$FORK', PIN_NAME = (C.market && C.market.pinRepo) || 'forkwiki/fork';
+  const official = () => forksCoins().some(t => t.pinned);
+  const MARKI = SH.MARK || '';
+  function soonCard() {
+    return `<a class="trend-c fk-c pinned soon" href="https://x.com/${esc(C.x.handle)}" target="_blank" rel="noopener" title="The official ${esc(TK)} isn't launched yet">
+      <span class="tc-top"><span class="mk-img soon-i">${MARKI}</span><span class="tc-n"><b>${esc(TK)}</b><small>official · forks</small></span></span>
+      <span class="tc-repo">${REPO}<span>${esc(PIN_NAME)}</span></span>
+      <span class="tc-p"><span class="label amber">not launched yet</span></span>
+      <span class="tc-c"><small>anything called ${esc(TK)} elsewhere isn't it · follow @${esc(C.x.handle)}</small></span>
+    </a>`;
+  }
+  function soonRow() {
+    return `<a class="mk-r pinned soon" href="https://x.com/${esc(C.x.handle)}" target="_blank" rel="noopener">
+        <span class="mk-id"><span class="mk-img soon-i">${MARKI}</span>
+          <span class="mk-n"><b><span>${esc(TK)}</span><span class="label amber">not launched yet</span></b><small>${REPO}${esc(PIN_NAME)} · the official coin of forks</small></span></span>
+        <span class="mk-v">—</span><span class="mk-v hide-m">—</span><span class="mk-v">—</span><span class="mk-v hide-m">—</span>
+        <span class="mk-act"><span class="btn sm">Follow</span></span>
+      </a>`;
+  }
+
   /* ---------- on forks ---------- */
   const forksCoins = () => (data ? data.coins : []).map(t => ({ ...t, kind: 'forks', pinned: !!PIN && String(t.repo || '').toLowerCase() === PIN }));
   const ranked = () => forksCoins().sort(heat).sort(pinFirst);
@@ -42,14 +63,14 @@
     $('#nForks').textContent = all.length;
     const list = all.filter(t => matches(t, q)).sort(SORT[$('#fkSort').value] || heat).sort(pinFirst);
     const host = $('#fkRows');
-    if (!all.length) { host.innerHTML = `<div class="blank"><h3>No coins yet</h3><p>Every repository can have one. Its creator fees go to the people who wrote the code, for good.</p><a class="btn primary" href="/launch">Launch the first one</a></div>`; return; }
-    host.innerHTML = list.length ? list.map(row).join('') : `<div class="blank"><h3>No coin on forks matches</h3><p>Try a ticker, a name, a repository or an address.</p></div>`;
+    const soon = !official() && (!q || matches({ symbol: TK.replace(/^\$/, ''), name: 'fork', repo: PIN_NAME }, q)) ? soonRow() : '';
+    if (!all.length) { host.innerHTML = soon + '<p class="mk-none muted">No coins launched here yet. <a href="/launch">Create the first one</a>.</p>'; return; }
+    host.innerHTML = soon + (list.length ? list.map(row).join('') : `<p class="mk-none muted">No coin on forks matches. Try a ticker, a name, a repository or an address.</p>`);
   }
   function forksStrip() {
     if (!data) return;
     const list = ranked().slice(0, 12), host = $('#fkTrend');
-    const cta = `<a class="trend-c fk-cta" href="/launch"><span class="tc-plus">+</span><b>Launch a coin</b><small>on any GitHub repository — its creator fees go to the people who wrote it</small></a>`;
-    host.innerHTML = list.map((t, i) => {
+    host.innerHTML = (official() ? '' : soonCard()) + list.map((t, i) => {
       const m = v(t), cv = t.curve, ch = m.change1 != null ? m.change1 : m.change24, lab = m.change1 != null ? '1h' : '24h';
       return `<a class="trend-c fk-c${t.pinned ? ' pinned' : ''}" href="/coin/${esc(t.mint)}">
         <span class="tc-top"><span class="mk-img">${SH.logo(t.image || m.image, t.symbol)}</span><span class="tc-n"><b>$${esc(t.symbol)}</b><small>${t.pinned ? 'pinned · forks' : `#${i + 1 - (list[0] && list[0].pinned ? 1 : 0)} on forks`}</small></span></span>
@@ -58,7 +79,7 @@
         <span class="tc-c ${ch == null ? '' : ch >= 0 ? 'up' : 'dn'}">${pct(ch)} <small>${ch == null ? '' : lab}</small>${m.volume24 ? ` <small>· vol ${usd(m.volume24)}</small>` : ''}</span>
         ${cv ? `<span class="prog${cv.complete ? ' done' : ''}" title="${cv.complete ? 'graduated' : `bonding curve ${Math.round(cv.progress || 0)}%`}"><i style="width:${Math.max(2, cv.complete ? 100 : cv.progress || 0)}%"></i></span>` : ''}
       </a>`;
-    }).join('') + cta;
+    }).join('');
   }
 
   /* ---------- Solana: project tokens and Jupiter's top, each once (a coin launched here is listed above) ---------- */
