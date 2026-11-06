@@ -22,6 +22,9 @@
   external_node_modules = ["@pump-fun/pump-sdk", "@solana/web3.js", "@solana/spl-token", "@coral-xyz/anchor", "bn.js"]
 [functions.market]
   external_node_modules = ["@pump-fun/pump-sdk", "@solana/web3.js", "@solana/spl-token", "@coral-xyz/anchor", "bn.js"]
+# Season 1: measures the coins on the chain every 10 minutes (a scheduled function, no URL)
+[functions.season-tick]
+  external_node_modules = ["@pump-fun/pump-sdk", "@solana/web3.js", "@solana/spl-token", "@coral-xyz/anchor", "bn.js"]
 
 [[headers]]
   for = "/*"

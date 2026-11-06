@@ -11,14 +11,15 @@
 // Env: SOLANA_RPC_URL (secret), SUPABASE_*, SESSION_SECRET (signs the tickets), GITHUB_TOKEN; JITO_URL optional.
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import C from '../../src/config.js';
-import { json, rpc as db, sameOrigin, seal, siteOrigin, unseal } from '../lib/server.mjs';
+import { json, rpc as db, sameOrigin, seal, session, siteOrigin, unseal } from '../lib/server.mjs';
+import { markets } from '../lib/markets.mjs';
 import { NAME } from '../lib/github.mjs';
 import { plan } from '../lib/split.mjs';
 import { BASE58, build, checkSigned, cosign, ipfsReady, landed, newMint, sdkStatus, sendBundle, uploadMetadata } from '../lib/chain.mjs';
 
 const L = C.launch;
 const SYMBOL = /^[A-Z0-9]{2,10}$/;
-const plans = new Map(), market = new Map(), hits = new Map();
+const plans = new Map(), hits = new Map();
 const err = (code, status = 400, extra = {}) => json({ ok: false, error: code, ...extra }, status);
 function limited(key, n) {
   const now = Date.now(), list = (hits.get(key) || []).filter(t => now - t < 60_000);
@@ -81,22 +82,10 @@ function describe(p) {
     `${p.holders.some(h => h.kind === 'wallet') ? `, ${pct(L.split.forks)} forks` : ''}. Not made or endorsed by the repository's authors. Not financial advice.`;
 }
 
+// market data for the coins on a tree: the same consensus pick as the market (one broken pool can't skew it)
 async function marketData(mints) {
-  const now = Date.now(), todo = mints.filter(m => { const e = market.get(m); return !e || now - e.at > 60e3; });
-  if (todo.length) {
-    try {
-      const r = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${todo.slice(0, 30).join(',')}`, { signal: AbortSignal.timeout(3500) });
-      const pairs = r.ok ? await r.json() : [];
-      const best = new Map();
-      for (const p of Array.isArray(pairs) ? pairs : []) {
-        const m = p.baseToken && p.baseToken.address; if (!m) continue;
-        const cur = best.get(m);
-        if (!cur || (p.liquidity && p.liquidity.usd || 0) > (cur.liquidity && cur.liquidity.usd || 0)) best.set(m, p);
-      }
-      for (const m of todo) { const p = best.get(m); market.set(m, { at: now, v: p ? { mcap: p.marketCap || p.fdv || null, price: p.priceUsd ? Number(p.priceUsd) : null, change24: p.priceChange ? p.priceChange.h24 : null, url: p.url } : null }); }
-    } catch (_) { }
-  }
-  const out = {}; for (const m of mints) { const e = market.get(m); out[m] = e ? e.v : null; }
+  const m = await markets(mints.slice(0, 90)).catch(() => ({})), out = {};
+  for (const k of mints) { const v = m[k]; out[k] = v ? { mcap: v.mcap, price: v.price, change24: v.change24, url: v.url } : null; }
   return out;
 }
 
@@ -173,7 +162,9 @@ export default async (req, context) => {
         fee: C.trade.feeBps > 0 && L.treasury ? { bps: C.trade.feeBps, to: L.treasury } : null });
       const r = await db('api_launch_reserve', { p_repo: p.repo, p_repo_name: p.repo, p_wallet: wallet, p_mint: b.mint, p_symbol: symbol, p_name: name, p_uri: meta.uri, p_image: meta.image, p_split: p.holders });
       if (!r || !r.ok) return err((r && r.error) || 'reserve', 409);
-      return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret) }, 150) });
+      // Season 1: the X account signed in now earns for this coin, once its wallet has signed it (submit)
+      const who = session(req);
+      return json({ ok: true, mint: b.mint, txs: b.txs, created: b.missing, bought: b.bought, ticket: seal({ k: 'send', repo: p.repo, mint: b.mint, wallet, hashes: b.hashes, key: lock(b.secret), u: who ? who.uid : null }, 150) });
     }
 
     if (path === '/api/launch/submit') {
@@ -184,7 +175,8 @@ export default async (req, context) => {
       const bad = checkSigned(body.txs, t.hashes, t.wallet, t.mint);
       if (bad) return err('bad_signed', 400, { why: bad });
       const bundle = await sendBundle(cosign(body.txs, secret));
-      return json({ ok: true, bundle, mint: t.mint });
+      if (t.u) { try { await db('api_launch_attach', { p_user: t.u, p_mint: t.mint, p_wallet: t.wallet }); } catch (e) { if (!NO_FN(e)) console.error('attach', e.message); } }
+      return json({ ok: true, bundle, mint: t.mint, season: !!t.u });
     }
     return err('not_found', 404);
   } catch (e) {

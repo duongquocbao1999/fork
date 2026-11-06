@@ -25,7 +25,7 @@ Type anything and watch the GitHub repositories it forked from grow into a graph
 | **Trace** | type anything — a word, a project, `owner/name` — and get the line of real GitHub repositories it came from |
 | **Trade** | 100+ tokens — coins launched here, 29 project tokens, Solana's top and trending tokens — each with a terminal; you sign every trade in your own wallet |
 | **Launch** | one pump.fun coin per repository; its creator fees go, for good, to the people who wrote the code |
-| **Earn** | **$FORK**, pending: your X account read once, six trials, +2,000 a friend, +3,000 for connecting GitHub |
+| **Earn** | **$FORK**, pending: your X account read once, six trials, +2,000 a friend, +3,000 for connecting GitHub — and in **Season 1**, up to 295,000 for every coin you launch |
 
 Four pages, one look:
 
@@ -136,6 +136,8 @@ A trial's link opens in a new tab or the X app. If the page reloads meanwhile, i
 </tr>
 </table>
 
+**Season 1 — launch coins, earn $FORK.** Whoever launches a coin earns: +5,000 when it's live, then +5,000 at $10K market cap, +10,000 at $30K, +25,000 when it graduates from the curve, +25,000 at $100K, +75,000 at $500K and +150,000 at $1M — up to 295,000 a coin. The launch counts for the X account signed in when it was sent, or for the one that later proves the launching wallet by signing a message with it. Market caps are measured by the server every 10 minutes (a scheduled function: the curve on the chain, or DexScreener's consensus price with $5K+ liquidity) and a milestone counts once seen twice, 10+ minutes apart; graduating is read from the chain. Three launch rewards a day per account, accounts younger than 30 days and forks' own wallet don't earn. The ladder lives in `season_tiers`, the rules in `app_config` (`s1.*`) — `supabase/migrations/0006_season1.sql`. The board: [forks.wiki/launch#season](https://forks.wiki/launch#season).
+
 Allocations are **pending**, never a balance. The X account and the post live in `src/config.js`; the amounts in the database — `tasks.reward` for the trials, `scan_lines()` and the `scan.*` / `ref.*` knobs in `app_config`. Follow along: [@forkwikis](https://x.com/forkwikis).
 
 ## Coins on repositories
@@ -186,6 +188,7 @@ src/
   quest.js · config.js   /freeforks, /invite and every public setting
   card.js                your fork as a picture: drawn on a canvas, copied, quoted
   launch.js · wallet.js  coins on repositories: the split, the logo, the launch; Solana wallets (Wallet Standard)
+  season.js              Season 1: the ladder, your coins, the top devs, linking a wallet by its signature
 netlify/
   functions/trace.mjs    one request → one answer: candidates, one model call, the check, the cache
   functions/repos.mjs    GitHub for the fallback
@@ -194,11 +197,13 @@ netlify/
   functions/launch.mjs   the plan, the bundle, the status, the coins on a tree
   functions/market.mjs   the market, one coin, candles, trades, holders, balances, quotes, trades
   functions/ipfs.mjs     IPFS logos through several gateways, images only, cached for good
+  functions/season.mjs · season-tick.mjs · lib/season.mjs    Season 1: the board, wallet links; every 10 minutes the market caps
   lib/markets.mjs        DexScreener, GeckoTerminal, Jupiter (quotes, swaps, token logos, trending and top lists)
   lib/split.mjs · chain.mjs         who gets the fees; IPFS (Pinata), pump.fun transactions, Jito, reading them back
-supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins) → 0005 (GitHub)
+supabase/migrations/     the database, closed to anon: 0001 → 0002 (scan) → 0003 (invites, six trials) → 0004 (coins) → 0005 (GitHub) → 0006 (Season 1)
 og/                      link-preview cards, one per page (a new file name per version, so chats fetch the new one)
 fonts/                   Anybody and JetBrains Mono, self-hosted (OFL)
+docs/brand/              the X avatar (400, 800) and header (1500×500, 3000×1000), and the pages they're drawn from
 ```
 
 More: [docs/UPSTREAM.md](docs/UPSTREAM.md) · [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) · [docs/DECISIONS.md](docs/DECISIONS.md) · [CHANGELOG.md](CHANGELOG.md)

@@ -504,10 +504,14 @@
     }
     earn.classList.toggle('closed', !open);
     earn.innerHTML = `<div class="earn-top">${top}</div><div class="earn-steps${me && !gh ? ' three' : ''}">${tiles}</div>
+      ${window.ForksSeason ? window.ForksSeason.strip() : ''}
       <p class="earn-fine"><span class="long">A pending allocation for the people who spread the line — not a balance, not a promise of value. Not financial advice.</span><span class="short">Pending allocation · not a balance · not financial advice</span></p>`;
   }
 
-  QUEST.onChange(paintEarn);
+  let lastEarn = null;
+  QUEST.onChange(st => { lastEarn = st; paintEarn(st); });
+  // Season 1: the strip under the box shows the season's own numbers once they're in
+  if (window.ForksSeason) { window.ForksSeason.onChange(() => { if (lastEarn) paintEarn(lastEarn); }); window.ForksSeason.load(); }
 
   /* ---------- the showcase: the graph the page opens with ---------- */
   // the showcase grows once a visit; after a reload (back from x, a trial's link) it's simply there

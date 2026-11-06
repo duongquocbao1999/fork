@@ -1,6 +1,6 @@
 {
   "name": "forks",
-  "version": "4.2.1",
+  "version": "4.3.0",
   "description": "Type anything and watch the line of GitHub repositories it came from grow \u2014 every point a real repo, checked against GitHub. Launch a pump.fun coin on any repository, its creator fees split for good to the people who wrote the code. Plus $FORK trials with sign-in with X.",
   "license": "MIT",
   "private": false,

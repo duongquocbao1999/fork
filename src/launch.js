@@ -274,10 +274,12 @@
       <div class="ln-go"><button class="q-btn" type="button" data-a="go">Connect a wallet</button><span class="ln-w"></span></div>
       <div class="ln-ws" hidden></div>
       <p class="q-note ln-cost">Your wallet pays pump.fun's account rent, ${plan.holders.filter(h => h.kind === 'github').length > 0 ? 'any missing GitHub fee accounts, ' : ''}a ${L.tipSol} SOL tip and anything you buy, and shows the total before you sign. One coin per repository · ${L.perDay} a day per wallet.</p>
+      <p class="s1-note" data-s1 hidden></p>
       <ol class="ln-steps" hidden></ol>`;
     const el = o.box || host;
     const $ = s => host.querySelector(s);
     const cv = $('canvas'), symIn = $('[name="symbol"]'), nameIn = $('[name="name"]'), okIn = $('[name="ok"]'), go = $('[data-a="go"]'), devIn = $('[name="dev"]'), xIn = $('[name="x"]');
+    if (window.ForksSeason) window.ForksSeason.note($('[data-s1]'));
     let seed = 0, uploaded = false, busy = false, drawT = 0;
     const redraw = () => { if (!uploaded) drawLogo(cv, repo, symIn.value.toUpperCase(), seed); };
     redraw();
@@ -421,7 +423,8 @@
         await new Promise(r => setTimeout(r, 2500));
         const st = await api('/api/launch/status?mint=' + encodeURIComponent(b.mint));
         if (st.ok && st.state === 'live') {
-          step('land', 'ok', 'Live: the coin and its locked split are on the chain');
+          step('land', 'ok', 'Live: the coin and its locked split are on the chain' + (s.season ? ` · ${(C.season && C.season.name) || 'Season 1'}: it earns ${(C.token && C.token.ticker) || '$FORK'} for you` : ''));
+          if (window.ForksSeason) window.ForksSeason.load(true);
           lock(true); go.textContent = `$${symbol} is live`; el.classList.add('done');
           walletViews.delete(paint);
           const coin = { repo, mint: b.mint, symbol, name, image: st.coin && st.coin.image, split: plan.holders, live_at: new Date().toISOString(), market: null };

@@ -87,6 +87,19 @@
     return out.map(o => bytesToB64(o.signedTransaction));
   }
 
+  // sign a plain-text message (Season 1: prove a wallet); free, moves nothing
+  async function signText(text) {
+    if (!current || !account) throw fail('not_connected');
+    const f = current.features['solana:signMessage'];
+    if (!f || typeof f.signMessage !== 'function') throw fail('no_sign_message');
+    let out;
+    try { out = await f.signMessage({ account, message: new TextEncoder().encode(text) }); }
+    catch (e) { throw fail(rejected(e) ? 'rejected' : 'sign', e); }
+    const o = Array.isArray(out) ? out[0] : out;
+    if (!o || !o.signature) throw fail('sign');
+    return bytesToB64(o.signature);
+  }
+
   // no wallet in this browser (the X app, a phone browser): reopen this page inside a wallet's own browser
   const mobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
   function openIn(url) {
@@ -107,5 +120,5 @@
     try { return await connect(name, { silent: true }); } catch (_) { return null; }
   }
 
-  window.ForksWallet = { list, connect, disconnect, sign, state, short, mobile, openIn, install, resume, onChange: f => { listeners.push(f); } };
+  window.ForksWallet = { list, connect, disconnect, sign, signText, state, short, mobile, openIn, install, resume, onChange: f => { listeners.push(f); } };
 })();

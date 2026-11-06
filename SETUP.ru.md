@@ -47,8 +47,9 @@
    - `supabase/migrations/0003_refs.sql` — шесть заданий, квоут, рефералка;
    - `supabase/migrations/0004_launch.sql` — монеты на репозиториях (раздел 5.7);
    - `supabase/migrations/0005_github.sql` — необязательное задание «подключи GitHub» (раздел 5.9).
+   - `supabase/migrations/0006_season1.sql` — Season 1: $FORK за запуск монет (раздел 5.11).
 
-   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 4.0 (schema 4) — достаточно `0005_github.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
+   Все можно запускать повторно, суммы и версия схемы при этом не сбрасываются; порядок важен. Если база уже на 4.1–4.2 (schema 5) — достаточно `0006_season1.sql`. Чего не хватает, показывает `migrations` в `/api/health`; пока миграция не запущена, вход работает по старой схеме.
 3. Advisors → Security: не должно быть «RLS disabled».
 4. Project Settings → API (или API Keys):
    - `SUPABASE_URL` = Project URL;
@@ -142,6 +143,9 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm start   # настоящий 
 | Терминал: «The network refused it: …» | RPC отклонил транзакцию при симуляции: чаще всего проскальзывание (цена ушла) или мало SOL на комиссию |
 | Терминал: нет графика / «No candles yet» | Монета на кривой: ещё не было сделок (с 4.2 график строится из сделок на цепи, нужен `SOLANA_RPC_URL`). Монета после кривой и другие токены: GeckoTerminal ещё не проиндексировал пул или упёрся в свой лимит (30 запросов в минуту) |
 | Нереальная цена токена (в тысячи раз больше), а график нормальный | В DexScreener есть сломанный пул с неверной ценой и раздутой «ликвидностью». С 4.2.1 пул выбирается по согласию рынка (пулы в пределах 3× друг от друга, вес — число сделок) или по цене Jupiter, сломанные отбрасываются. Если всё равно видно — написать адрес токена |
+| Season 1: монета запущена, а +5 000 не пришло | Запускали без входа через X (тогда — Link a wallet на `/launch#season`), X-аккаунт младше 30 дней, уже 3 засчитанных запуска за сутки, кошелёк в `season_excluded` (treasury) или не запущена `0006_season1.sql` |
+| Season 1: капа выше порога, а награды нет | Засчитывается, когда `season-tick` увидит капу дважды с разницей 10+ минут; после кривой нужна ликвидность от $5 000. Scheduled-функции работают только на продакшене — проверить логи `season-tick` в Netlify |
+| «Link a wallet»: «This wallet can’t sign messages» | Кошелёк не поддерживает `solana:signMessage`; Phantom, Solflare и Backpack поддерживают |
 | Терминал: сделки свежей монеты появляются с задержкой | До 4.2 сделки брались только у GeckoTerminal (он индексирует минуты). С 4.2 у монеты на кривой — с цепи, задержка ≈5 с. Если всё равно пусто — RPC не отвечает или упёрся в лимит (Helius free: смотри дашборд) |
 | Котировка: «forks fee: none» на сделке через Jupiter | Нет `JUP_REFERRAL_ACCOUNT` или не было редеплоя (`/api/health` → `trade.jupiter_fee`). Сделки на кривой берут 0,5% и без него |
 | Сделка или запуск с кошелька treasury, а 0,5% «не пришли» | До 4.2.1 комиссия уходила с treasury на treasury (в эксплорере — перевод «Self»), то есть никуда. С 4.2.1 с кошелька treasury комиссия не берётся (в котировке: «none · forks’ own wallet»). Проверять комиссию — сделкой с другого кошелька |
@@ -306,6 +310,45 @@ Creator fees копятся в хранилище монеты на pump.fun; р
 
 ⚠️ Не проверено вживую: реферальная комиссия Jupiter (на стенде — поддельный Jupiter, который возвращает `referralAccount`), интерфейс referral.jup.ag, кнопки распределения на pump.fun (на цепи это `distribute_creator_fees` из SDK pump.fun 4.3.1). Перевод 0,5% на кривой — обычный `SystemProgram.transfer`, проверен на стенде с настоящими подписями. Первая сделка — на маленькую сумму, потом посмотреть treasury в Solscan.
 
+## 5.11. Season 1: $FORK за запуск монет (4.3)
+
+Дев (тот, кто запустил монету) получает pending $FORK:
+
+| За что | Сколько | Когда засчитывается |
+|---|---|---|
+| Монета запущена | +5 000 | сразу, как сервер прочитал монету и сплит с цепи (не больше 3 запусков в сутки на X-аккаунт) |
+| Капа $10K | +5 000 | капа увидена дважды с разницей 10+ минут |
+| Капа $30K | +10 000 | так же |
+| Выход с кривой (graduate) | +25 000 | сразу, читается с цепи |
+| Капа $100K | +25 000 | дважды, 10+ минут |
+| Капа $500K | +75 000 | дважды, 10+ минут |
+| Капа $1M | +150 000 | дважды, 10+ минут |
+
+До 295 000 $FORK за одну монету. Суммы — таблица `season_tiers`, правила — `app_config` (`s1.launch_per_day`, `s1.min_age_days`, `s1.confirm_minutes`, `s1.wallets_max`).
+
+**Кто дев.** Если при запуске человек вошёл через X — монета засчитывается этому X-аккаунту (сервер берёт пользователя из сессии и привязывает после того, как кошелёк подписал транзакции). Если запускал без входа — потом входит через X и на `/launch#season` жмёт **Link a wallet**: кошелёк подписывает текстовое сообщение (бесплатно, ничего не списывает), сервер проверяет подпись ed25519 — и все монеты этого кошелька засчитываются ему. Один кошелёк — один X-аккаунт навсегда, до 5 кошельков на аккаунт.
+
+**Как меряется капа.** Scheduled-функция `season-tick` раз в 10 минут: монета на кривой — капа из самой кривой на цепи (через `SOLANA_RPC_URL`); после кривой — консенсус-цена DexScreener и только при ликвидности от $5 000. Клиент ничего не присылает. Scheduled-функции Netlify работают только на продакшен-деплое; логи — Netlify → Logs → Functions → `season-tick`.
+
+**Не засчитывается:** монеты с кошелька treasury (`season_excluded`), X-аккаунты младше 30 дней, репозитории из `launch_blocklist`, монеты после конца сезона.
+
+**Включить:** запустить `0006_season1.sql` в SQL Editor (сезон стартует в момент запуска миграции) → задеплоить → `/api/health` → `season.ready: true` → открыть `/api/season`.
+
+Админ-сниппеты сезона:
+```sql
+-- кто и сколько заработал
+select p.x_username, sum(l.amount) earned, count(*) filter (where l.reason = 's1_launch') launches
+from ledger l join profiles p on p.id = l.user_id where l.idempotency_key like 's1:%' group by 1 order by 2 desc limit 50;
+-- что сервер видел по монетам (first_at — первый раз, confirmed_at — засчитано)
+select l.symbol, l.repo_name, s.tier, s.first_at, s.confirmed_at from season_seen s join launches l on l.mint = s.mint order by s.first_at desc limit 50;
+-- поменять награды (уже начисленное не меняется)
+update season_tiers set reward = 10000 where season = 1 and id = 'launch';
+-- исключить кошелёк (свой, маркетинговый)
+insert into season_excluded (wallet, note) values ('<адрес>', 'team') on conflict do nothing;
+-- закончить сезон
+update seasons set ends_at = now() where id = 1;
+```
+
 ## 6. Админ-сниппеты (SQL Editor)
 
 ```sql
@@ -339,6 +382,14 @@ from task_completions c join profiles p on p.id = c.user_id where c.task_id = 'q
 
 -- Деревья и репозитории по людям (статистика с карточки «your fork»)
 select x_username, traces, repos_seen from profiles order by traces desc limit 20;
+
+-- Убрать с сайта тестовые монеты (например, запущенные с кошелька treasury). Монеты остаются на цепи,
+-- forks перестаёт их показывать, репозитории снова свободны для запуска. Сначала посмотреть:
+select repo_name, symbol, mint, wallet, status, live_at from launches order by created_at;
+-- потом удалить (поменять адрес, если тестировали с другого кошелька):
+delete from season_seen where mint in (select mint from launches where wallet = '61468ik7HhYNg8ixQYeF9caMNVm57PqTy3tyQ28F6Y5e');
+delete from launches where wallet = '61468ik7HhYNg8ixQYeF9caMNVm57PqTy3tyQ28F6Y5e';
+delete from launch_attempts where wallet = '61468ik7HhYNg8ixQYeF9caMNVm57PqTy3tyQ28F6Y5e';
 
 -- Монеты: последние запуски и кто запускал
 select repo_name, symbol, mint, status, wallet, created_at, live_at from launches order by created_at desc limit 50;

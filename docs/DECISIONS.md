@@ -75,3 +75,10 @@ Non-obvious choices, one line of why each.
 - **A price is what the market agrees on** — one broken pool on DexScreener (MET at $1,354 instead of $0.27) carried a fake "liquidity" big enough to win the deepest-pool rule. Pools are now grouped by price; the group with the most trades — a count a wrong price can't inflate — or the one holding Jupiter's price wins, and the deepest pool inside it is used.
 - **No words on the logo** — a ticker baked into the image is cropped by pump.fun's circle, unreadable at 32 px, and wrong the moment the ticker changes. A centred glyph in the family style reads at any size; the ticker lives next to it, where wallets put it.
 - **The treasury doesn't pay itself** — a fee transfer from the treasury to the treasury is a no-op that only confuses the explorer; it is left out, and the quote says so.
+
+## 4.3 — Season 1
+
+- **Pay the dev in the allocation, not in SOL** — the people who launch coins are forks' growth; rewarding them in pending $FORK costs nothing today and ties them to the project. A fixed reward for the launch, the rest for growth, so the season pays for coins people actually trade, not for spam.
+- **Measured by us, twice** — a market cap is read by the server (the curve on the chain, or a consensus price with real liquidity), never sent by a page, and a milestone needs two sightings ten minutes apart: one wash-traded spike isn't enough. Graduation is a fact on the chain and pays at once.
+- **The dev is an X account, proven twice over** — signed in when the wallet signed the launch, or a wallet that signs a message for the account later. One wallet, one account, for good; five wallets at most. Three launch rewards a day and an account-age floor make farming with fresh accounts and dust coins cost more than it earns.
+- **Everything is a knob** — amounts in `season_tiers`, rules in `app_config`, the end in `seasons.ends_at`, team wallets in `season_excluded`. Rewards already credited never change.

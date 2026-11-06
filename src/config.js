@@ -81,7 +81,10 @@
       feeBps: 50
     },
     // the market: the coin launched on this repository is pinned first, wherever it would sort
-    market: { pinRepo: 'forkwiki/fork' }
+    market: { pinRepo: 'forkwiki/fork' },
+    // Season 1: $FORK for launching coins. What's shown before /api/season answers; the database
+    // (season_tiers, app_config s1.*) decides what is actually paid.
+    season: { id: 1, name: 'Season 1', launch: 5000, max: 295000 }
   };
   // the project token of a repository, by its GitHub owner
   CONFIG.projectOf = repo => {

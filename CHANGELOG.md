@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.3.0 — 2026-11-06
+
+- **Season 1: launch coins, earn $FORK.** The dev of every coin launched here earns a pending $FORK allocation: +5,000 when it's live, +5,000 at $10K market cap, +10,000 at $30K, +25,000 when it graduates from the curve, +25,000 at $100K, +75,000 at $500K, +150,000 at $1M — up to 295,000 a coin. `supabase/migrations/0006_season1.sql`: `seasons`, `season_tiers`, `season_seen`, `season_excluded`, `dev_wallets`, `launches.dev_user`; every reward goes through `credit()` with one idempotency key (`s1:launch:<mint>`, `s1:cap:<mint>:<tier>`).
+  - **Who's the dev**: the X account signed in when the launch was sent (attached after the wallet's signatures check out), or the one that later links the launching wallet by signing a text message with it (`/api/season/link`, ed25519 checked on the server; one X account per wallet, up to five wallets).
+  - **Market caps measured by the server**: `season-tick`, a scheduled function every 10 minutes — the curve on the chain for coins still on it, DexScreener's consensus price with $5K+ liquidity after it; a milestone counts once seen twice, 10+ minutes apart; graduating is read from the chain. The page never sends an amount, a cap or a user.
+  - **Limits**: three launch rewards a day per X account, accounts younger than 30 days don't earn, forks' treasury never earns, nothing after the season ends. All tunable (`app_config s1.*`, `season_tiers`).
+  - **On the site**: a Season 1 section on `/launch` (the ladder, your season with your coins and the milestones they reached, *Link a wallet*, the top devs), a line in the launch form (*this launch earns you +5,000 $FORK*), a strip under the $FORK box on the home page. `/api/health` → `season`.
+- **The terminal's coins on a tree use the market's consensus price** (`/api/tokens`), like the rest of the site.
+- **Brand for X**: a new avatar (the fork mark with the coin at its tip) and header (*Every repo has a lineage. Some have coins.* over git → bitcoin → solana → pump.fun → your repo), in `docs/brand/`.
+- The season ladder is compact on phones.
+
 ## 4.2.1 — 2026-11-06
 
 - **The market leads with forks.** *On forks* is the first section: its own *Trending on forks* strip — the coins launched here, ranked by trading over the last hour, then the day, then market cap; the coin on `forkwiki/fork` pinned first; a *Launch a coin* card at the end — then every coin launched here, sortable (trending, market cap, volume, change, newest, curve). *Solana* comes second: Jupiter's trending strip, then the project tokens and Solana's top tokens. One filter for both. Old `?tab=` links land on the Solana list they meant.
