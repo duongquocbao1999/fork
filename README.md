@@ -12,7 +12,7 @@ Type anything and watch the GitHub repositories it forked from grow into a graph
 [![License: MIT](https://img.shields.io/badge/license-MIT-21262d?style=flat-square&labelColor=0d1117)](LICENSE)
 [![No build](https://img.shields.io/badge/vanilla%20JS-no%20build-21262d?style=flat-square&labelColor=0d1117)](src)
 [![pump.fun](https://img.shields.io/badge/coins-pump.fun-d29922?style=flat-square&labelColor=0d1117)](#coins-on-repositories)
-[![$FORK](https://img.shields.io/badge/%24FORK-up%20to%2033%2C000-d29922?style=flat-square&labelColor=0d1117)](#fork)
+[![$FORK](https://img.shields.io/badge/%24FORK-up%20to%2032%2C000-d29922?style=flat-square&labelColor=0d1117)](#fork)
 [![Tokens](https://img.shields.io/badge/project%20tokens-29-4493f8?style=flat-square&labelColor=0d1117)](#the-terminal)
 [![X](https://img.shields.io/badge/x-%40wikifork-21262d?style=flat-square&labelColor=0d1117&logo=x)](https://x.com/wikifork)
 
@@ -125,7 +125,7 @@ The $FORK box on the graph page, or `/freeforks`:
 
 **Invite**: `forks.wiki/r/<handle>`. +2,000 $FORK, pending, for every friend who signs in through your link and finishes three trials.
 
-**Connect GitHub** (optional, `/github`): +3,000 $FORK, once. GitHub's own OAuth with no scopes (the public profile only), done in `netlify/functions/auth-github.mjs`; the token is revoked at once. One GitHub per X account, for good; accounts younger than 30 days (`app_config 'github.min_age_days'`) don't count. It sits beside the six trials and never counts toward them or toward a referral.
+**Connect GitHub** (optional, `/github`): +3,000 $FORK, once. GitHub's own OAuth with no scopes (the public profile only), done in `netlify/functions/auth-github.mjs`; the token is revoked at once. One GitHub per X account, for good; accounts younger than 30 days (`app_config 'github.min_age_days'`) don't count. It sits beside the five trials and never counts toward them or toward a referral.
 
 A trial's link opens in a new tab or the X app. If the page reloads meanwhile, it comes back to the trials and counts the one you opened (the server's clock started when you opened it); the graph grows once a visit, not on every reload.
 
